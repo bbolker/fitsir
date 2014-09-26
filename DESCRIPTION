@@ -6,5 +6,10 @@ Author: Ben Bolker [aut, cre]
 Description: Fit dynamical models to epidemic data
 VignetteBuilder: knitr
 LazyData: yes
+Imports:
+    bbmle,
+    deSolve
+Suggests:
+    knitr
 License: GPL (>=2)
 BuildVignettes: yes

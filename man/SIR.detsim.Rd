@@ -5,6 +5,13 @@
 \usage{
 SIR.detsim(t, params, func = SIR.grad)
 }
+\arguments{
+\item{t}{time vector}
+
+\item{params}{parameter vector (beta, gamma, N, i0)}
+
+\item{func}{gradient function}
+}
 \description{
 deterministic trajectory of SIR
 }

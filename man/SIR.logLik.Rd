@@ -6,7 +6,7 @@
 SIR.logLik(params, count, tvec = NULL, debug = FALSE)
 }
 \arguments{
-\item{params}{}
+\item{params}{parameter vector (log.N0, logit.i0, log.beta, log.gamma)}
 
 \item{count}{data (epidemic counts for each time period)}
 

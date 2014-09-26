@@ -1,5 +1,10 @@
 
 ##' Starting function
+##' @rdname trans.pars
+##' @param log.beta log of per capita transmission rate
+##' @param log.gamma log of recovery/removal rate
+##' @param log.N log of population size
+##' @param logit.i logit of initial proportion infectious
 ##' @export
 startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
          log.N=log(10000),logit.i=qlogis(0.01)) {
@@ -69,6 +74,9 @@ summary.pars <- function(params) {
 
 ##' deterministic trajectory of SIR
 ##' @importFrom deSolve ode
+##' @param t time vector
+##' @param params parameter vector (beta, gamma, N, i0)
+##' @param func gradient function
 ##' @export
 SIR.detsim <- function(t, params, func=SIR.grad) {
     odesol <- with(as.list(params),
@@ -81,7 +89,8 @@ SIR.detsim <- function(t, params, func=SIR.grad) {
 }
 
 ##' Normal log-likelihood for SIR trajectory
-##' @param params
+##' 
+##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
 ##' @param tvec time vector
 ##' @param debug print debugging output?

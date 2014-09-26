@@ -5,6 +5,7 @@
 ##' n.b. fitting obviously isn't working right yet.
 ##' 
 ##' @docType data
+##' @encoding UTF-8
 ##' @keywords datasets
 ##' @name bombay
 ##' @usage data(bombay)
@@ -14,8 +15,14 @@
 ##' par(las=1,bty="l")
 ##' plot(mort~week,data=bombay)
 ##' \dontrun{
+##' ## NONE OF THESE ACTUALLY WORK RELIABLY!
 ##' ff <- fitsir(setNames(bombay,c("tvec","count")))
-##' ss <- with(bombay,SIR.detsim(t=week,params=trans.pars(coef(ff))))
+##' ff3 <- fitsir(setNames(bombay,c("tvec","count")),start=startfun(log.N=10))
+##' ff2 <- fitsir(setNames(bombay,c("tvec","count")),method="BFGS")
+##' ff4 <- fitsir(setNames(bombay,c("tvec","count")),start=startfun(log.N=10),
+##'         method="SANN")
+##' ss <- with(bombay,SIR.detsim(t=week,params=trans.pars(coef(ff3))))
+
 ##' lines(bombay$week,ss)
 ##' }
 NULL
