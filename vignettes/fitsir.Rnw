@@ -1,0 +1,83 @@
+%\VignetteEngine{knitr::knitr}
+%\VignetteDepends{ggplot2}
+%\VignetteIndexEntry{Simple SIR model fitting}
+\documentclass{article}
+\title{Basic SIR fitting}
+\author{Ben Bolker, David Earn, Dora Rosati}
+\newcommand{\rzero}{{\cal R}_0}
+\newcommand{\code}[1]{{\tt #1}}
+\date{\today}
+\begin{document}
+\maketitle
+
+This has been done a million times, but let's try to do it in 
+a reasonably systematic way that could be used in a pedagogical paper.
+
+<<opts,message=FALSE,echo=FALSE>>=
+library("knitr")
+opts_chunk$set(fig.width=4,fig.height=4)
+knit_hooks$set(basefig=function(before, options, envir) {
+                   if (before) {
+                       ## tweak graphical settings for base figures
+                       par(bty="l",las=1)
+                   } else { }
+               })
+@
+
+<<pkgs,message=FALSE>>=
+library("fitsir")
+library("bbmle") ## need this for now, for coef()
+@
+
+The current version of \code{fitsir} assumes that time
+and prevalence are stored as columns \code{tvec} and \code{count}
+within a data frame.  Since the \code{bombay} data set instead
+has \code{week} (week of epidemic) and \code{mort} (mortality),
+we'll rename it for convenience.  (We will for now resolutely ignore
+issues about fitting weekly mortality counts as prevalences \ldots)
+
+<<rename>>=
+bombay2 <- setNames(bombay,c("tvec","count"))
+@
+
+<<plot1,basefig=TRUE>>=
+plot(count~tvec,data=bombay2,
+     type="l",xaxs="i",yaxs="i",
+     xlab="time",ylab="mortality count")
+@
+
+
+\section{Fit the model to the data}
+
+Basic fit:
+<<fit1,cache=TRUE>>=
+m1 <- fitsir(data=bombay2)
+@
+
+<<>>=
+summarize.pars(coef(m1))
+@
+
+Seemingly reasonable answers, but ...
+<<plotres1,basefig=TRUE>>=
+ss <- with(bombay2,SIR.detsim(tvec,trans.pars(coef(m1))))
+plot(count~tvec,data=bombay2,
+     xaxs="i",yaxs="i",
+     xlab="time",ylab="mortality count")
+lines(bombay2$tvec,ss,col=2)
+@
+
+What's going on here?  Beta, N, and i0 might (???) be jointly
+unidentifiable, \ldots N enters only as beta/N
+in the gradient function, and only as $\{N,i_0 N\}$ in the
+initial conditions ...  Except for the fact that $i_0$
+is logit-transformed (constrained to $0<i_0<1$) and $s_0$
+is set to $N$, we could set $N=1$ without loss of generality?
+
+<<>>=
+confint(m1,method="quad")
+@
+
+Suggests \emph{some} sort of unidentifiability \ldots
+
+\end{document}

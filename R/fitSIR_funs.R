@@ -52,6 +52,7 @@ alr <- function(x) {
 ##' *assume* R=0/S=N at start of epidemic
 ##' @param params parameter vector containing \code{log.beta}, \code{log.gamma}, \code{log.N}, \code{logit.i}
 ##' @return params transformed parameter vector containing \code{beta}, \code{gamma}, \code{N}, \code{s0}, \code{i0}
+##' @export
 trans.pars <- function(params) {
     tpars <- with(as.list(params),
                   c(beta=exp(log.beta),
@@ -64,7 +65,15 @@ trans.pars <- function(params) {
     return(tpars)
 }
 
-summary.pars <- function(params) {
+##' Summarize parameters
+##'
+##' Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0) from a set of epidemic parameters
+##' 
+##' @param params parameter vector (log.beta, log.gamma, logit.i)
+##' @export
+##  can't call this either sum.pars or summary.pars, roxygen2 gets
+##  confused ...
+summarize.pars <- function(params) {
     with(as.list(params),
          c(R0=exp(log.beta-log.gamma),
            r=exp(log.beta)-exp(log.gamma),

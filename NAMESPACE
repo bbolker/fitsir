@@ -3,5 +3,7 @@
 export(SIR.detsim)
 export(fitsir)
 export(startfun)
+export(summarize.pars)
+export(trans.pars)
 importFrom(bbmle,mle2)
 importFrom(deSolve,ode)

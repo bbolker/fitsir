@@ -10,6 +10,7 @@ Imports:
     bbmle,
     deSolve
 Suggests:
-    knitr
+    knitr,
+    ggplot2
 License: GPL (>=2)
 BuildVignettes: yes
