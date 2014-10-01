@@ -30,6 +30,7 @@ knit_hooks$set(basefig=function(before, options, envir) {
 library("fitsir")
 library("bbmle") ## need this for now, for coef()
 library("plyr")
+library("reshape2")
 library("ggplot2"); theme_set(theme_bw())
 @
 
@@ -71,12 +72,30 @@ plot(count~tvec,data=bombay2,
 lines(bombay2$tvec,ss,col=2)
 @
 
-What's going on here?  Beta, N, and i0 might (???) be jointly
-unidentifiable, \ldots N enters only as beta/N
-in the gradient function, and only as $\{N,i_0 N\}$ in the
-initial conditions ...  Except for the fact that $i_0$
-is logit-transformed (constrained to $0<i_0<1$) and $s_0$
-is set to $N$, we could set $N=1$ without loss of generality?
+\section{Troubleshooting}
+
+We're obviously not getting a good answer here.  When this happens there
+are a variety of possibilities.
+
+\begin{itemize}
+\item optimizer getting stuck
+\item a small number of local optima
+\item a large number of local optima, on many different scales (fractal-like or
+  rugged surface)
+\item a large number of local optima, all similar in scale/height (``fakir's bed'' geometry)
+\end{itemize}
+
+Some solutions:
+
+\begin{itemize}
+\item center/scale parameters and/or 
+  reparameterize the model to remove correlation and equalize scales of variation in 
+  different parameters
+\item try to come up with a rule for finding better starting values (``self-starting'' fits)
+\item use a better/more robust local optimizer
+\item use lots of starting values, randomly or regularly distributed
+\item use a stochastic global optimizer
+\end{itemize}
 
 <<>>=
 confint(m1,method="quad")
@@ -156,22 +175,32 @@ ggplot(melt(fittab),aes(x=value))+geom_histogram()+facet_wrap(~Var2,scale="free"
 @
 
 <<plot100,message=FALSE>>=
-likframe100 <- data.frame(.id=1:5,llik=unlist(llply(fitlist100.OK,logLik)))
+likframe100 <- setNames(ldply(fitlist100.OK,logLik),c(".id","llik"))
 fittraj100 <- ldply(fitlist100.OK,gettraj,tvec=seq(1,32,length=101))
+fitmat100 <- acast(fittraj100,tvec~.id,value.var="count")
 fittraj100 <- merge(fittraj100,likframe100)
 ## plot together
 ggplot(fittraj100,aes(tvec,count,colour=llik,group=.id))+geom_line()+
     geom_point(data=bombay2,colour="black",aes(group=NA))
 @
 
-Not quite sure what's going on here: there only appear to be 4 trajectories.
-Is this leftover junk, or do we really have clusters of solutions within the
-<<lik_ecdf>>=
-par(las=1,bty="l")
-par(mfrow=c(1,2))
-LL <- likframe100[,2]
-plot(ecdf(LL))
-plot(ecdf(LL[LL>(-172)]))
+We can identify clusters \ldots
+<<clust>>=
+clust <- kmeans(t(fitmat100),5)
+cframe <- data.frame(.id=names(clust$cluster),clust=clust$cluster)
+fittraj100B <- transform(fittraj100,llikcat=cut_number(llik,5))
+fittraj100B <- merge(fittraj100B,cframe)
+ggplot(fittraj100B,aes(tvec,count,colour=factor(clust),group=.id))+geom_line()+
+    geom_point(data=bombay2,colour="black",aes(group=NA))
 @
+
+Check out clustering on log-likelihood cumulative distribution curve:
+<<>>=
+dd2 <- merge(cframe,likframe100)
+(g1 <- ggplot(dd2,aes(rank(llik),llik,colour=factor(clust)))+geom_point(size=3))
+@
+
+I'm not 100\% sure (yet) what this tells us.  The clusters aren't so
+well separated that I necessarily believe that they are distinct modes.
      
 \end{document}
