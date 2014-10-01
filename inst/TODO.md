@@ -16,4 +16,8 @@ Lots and lots.
 * state-space models: `pomp`, `JAGS`, etc. ?
 * tie-in with Tiff Bogich's "Plom" stuff?
 * tie-in with other epi R packages: `EpiModel`, `EpiDynamics` ...
-* fix Bombay data fitting!
+* Bombay data fitting!
+    * self-starting recipes
+    * larger random/Latin hypercube sim; k-NN clustering, basins of attraction, etc.
+    * stochastic global opt? (Mullen JSS paper) 
+    * save vignette PDF; save

@@ -11,6 +11,8 @@ Imports:
     deSolve
 Suggests:
     knitr,
-    ggplot2
+    ggplot2,
+    plyr,
+    reshape2
 License: GPL (>=2)
 BuildVignettes: yes

@@ -1,5 +1,7 @@
 %\VignetteEngine{knitr::knitr}
 %\VignetteDepends{ggplot2}
+%\VignetteDepends{plyr}
+%\VignetteDepends{reshape2}
 %\VignetteIndexEntry{Simple SIR model fitting}
 \documentclass{article}
 \title{Basic SIR fitting}
@@ -27,6 +29,8 @@ knit_hooks$set(basefig=function(before, options, envir) {
 <<pkgs,message=FALSE>>=
 library("fitsir")
 library("bbmle") ## need this for now, for coef()
+library("plyr")
+library("ggplot2"); theme_set(theme_bw())
 @
 
 The current version of \code{fitsir} assumes that time
@@ -80,4 +84,94 @@ confint(m1,method="quad")
 
 Suggests \emph{some} sort of unidentifiability \ldots
 
+What if we try a bunch of starting values?
+
+A crude Latin-hypercube-like strategy: pick evenly spaced
+values on sensible log scales, then permute to get random 
+(but even) coverage of the space.
+
+<<qlhc>>=
+qlhcfun <- function(n=5,seed=NULL) {
+    require("plyr")
+    if (!is.null(seed)) set.seed(seed)
+    R0vec <- 1+10^seq(-1,1.5,length=n)
+    infpervec <- sample(10^seq(-1,2,length=n))
+    Nvec <- sample(10^seq(2,5,length=n))
+    i0vec <- sample(10^seq(-3,-1,length=n))
+    startlist <- alply(cbind(R0=R0vec,infper=infpervec,N=Nvec,i0=i0vec),1,
+                       function(x) {
+                           with(as.list(x), {
+                               beta <- R0/infper
+                               gamma <- 1/infper
+                               c(log.beta=log(beta),log.gamma=log(gamma),
+                                 log.N=log(N),logit.i=qlogis(i0))
+                           })
+                       })
+    return(startlist)
+}
+startlist <- qlhcfun(n=5,seed=101)
+@
+
+<<fitlhc5,cache=TRUE>>=
+fitlist <- llply(startlist,fitsir,data=bombay2,
+      method="Nelder-Mead",control=list(maxit=1e5))
+@
+
+<<plotlhc5>>=
+## extract log-likelihoods
+likframe <- data.frame(.id=1:5,llik=unlist(llply(fitlist,logLik)))
+## compute trajectories
+gettraj <- function(x,tvec=bombay2$tvec) {
+    data.frame(tvec=tvec,
+               count=SIR.detsim(tvec,trans.pars(coef(x))))
+}
+fittraj <- ldply(fitlist,gettraj)
+fittraj <- merge(fittraj,likframe)
+## plot together
+ggplot(fittraj,aes(tvec,count,colour=llik,group=.id))+geom_line()+
+    geom_point(data=bombay2,colour="black",aes(group=NA))
+@
+
+Now try a much larger sample:
+
+<<fitlhc100,cache=TRUE,results="hide">>=
+startlist100 <- qlhcfun(n=100,seed=101)
+fitlist100 <- llply(startlist100,
+                    function(x) {
+                        r <- try(fitsir(start=x,data=bombay2),silent=TRUE)
+                        if (is(r,"try-error")) NULL else r
+                    })
+@
+
+<<lhc100coefs,message=FALSE>>=
+testOK  <- function(x,max.R0=100,max.r=1000,max.infper=400) {
+    if (is.null(x)) return(FALSE)
+    ss <- summarize.pars(coef(x))
+    return(ss["R0"]<max.R0 & ss["r"]<max.r & ss["infper"] < max.infper)
+}
+fitlist100.OK <- fitlist100[sapply(fitlist100,testOK)]
+length(fitlist100.OK)
+fittab <- laply(fitlist100.OK,function(x) c(summarize.pars(coef(x)),logLik(x)))
+ggplot(melt(fittab),aes(x=value))+geom_histogram()+facet_wrap(~Var2,scale="free")
+@
+
+<<plot100,message=FALSE>>=
+likframe100 <- data.frame(.id=1:5,llik=unlist(llply(fitlist100.OK,logLik)))
+fittraj100 <- ldply(fitlist100.OK,gettraj,tvec=seq(1,32,length=101))
+fittraj100 <- merge(fittraj100,likframe100)
+## plot together
+ggplot(fittraj100,aes(tvec,count,colour=llik,group=.id))+geom_line()+
+    geom_point(data=bombay2,colour="black",aes(group=NA))
+@
+
+Not quite sure what's going on here: there only appear to be 4 trajectories.
+Is this leftover junk, or do we really have clusters of solutions within the
+<<lik_ecdf>>=
+par(las=1,bty="l")
+par(mfrow=c(1,2))
+LL <- likframe100[,2]
+plot(ecdf(LL))
+plot(ecdf(LL[LL>(-172)]))
+@
+     
 \end{document}
