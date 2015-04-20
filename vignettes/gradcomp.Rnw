@@ -1,0 +1,152 @@
+%\VignetteEngine{knitr::knitr}
+%\VignetteDepends{ggplot2}
+%\VignetteDepends{plyr}
+%\VignetteDepends{reshape2}
+%\VignetteDepends{Rcpp}
+%\VignetteDepends{deSolve}
+%\VignetteDepends{ggplot2}
+%\VignetteIndexEntry{Benchmarking gradient functions}
+\documentclass{article}
+\title{Benchmarking gradient functions}
+\author{Ben Bolker}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\newcommand{\rzero}{{\cal R}_0}
+\newcommand{\code}[1]{{\tt #1}}
+\date{\today}
+\begin{document}
+\maketitle
+
+<<opts,message=FALSE,echo=FALSE>>=
+library("knitr")
+opts_chunk$set(fig.width=4,fig.height=4)
+knit_hooks$set(basefig=function(before, options, envir) {
+                   if (before) {
+                       ## tweak graphical settings for base figures
+                       par(bty="l",las=1)
+                   } else { }
+               })
+@
+
+<<pkgs,message=FALSE>>=
+library("fitsir")
+library("deSolve")
+library("Rcpp")
+library("ggplot2"); theme_set(theme_bw())
+@
+
+The built-in gradient function:
+<<>>=
+SIR.grad <- fitsir:::SIR.grad
+@
+
+Does using \code{with()} incur a performance cost?
+<<>>=
+SIR.grad2 <- function(t, y, params) {
+    list(c(-params[1]*exp(y[2])*y[1]/params[3],
+            params[1]*y[1]/params[3]-params[2]))
+}
+## without division by N
+SIR.grad4 <- function(t, y, params) {
+    list(c(-params[1]*exp(y[2])*y[1],
+            params[1]*y[1]-params[2]))
+}
+jacfunc <- function(t, y, params) {
+    matrix(c(-exp(y[2])*y[1],0,
+             y[1],-1),nrow=2,byrow=TRUE)
+}
+@
+
+Rcpp version:
+<<>>=
+sourceCpp("sirgrad.cpp")
+@
+
+<<>>=
+system("R CMD SHLIB sirgrad.c")
+dyn.load(paste0("sirgrad",.Platform$dynlib.ext))
+## avoid redefining grade vector every time:
+## should be a little more careful and define
+## a function closure/ put grad in the environment
+## of SIR.grad3
+grad <- numeric(2) ## special case
+SIR.grad3 <- function(t, y, params) {
+   .C("derivs0",tvec, start, grad, pars)[3]
+}
+@
+
+<<>>=
+start <- c(S=0.99,logI=log(0.01))
+pars <- c(beta=2,gamma=1,N=1)
+pars2 <- with(as.list(pars),c(beta=beta/N,gamma=gamma))
+tvec <- seq(0,2000,by=0.1)
+funList <- list(sirgrad,SIR.grad,
+                SIR.grad2,SIR.grad3)
+testfun <- function(f,P=pars) f(0,start,P)
+do.call(rbind,sapply(funList,testfun))
+m1 <- microbenchmark(testfun(sirgrad),
+                     testfun(SIR.grad),
+                     testfun(SIR.grad2),
+                     testfun(SIR.grad3),
+                     testfun(SIR.grad4,P=pars2))
+levels(m1$expr) <- c("Rcpp",
+                     "R",
+                     "R w/o with()",
+                     ".C()",
+                     "minimal R")
+m1$expr <- reorder(m1$expr,m1$time)
+@
+
+<<>>=
+ggplot(m1,aes(y=time/1e3,x=expr))+geom_violin(fill="gray")+
+    scale_y_log10() +
+        labs(x="",y="time (ms)")+
+    coord_flip()
+@
+
+Conclusion: unless I've screwed something
+up, the advantage to coding in C stems from the ability to
+call the gradient function directly, \emph{not} from
+computing the gradient function itself faster.
+Of course, this conclusion could change a lot with
+more complex gradient functions.  The more complex
+the function, and the more it needs to use explicit
+looping constructs (rather than vectorized or matrix
+computations), the bigger the win from compiling the
+gradient function is likely to be.
+
+For optimizing fits of functions based on solutions of
+some of the techniques and reference suggested
+for MATLAB, \href{http://www.mathworks.com/help/optim/ug/optimizing-a-simulation-or-ordinary-differential-equation.html}{here} and \href{http://www.mathworks.com/matlabcentral/answers/101883-how-do-i-estimate-or-optimize-the-parameters-of-my-ode-system-in-matlab-8-1-r2013a}{here}, may help. For example:
+\begin{itemize}
+\item use a fixed-stepsize solver; 
+\item avoid optimization methods that compute finite differences; 
+\item compute gradients of the objective function directly by solving auxiliary ODEs.
+\end{itemize}
+The last is possibly most interesting but most difficult.
+
+<<>>=
+runODE.C <- function(t, params) {
+    odesol <- with(as.list(params),
+                   ode(y=c(S=N,logI=log(N*i0)),
+                       times=t,
+                       func="derivs",
+                       parms=params[1:3],
+                       dllname = "sirgrad",
+                       initfunc = "initmod",
+                       nout = 1, outnames = character(0)))
+    return(odesol[,"logI"])
+}
+@
+
+x <- ode(y=start,
+         times=tvec,
+         func="derivs",
+         parms=pars,
+         dllname = "sirgrad",
+         initfunc = "initmod",
+         nout = 1)
+
+@
+
+\end{document}
