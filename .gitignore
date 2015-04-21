@@ -12,3 +12,7 @@
 
 # emacs files
 *~
+
+#vignette builds
+cache/
+figure/
