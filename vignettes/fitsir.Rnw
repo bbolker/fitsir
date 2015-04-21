@@ -19,7 +19,7 @@ a reasonably systematic way that could be used in a pedagogical paper.
 <<opts,message=FALSE,echo=FALSE>>=
 library("knitr")
 opts_chunk$set(fig.width=4,fig.height=4)
-knit_hooks$set(basefig=function(before, options, envir) {
+knit_hooks$set(baseFig=function(before, options, envir) {
                    if (before) {
                        ## tweak graphical settings for base figures
                        par(bty="l",las=1)
@@ -46,7 +46,7 @@ issues about fitting weekly mortality counts as prevalences \ldots)
 bombay2 <- setNames(bombay,c("tvec","count"))
 @
 
-<<plot1,basefig=TRUE>>=
+<<plot1,baseFig=TRUE>>=
 plot(count~tvec,data=bombay2,
      type="l",xaxs="i",yaxs="i",
      xlab="time",ylab="mortality count")
@@ -65,7 +65,7 @@ summarize.pars(coef(m1))
 @
 
 Seemingly reasonable answers, but ...
-<<plotres1,basefig=TRUE>>=
+<<plotres1,baseFig=TRUE>>=
 ss <- with(bombay2,SIR.detsim(tvec,trans.pars(coef(m1))))
 plot(count~tvec,data=bombay2,
      xlab="time",ylab="mortality count")
@@ -218,7 +218,7 @@ Try \code{smooth.spline} with \code{spar=0.5} to identify max.; linear regressio
 through times up to 1/2 tmax to identify $i(0) N$ and $r$; then try a range of other
 parameters?
 
-<<ssplot,basefig=TRUE>>=
+<<ssplot,baseFig=TRUE>>=
 tvec <- bombay2$tvec
 ss <- with(bombay2,smooth.spline(tvec,log(count),spar=0.5))
 ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,c(0,40))$root
@@ -228,7 +228,7 @@ abline(v=ss.tmax,lty=2)
 ss.thalf <- min(tvec)+(ss.tmax-min(tvec))/2
 @
 
-<<linquadfits,basefig=TRUE>>=
+<<linquadfits,baseFig=TRUE>>=
 plot(log(count)~tvec,data=bombay2,
      xlab="time",ylab="mortality count")
 bestFit <- fitlist100.OK[[which.max(likframe100$llik)]]
