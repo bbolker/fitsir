@@ -5,12 +5,15 @@
 %\VignetteDepends{Rcpp}
 %\VignetteDepends{deSolve}
 %\VignetteDepends{ggplot2}
+%\VignetteDepends{microbenchmark}
 %\VignetteIndexEntry{Benchmarking gradient functions}
 \documentclass{article}
 \title{Benchmarking gradient functions}
 \author{Ben Bolker}
 \usepackage{amsmath}
 \usepackage{hyperref}
+\usepackage{natbib}
+\bibliographystyle{chicago}
 \newcommand{\rzero}{{\cal R}_0}
 \newcommand{\code}[1]{{\tt #1}}
 \date{\today}
@@ -33,15 +36,16 @@ library("fitsir")
 library("deSolve")
 library("Rcpp")
 library("ggplot2"); theme_set(theme_bw())
+library("microbenchmark")
 @
 
-The built-in gradient function:
-<<>>=
-SIR.grad <- fitsir:::SIR.grad
+The built-in gradient function is \code{SIR.grad}:
+<<sirgrad0>>=
+SIR.grad
 @
 
 Does using \code{with()} incur a performance cost?
-<<>>=
+<<sirgrad2>>=
 SIR.grad2 <- function(t, y, params) {
     list(c(-params[1]*exp(y[2])*y[1]/params[3],
             params[1]*y[1]/params[3]-params[2]))
@@ -51,6 +55,7 @@ SIR.grad4 <- function(t, y, params) {
     list(c(-params[1]*exp(y[2])*y[1],
             params[1]*y[1]-params[2]))
 }
+## define Jacobian, maybe useful later ...
 jacfunc <- function(t, y, params) {
     matrix(c(-exp(y[2])*y[1],0,
              y[1],-1),nrow=2,byrow=TRUE)
@@ -58,11 +63,12 @@ jacfunc <- function(t, y, params) {
 @
 
 Rcpp version:
-<<>>=
+<<compCpp>>=
 sourceCpp("sirgrad.cpp")
 @
 
-<<>>=
+C version:
+<<compC>>=
 system("R CMD SHLIB sirgrad.c")
 dyn.load(paste0("sirgrad",.Platform$dynlib.ext))
 ## avoid redefining grade vector every time:
@@ -75,7 +81,7 @@ SIR.grad3 <- function(t, y, params) {
 }
 @
 
-<<>>=
+<<setup>>=
 start <- c(S=0.99,logI=log(0.01))
 pars <- c(beta=2,gamma=1,N=1)
 pars2 <- with(as.list(pars),c(beta=beta/N,gamma=gamma))
@@ -84,6 +90,9 @@ funList <- list(sirgrad,SIR.grad,
                 SIR.grad2,SIR.grad3)
 testfun <- function(f,P=pars) f(0,start,P)
 do.call(rbind,sapply(funList,testfun))
+@
+
+<<benchmark,cache=TRUE>>=
 m1 <- microbenchmark(testfun(sirgrad),
                      testfun(SIR.grad),
                      testfun(SIR.grad2),
@@ -97,11 +106,11 @@ levels(m1$expr) <- c("Rcpp",
 m1$expr <- reorder(m1$expr,m1$time)
 @
 
-<<>>=
-ggplot(m1,aes(y=time/1e3,x=expr))+geom_violin(fill="gray")+
+<<benchplot>>=
+(b1plot <- ggplot(m1,aes(y=time/1e3,x=expr))+geom_violin(fill="gray")+
     scale_y_log10() +
         labs(x="",y="time (ms)")+
-    coord_flip()
+    coord_flip())
 @
 
 Conclusion: unless I've screwed something
@@ -117,15 +126,20 @@ gradient function is likely to be.
 
 For optimizing fits of functions based on solutions of
 some of the techniques and reference suggested
-for MATLAB, \href{http://www.mathworks.com/help/optim/ug/optimizing-a-simulation-or-ordinary-differential-equation.html}{here} and \href{http://www.mathworks.com/matlabcentral/answers/101883-how-do-i-estimate-or-optimize-the-parameters-of-my-ode-system-in-matlab-8-1-r2013a}{here}, may help. For example:
+for MATLAB, \href{http://www.mathworks.com/help/optim/ug/optimizing-a-simulation-or-ordinary-differential-equation.html}{here} and \href{http://www.mathworks.com/matlabcentral/answers/101883-how-do-i-estimate-or-optimize-the-parameters-of-my-ode-system-in-matlab-8-1-r2013a}{here}, may help.
+More specifically, should look at \cite{raue_lessons_2013}.
+
+ For example:
 \begin{itemize}
 \item use a fixed-stepsize solver; 
 \item avoid optimization methods that compute finite differences; 
-\item compute gradients of the objective function directly by solving auxiliary ODEs.
+\item compute gradients of the objective function directly by solving auxiliary ODEs (sensitivity equations)
 \end{itemize}
 The last is possibly most interesting but most difficult.
 
-<<>>=
+<<runode>>=
+pars3 <- c(pars,i0=0.01)
+tvec <- seq(0,20,by=0.01)
 runODE.C <- function(t, params) {
     odesol <- with(as.list(params),
                    ode(y=c(S=N,logI=log(N*i0)),
@@ -137,16 +151,38 @@ runODE.C <- function(t, params) {
                        nout = 1, outnames = character(0)))
     return(odesol[,"logI"])
 }
+runODE.R <- function(t, params, func=SIR.grad) {
+    odesol <- with(as.list(params),
+                   ode(times=t,
+                       y=c(S=N,logI=log(N*i0)),
+                       func=func,
+                       parms=params[1:3]))
+    return(odesol[,"logI"])
+}
+stopifnot(all.equal(runODE.R(tvec,pars3),runODE.C(tvec,pars3)))
 @
 
-x <- ode(y=start,
-         times=tvec,
-         func="derivs",
-         parms=pars,
-         dllname = "sirgrad",
-         initfunc = "initmod",
-         nout = 1)
-
+<<odebench,cache=TRUE>>=
+m2 <- microbenchmark(runODE.R(tvec,pars3),
+                     runODE.R(tvec,pars3,func=sirgrad),
+                     runODE.C(tvec,pars3))
+levels(m2$expr) <- c("R",
+                     "R/Rcpp",
+                     "C")
+m2$expr <- reorder(m2$expr,m2$time)
 @
+
+Results replicate Irena Papst's, confirming that the performance
+issue (at least for this simple a gradient function) is
+the :
+
+<<benchplot2,echo=FALSE>>=
+b1plot %+% m2
+@
+
+Is there a way to compile \code{Rcpp} to a DLL so it can
+be used via the wrapper?
+
+\bibliography{fitsir}
 
 \end{document}
