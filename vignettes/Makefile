@@ -1,2 +1,2 @@
 clean:
-	rm *.aux *.bbl *.blg *.log *.out *.tex *.o *.so
+	rm -f *.aux *.bbl *.blg *.log *.out *.tex *.o *.so

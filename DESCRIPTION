@@ -1,9 +1,9 @@
 Package: fitsir
-Version: 0.1
+Version: 0.1.0
 Title: SIR fitting tools
 Maintainer: Ben Bolker <bolker@mcmaster.ca>
 Author: Ben Bolker [aut, cre], Jonathan Dushoff [ctb], Irena Papst [ctb], Dora Rosati [ctb]
-Description: Fit dynamical models to epidemic data
+Description: Fits dynamical models to epidemic data.
 VignetteBuilder: knitr
 LazyData: yes
 Imports:

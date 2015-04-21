@@ -27,6 +27,7 @@ dnorm2 <- function(x,mean,log=FALSE) {
 ##' @param x state vector (with names \code{S}, \code{logI})
 ##' @param params parameter vector (with names \code{beta} (scaled transmission rate), \code{N} (population size), \code{gamma} (recovery/removal rate)
 ##' @return gradient vector for a simple SIR model
+##' @export
 SIR.grad <- function(t, x, params) {
     g <- with(as.list(c(x,params)),
           {
@@ -87,10 +88,25 @@ summarize.pars <- function(params) {
 ##' @param params parameter vector (beta, gamma, N, i0)
 ##' @param func gradient function
 ##' @export
+##' @useDynLib fitsir initmod
+##' @examples
+##' pars <- c(beta=0.2,gamma=0.1,N=1000,i0=0.01)
+##' tvec <- seq(0,200,by=0.01)
+##' ss <- SIR.detsim(tvec,pars)
+##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
 SIR.detsim <- function(t, params, func=SIR.grad) {
     odesol <- with(as.list(params),
-         ode(y=c(S=N, logI=log(N*i0)),
-             times=t, func=func, parms=params))
+                   ode(y=c(S=N,logI=log(N*i0)),
+                       times=t,
+                       func="derivs",
+                       parms=params[1:3],
+                       dllname = "fitsir",
+                       initfunc = "initmod",
+                       nout = 1, outnames = character(0)))
+    ## FIXME: bogus extra column???
+    ## odesol <- with(as.list(params),
+    ## ode(y=c(S=N, logI=log(N*i0)),
+    ## times=t, func=func, parms=params))
     return(exp(odesol[,"logI"]))
     ## FIXME: if we want to return incidence instead
     ##        of prevalence, what is the match between
@@ -102,8 +118,11 @@ SIR.detsim <- function(t, params, func=SIR.grad) {
 ##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
 ##' @param tvec time vector
+##' @param dist conditional distribution of reported data (IGNORED)
 ##' @param debug print debugging output?
-SIR.logLik <- function(params, count, tvec=NULL, debug=FALSE) {
+SIR.logLik <- function(params, count, tvec=NULL,
+                       dist=dnorm2,
+                       debug=FALSE) {
     ## HACK: nloptr appears to strip names from parameters
     ## if (is.null(params)) return(NA_real_) ## why ???
     ## if (is.null(names(params)) &&

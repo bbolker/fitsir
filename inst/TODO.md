@@ -8,6 +8,7 @@ Lots and lots.
 * finish up self-starting recipes
 * implement fitting based on incidence rather than prevalence
 * allow neg binomial rather than least-squares fit? log-Normal fit?
+* priors
 * plotting methods for data, fits?
 
 ## Optimization-related
@@ -26,5 +27,6 @@ Lots and lots.
 * throw in old BIRS `erlangSEIR` stuff?
 * gradient matching?
 * state-space models: `pomp`, `JAGS`, etc. ?
-* tie-in with Tiff Bogich's "Plom" stuff?
-* tie-in with other epi R packages: `EpiModel`, `EpiDynamics` ...
+* provide C/C++/Rcpp-coded gradient functions?
+* tie-in with Tiff Bogich's "Public Library of Models" ([plom.io](https://github.com/tiffbogich/PLoM.io)) (related to Ballesteros's [epi-models](https://github.com/sballesteros/epi-models))?
+* tie-in with other epi R packages: `EpiModel`, `EpiDynamics`, `pomp` ...

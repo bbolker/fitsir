@@ -33,7 +33,6 @@ library("bbmle") ## need this for now, for coef()
 library("plyr")
 library("reshape2")
 library("ggplot2"); theme_set(theme_bw())
-library("RColorBrewer")
 @
 
 The current version of \code{fitsir} assumes that time
