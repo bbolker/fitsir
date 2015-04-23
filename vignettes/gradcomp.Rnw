@@ -183,6 +183,8 @@ b1plot %+% m2
 Is there a way to compile \code{Rcpp} to a DLL so it can
 be used via the wrapper?
 
+It would be worth checking out [Tim Keitt's new ODE-in-C++ package](https://github.com/thk686/odeintr) too.
+
 \bibliography{fitsir}
 
 \end{document}
