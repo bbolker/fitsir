@@ -240,6 +240,13 @@ with(bestTraj,lines(log(count)~tvec,col=2))
 abline(m1)
 m4 <- lm(log(count)~poly(tvec,2,raw=TRUE),data=subset(bombay2,tvec>10 & tvec<25))
 lines(11:24,predict(m4),col=6,lwd=2)
+legend("topleft",
+       col=c(1,6,2),
+       lty=1,
+       c("initial log-linear",
+         "local quadratic",
+         "best-fitted trajectory"),
+       bty="n")
 @
 
 Looks like this works.  Is there a way to get a crude starting guess for $R_0$ and
@@ -258,7 +265,10 @@ d^2 \log I/dt^2 =
 
 Second derivative of $a + bt + ct^2= 2c$
 
-<<fitstats>>=
+Compare results of local quadratic fit;
+local second derivative of spline; predicted
+value from SIR coefficients.
+<<fitstats,echo=FALSE>>=
 Qp <- unname(2*coef(m4)[3])
 Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 Ip <- max(predict(m4))  ## peak log(I) by smoothing
@@ -286,16 +296,24 @@ With $Q$, $a_0$, and $b_0$, this gives me so far:
 \end{split}
 \end{equation}
 
-$S=\gamma N/\beta$ at the peak time is approximately $N-I_0-\sum_{t=0}^{\hat t} S(t)$
+$S=\gamma N/\beta$ at the peak time is approximately $N-I_0-\sum_{t=0}^{\hat t} I(t)$
 (we have to be careful to decide whether we're counting incidence or prevalence, and correct
-for $\gamma$ accordingly: $\textrm{prevalence} = \textrm{incidence}/\gamma$).
+for $\gamma$ accordingly: $\textrm{prevalence} \approx ? \textrm{incidence}/\gamma$).  So 
+
+\begin{equation}
+\begin{split}
+\gamma N/\beta & = N-I_0 - \sum I \\
+I_0 + \sum I & = (1-\gamma/\beta) N
+N & = \frac{I_0 + \sum I}{1-\gamma/\beta}
+\end{split}
+\end{equation}
 
 Number of counts up to peak:
 <<>>=
 sumcount.tmax <- with(subset(bombay2,tvec<ss.tmax),sum(count))
 @
-Should be able to do something with this??
+(or integrate quadratic curve, or integrate the spline \ldots)
 
-Should use $N (1-i_0)$, not $N$, as starting condition for $S$.
+(Should use $N (1-i_0)$, not $N$, as starting condition for $S$ ??)
 
 \end{document}

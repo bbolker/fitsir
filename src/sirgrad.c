@@ -7,6 +7,8 @@ static double parms[3];
 # define gamma parms[1]
 # define N parms[2]
 
+# define S vars[0]
+# define logI vars[1]
 /* initializer */
 void initmod ( void (*odeparms)(int *, double *) )
 {
@@ -18,9 +20,11 @@ void initmod ( void (*odeparms)(int *, double *) )
 void derivs (int *neq , double *t , double *vars , double *varsdot ,
 	     double *varsout , int *ip )
 {
+    double scaledincid = beta*S/N;
+
     if (ip[0] <1) error ( "nout should be at least 1" ) ;
-    varsdot[0] = - beta * vars[0]* exp (vars[1]) / N ; // equation for S
-    varsdot[1] = beta * vars[0]/ N - gamma ; // equation for log (I)
+    varsdot[0] = - scaledincid*exp(logI) ; // equation for S
+    varsdot[1] =    scaledincid - gamma ;  // equation for log (I)
 }
 
 # define vbeta vparms[0]

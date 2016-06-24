@@ -7,10 +7,57 @@
 ##' @param logit.i logit of initial proportion infectious
 ##' @export
 startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
-         log.N=log(10000),logit.i=qlogis(0.01)) {
+         log.N=log(10000),logit.i=qlogis(0.01),auto=FALSE,
+         tvec,count) {
+    if (auto) {
+        ss <- smooth.spline(tvec,log(count),spar=0.5)
+        ## find max value
+        ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+        ## find a point halfway between initial and max
+        ##  scaling could be adjustable?
+	ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+	m1 <- lm(log(count)~tvec[tvec<ss.thalf])
+	r <- as.numeric(coef(m1)[2]) ##beta - gamma
+	iniI <- count[1] ## N * i0
+        ## curvature of spline at max
+	Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+	Ip <- exp(max(predict(ss,tvec)$y))
+	c <- -Qp.alt/Ip
+	x <- list()
+	x<- within(x,{
+		i0 <- 0.001 ## hack?
+		N <- iniI/i0
+		beta <- 0.5 *(sqrt(4*c*N + r^2)+r)
+		gamma <- beta - r
+	})
+	return(unlist(x))
+
     list(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
          logit.i=logit.i)
 }
+
+find.iniP <- function(data){
+	tvec <- data$tvec
+	ss <- with(bombay2,smooth.spline(tvec,log(count),spar=0.5))
+	ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,c(0,40))$root
+	ss.thalf <- min(tvec)+(ss.tmax-min(tvec))/2
+	m1 <- lm(log(count)~tvec,data=subset(bombay2,tvec<ss.thalf))
+	r=as.numeric(coef(m1)[2]) ##beta - gamma
+	iniI = bombay2$count[1] ## N * i0
+	Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+	Ip <- exp(max(predict(ss,tvec)$y))
+	c = -Qp.alt/Ip
+	
+	x <- list()
+	x<- within(x,{
+		i0 = 0.001
+		N = iniI/i0
+		beta = 0.5 *(sqrt(4*c*N + r^2)+r)
+		gamma = beta - r
+	})
+	return(unlist(x))
+}
+
 
 ##' Normal distribution with profiled sd
 ##' @param x numeric value
@@ -167,6 +214,7 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' mean((1-ss2/cc)^2)
 fitsir <- function(data,method="Nelder-Mead",
                    control=list(maxit=1e5),
+                   timescale=NULL,
                    start=startfun(),debug=FALSE) {
     mle2(SIR.logLik,
          vecpar=TRUE,
