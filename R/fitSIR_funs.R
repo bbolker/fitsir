@@ -1,4 +1,3 @@
-
 ##' Starting function
 ##' @rdname trans.pars
 ##' @param log.beta log of per capita transmission rate
@@ -8,56 +7,43 @@
 ##' @export
 startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
          log.N=log(10000),logit.i=qlogis(0.01),auto=FALSE,
-         tvec,count) {
-    if (auto) {
-        ss <- smooth.spline(tvec,log(count),spar=0.5)
-        ## find max value
-        ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
-        ## find a point halfway between initial and max
-        ##  scaling could be adjustable?
-	ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
-	m1 <- lm(log(count)~tvec[tvec<ss.thalf])
-	r <- as.numeric(coef(m1)[2]) ##beta - gamma
-	iniI <- count[1] ## N * i0
-        ## curvature of spline at max
-	Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
-	Ip <- exp(max(predict(ss,tvec)$y))
-	c <- -Qp.alt/Ip
-	x <- list()
-	x<- within(x,{
-		i0 <- 0.001 ## hack?
-		N <- iniI/i0
-		beta <- 0.5 *(sqrt(4*c*N + r^2)+r)
-		gamma <- beta - r
-	})
-	return(unlist(x))
-
-    list(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
-         logit.i=logit.i)
+         data) {
+	if (auto) {
+		tvec <- data$tvec
+		count <- data$count
+		ss <- smooth.spline(tvec,log(count),spar=0.5)
+		## find max value
+		ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+		## find a point halfway between initial and max
+		##  scaling could be adjustable?
+		ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+		m1 <- lm(log(count)~tvec,data=subset(data,tvec<ss.thalf))
+		r <- as.numeric(coef(m1)[2]) ##beta - gamma
+		iniI <- count[1] ## N * i0
+	    ## curvature of spline at max
+		Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+		Ip <- exp(max(predict(ss,tvec)$y))
+		c <- -Qp.alt/Ip
+		inc = data$count*diff(c(0,tvec))/10
+		intI = iniI+sum(inc[1:ss.tmax+1])
+		
+		gamma = intI * c/r
+		beta = gamma + r
+		N = beta*gamma/c
+		i0 = iniI/N
+		
+		x <- list(
+			log.beta = log(beta),
+			log.gamma = log(gamma),
+			log.N = log(N),
+			logit.i = qlogis(i0)
+		)
+		
+		return(unlist(x))
+	}
+	list(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
+		logit.i=logit.i)
 }
-
-find.iniP <- function(data){
-	tvec <- data$tvec
-	ss <- with(bombay2,smooth.spline(tvec,log(count),spar=0.5))
-	ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,c(0,40))$root
-	ss.thalf <- min(tvec)+(ss.tmax-min(tvec))/2
-	m1 <- lm(log(count)~tvec,data=subset(bombay2,tvec<ss.thalf))
-	r=as.numeric(coef(m1)[2]) ##beta - gamma
-	iniI = bombay2$count[1] ## N * i0
-	Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
-	Ip <- exp(max(predict(ss,tvec)$y))
-	c = -Qp.alt/Ip
-	
-	x <- list()
-	x<- within(x,{
-		i0 = 0.001
-		N = iniI/i0
-		beta = 0.5 *(sqrt(4*c*N + r^2)+r)
-		gamma = beta - r
-	})
-	return(unlist(x))
-}
-
 
 ##' Normal distribution with profiled sd
 ##' @param x numeric value
@@ -81,6 +67,38 @@ SIR.grad <- function(t, x, params) {
               c(-beta*exp(logI)*S/N,beta*S/N-gamma)
           })
     list(g)
+}
+
+SIR.grad.sens <- function(t, x, params) {
+	g <- with(as.list(c(x,params)),
+{
+	I = exp(logI)
+	dS = -beta*S*I/N
+	dlogI = beta*S/N-gamma
+	
+	grad_SS = - beta * I/N
+	grad_SI = - beta * S/N
+	grad_IS = beta*I/N
+	grad_II = beta*S/N-gamma
+	
+	dnu_beta_S = grad_SS * nu_beta_S + grad_SI * nu_beta_I - S*I/N
+	
+	dnu_N_S = grad_SS * nu_N_S + grad_SI * nu_N_I + beta*S*I/N^2
+	
+	dnu_gamma_S = grad_SS * nu_gamma_S + grad_SI * nu_gamma_I
+	
+	dnu_I0_S = grad_SS * nu_I0_S + grad_SI * nu_I0_I
+	
+	dnu_beta_I = grad_IS * nu_beta_S + grad_II * nu_beta_I + S*I/N
+	
+	dnu_N_I = grad_IS * nu_N_S + grad_II * nu_N_I - beta*S*I/N^2
+	
+	dnu_gamma_I = grad_IS * nu_gamma_S +  grad_II * nu_gamma_I - I
+	
+	dnu_I0_I = grad_IS * nu_I0_S + grad_II * nu_I0_I
+	
+	list(c(dS, dlogI, dnu_beta_S, dnu_gamma_S, dnu_N_S, dnu_I0_S, dnu_beta_I, dnu_gamma_I, dnu_N_I, dnu_I0_I), I = I)
+})
 }
 
 ##' additive log-ratio transformation and inverse
@@ -141,7 +159,24 @@ summarize.pars <- function(params) {
 ##' tvec <- seq(0,200,by=0.01)
 ##' ss <- SIR.detsim(tvec,pars)
 ##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
-SIR.detsim <- function(t, params, func=SIR.grad) {
+SIR.detsim <- function(t, params, findSens = FALSE){
+	if(findSens == TRUE){
+		func = SIR.grad.sens
+
+		odesol <- as.data.frame(with(as.list(params),
+									 rk(y=c(S = N*(1-i0), logI = log(N*i0),
+									 			 nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1,
+									 			 nu_I0_S = 0,
+									 			 nu_beta_I = 0, nu_gamma_I = 0, nu_N_I = i0,
+									 			 nu_I0_I = N),
+									 	 times=t,
+									 	 func=SIR.grad.sens,
+									 	 parms=params)))
+		
+		return(odesol[c("time","I", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")])
+	}else{
+		func = SIR.grad
+
     odesol <- with(as.list(params),
                    ode(y=c(S=N,logI=log(N*i0)),
                        times=t,
@@ -158,6 +193,7 @@ SIR.detsim <- function(t, params, func=SIR.grad) {
     ## FIXME: if we want to return incidence instead
     ##        of prevalence, what is the match between
     ##        time periods and incidence? (Do we start at t=-1?)
+	}
 }
 
 ##' Normal log-likelihood for SIR trajectory
@@ -222,5 +258,51 @@ fitsir <- function(data,method="Nelder-Mead",
          method=method,
          control=control,
          data=c(data,list(debug=debug)))
+}
+
+## Introducing sensitivity equations
+
+##' Calculate SSQ
+##' 
+##' @param observed data and parameters for deterministic simulation
+findSSQ <- function(data, params){
+	ssqL <- list()
+	
+	ssqL <- within(ssqL, {
+		t = data$tvec
+		sim = SIR.detsim(t, params, findSens = TRUE)
+		obs = data$count
+		pred = sim$I
+		SSQ = sum(c(pred - obs)^2)
+	})
+	return(ssqL)
+}
+
+findSens <- function(data, params, plot.it = FALSE, log = TRUE){
+	ssqL <- findSSQ(data, params)
+	
+	attach(ssqL)
+	
+	if(plot.it == TRUE){
+		if(log == TRUE){
+			matplot(cbind(log(obs), log(pred)), type = "l")
+		}else{
+			matplot(cbind(obs, pred), type = "l")
+		}
+	}
+	
+	dSSQ = 2 * (pred - obs)
+	
+	sensitivity <- c(
+		SSQ = SSQ,
+		SSQ_beta = sum(dSSQ * sim$nu_beta_I),
+		SSQ_N = sum(dSSQ * sim$nu_N_I),
+		SSQ_gamma = sum(dSSQ * sim$nu_gamma_I),
+		SSQ_I0 = sum(dSSQ * sim$nu_I0_I)
+	)
+	
+	detach(ssqL)
+	
+	return(sensitivity)
 }
 
