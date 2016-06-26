@@ -32,7 +32,7 @@ pars <- c(beta = 0.5,
 	N= 501,
 	i0 = 0.01)
 
-pars2 <- c(beta = 0.55,
+pars2 <- c(beta = 0.505,
 	gamma = 0.1,
 	N= 501,
 	i0 = 0.01)
@@ -41,7 +41,7 @@ a = SIR.detsim(tvec, pars, findSens = TRUE)
 
 a2 = SIR.detsim(tvec, pars2, findSens = TRUE)
 
-z = (a2$I-a$I)/0.05
+z = (a2$I-a$I)/0.005
 
 plot(a$I, type = "l")
 lines(a2$I, col = "2")
@@ -57,8 +57,8 @@ lines(a2$nu_beta_I, col = 3)
 ## SSQ example
 
 ```{r ssq.ex}
-fake.obs = a[,c("time", "I")]
-names(fake.obs) = c("tvec", "count")
+fake.obs = as.data.frame(cbind(tvec, I=a[,c("I")]))
+colnames(fake.obs) = c("tvec", "count")
 
 pars3 <- c(beta = 0.51,
 	gamma = 0.10,
@@ -117,7 +117,92 @@ findSens(bombay2, iniP.ex, plot.it = TRUE)
 
 fitP <- coef(fitsir(bombay2, start = startfun(data=bombay2, auto = TRUE)))
 
-findSens(bombay2, trans.pars(fitP), plot.it = TRUE)
+(fit.pars <- trans.pars(fitP))
+
+findSens(bombay2, fit.pars, plot.it = TRUE)
+
+```
+
+## Incidence
+
+We need new equations for incidence... Let's assume that bombay2 data is incidence data. We're going to use $I(t)$ for incidence and $P(t)$ for prevalence from here.
+
+```{r}
+
+bombay2 <- setNames(bombay,c("tvec","count"))
+
+fitP.inc <- coef(fitsir(bombay2, incidence = TRUE))
+
+(fit.pars2 <- trans.pars(fitP.inc))
+
+findSens(bombay2, fit.pars2, plot.it = TRUE, incidence = TRUE)
+
+bombay3 <- data.frame(tvec = bombay2$tvec, count = cumsum(bombay2$count))
+
+plot(bombay3)
+
+lines(cumsum(SIR.detsim(bombay2$tvec, fit.pars2, incidence = TRUE)), col = 2)
+```
+
+I think I made incidence fitting to work but I still want to figure out the starting parameters.
+
+### Auto-start
+
+First, we know that $I(0)/ \Delta t = \beta N (1-i_0) i_0 $, where $\Delta t$ is the reporting time interval.
+```{r}
+tvec <- bombay2$tvec
+count <- bombay2$count
+
+count[1] #4
+with(as.list(fit.pars),{beta * N * (1 -i0) * i0}) ## 4.35
+```
+
+We also know that the the initial exponential rate of growth for $\int I(t) dt$ is $\beta$.
+
+```{r}
+
+ss <- smooth.spline(tvec,log(count),spar=0.5)
+		## find max value
+ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+		## find a point halfway between initial and max
+		##  scaling could be adjustable?
+ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+
+m1 <- lm(log(count)~tvec, data =bombay3[ss.thalf:ss.tmax,])
+
+coef(m1)[2] ## 0.28
+fit.pars[1] ## 0.372
+```
+
+### Sensitivity
+
+```{r inc.sens}
+tvec <- seq(1, 60, 0.2)
+pars <- c(beta = 0.5,
+	gamma = 0.1,
+	N= 501,
+	i0 = 0.01)
+
+pars2 <- c(beta = 0.5,
+	gamma = 0.101,
+	N= 501,
+	i0 = 0.01)
+
+a = SIR.detsim(tvec, pars, findSens = TRUE, inc = TRUE)
+
+a2 = SIR.detsim(tvec, pars2, findSens = TRUE, inc = TRUE)
+
+z = (a2$inc-a$inc)/0.001
+
+plot(a$inc, type = "l")
+lines(a2$inc, col = "2")
+
+plot(z, type = "l", ylim = c(-50, 50))
+
+lines(a$nu_gamma_I, col = 2)
+
+lines(a2$nu_gamma_I, col = 3)
+
 
 ```
 
