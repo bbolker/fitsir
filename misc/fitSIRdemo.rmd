@@ -1,0 +1,208 @@
+---
+title: "Sensitivity demo"
+output: html_document
+---
+
+```{r pkgs, message = FALSE}
+library("deSolve")
+library("bbmle")
+source("../R/fitSIR_funs.R")
+```
+
+I'm going to show how to use the sensitivity functions...
+
+## Gradient function
+
+I'm going to claim that this is the correct sensitivity equation:
+
+$$
+\begin{aligned}
+\frac{\partial}{\partial t}\frac{\partial I(t,\theta)}{\partial\theta} &= \frac{\partial f_I}{\partial\theta}\\
+&= \frac{\partial f_I}{\partial S}\frac{\partial  S}{\partial\theta} + \frac{\partial f_I}{\partial I}\frac{\partial I}{\partial\theta} + \frac{\partial f_I}{\partial\theta} \\
+\end{aligned}
+$$
+
+## Example 
+
+```{r ex.sim}
+tvec <- seq(1, 60, 0.2)
+
+pars <- c(beta = 0.5,
+	gamma = 0.1,
+	N= 501,
+	i0 = 0.01)
+
+pars2 <- c(beta = 0.505,
+	gamma = 0.1,
+	N= 501,
+	i0 = 0.01)
+
+a = SIR.detsim(tvec, pars, findSens = TRUE)
+
+a2 = SIR.detsim(tvec, pars2, findSens = TRUE)
+
+z = (a2$I-a$I)/0.005
+
+plot(a$I, type = "l")
+lines(a2$I, col = "2")
+
+plot(z, type = "l", ylim = c(-500, 1000))
+
+lines(a$nu_beta_I, col = 2)
+
+lines(a2$nu_beta_I, col = 3)
+
+```
+
+## SSQ example
+
+```{r ssq.ex}
+fake.obs = as.data.frame(cbind(tvec, I=a[,c("I")]))
+colnames(fake.obs) = c("tvec", "count")
+
+pars3 <- c(beta = 0.51,
+	gamma = 0.10,
+	N= 501,
+	i0 = 0.01)
+
+pars4 <- c(beta = 0.501,
+	gamma = 0.10,
+	N= 501,
+	i0 = 0.01)
+
+findSens(fake.obs, pars3)
+findSens(fake.obs, pars4)
+
+```
+
+## Bombay example - initial values
+
+We start with these three equations:
+
+$$
+\begin{aligned}
+r &= \beta - \gamma,\\
+-\frac{Q}{I_p} &= \frac{\beta\gamma}{N},\\
+N - I_0 - \int I(t) dt = \frac{\gamma}{\beta}N,
+\end{aligned}
+$$
+
+where $I(t)$ is incidence. Substition gives us following two equations:
+
+$$
+\begin{aligned}
+N &= - \gamma^2 \frac{I_p}{Q} + I_0 + \int I(t) dt\\
+N &= - (\gamma+r) \gamma \frac{I_p}{Q}
+\end{aligned}
+$$
+
+This gives
+
+$$
+\begin{aligned}
+(\gamma+r) \gamma \frac{I_p}{Q} &= \gamma^2 \frac{I_p}{Q} - I_0 - \int I(t) dt\\
+\gamma^2 \frac{I_p}{Q} + r \gamma \frac{I_p}{Q} &= \gamma^2 \frac{I_p}{Q} - I_0 - \int I(t) dt\\
+r \gamma \frac{I_p}{Q} &=- (I_0 + \int I(t) dt)\\
+\end{aligned}
+$$
+
+```{r}
+library("fitsir")
+
+bombay2 <- setNames(bombay,c("tvec","count"))
+
+iniP.ex <- trans.pars(startfun(data=bombay2, auto = TRUE))
+
+findSens(bombay2, iniP.ex, plot.it = TRUE)
+
+fitP <- coef(fitsir(bombay2, start = startfun(data=bombay2, auto = TRUE)))
+
+(fit.pars <- trans.pars(fitP))
+
+findSens(bombay2, fit.pars, plot.it = TRUE)
+
+```
+
+## Incidence
+
+We need new equations for incidence... Let's assume that bombay2 data is incidence data. We're going to use $I(t)$ for incidence and $P(t)$ for prevalence from here.
+
+```{r}
+
+bombay2 <- setNames(bombay,c("tvec","count"))
+
+fitP.inc <- coef(fitsir(bombay2, incidence = TRUE))
+
+(fit.pars2 <- trans.pars(fitP.inc))
+
+findSens(bombay2, fit.pars2, plot.it = TRUE, incidence = TRUE)
+
+bombay3 <- data.frame(tvec = bombay2$tvec, count = cumsum(bombay2$count))
+
+plot(bombay3)
+
+lines(cumsum(SIR.detsim(bombay2$tvec, fit.pars2, incidence = TRUE)), col = 2)
+```
+
+I think I made incidence fitting to work but I still want to figure out the starting parameters.
+
+### Auto-start
+
+First, we know that $I(0)/ \Delta t = \beta N (1-i_0) i_0 $, where $\Delta t$ is the reporting time interval.
+```{r}
+tvec <- bombay2$tvec
+count <- bombay2$count
+
+count[1] #4
+with(as.list(fit.pars),{beta * N * (1 -i0) * i0}) ## 4.35
+```
+
+We also know that the the initial exponential rate of growth for $\int I(t) dt$ is $\beta$.
+
+```{r}
+
+ss <- smooth.spline(tvec,log(count),spar=0.5)
+		## find max value
+ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+		## find a point halfway between initial and max
+		##  scaling could be adjustable?
+ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+
+m1 <- lm(log(count)~tvec, data =bombay3[ss.thalf:ss.tmax,])
+
+coef(m1)[2] ## 0.28
+fit.pars[1] ## 0.372
+```
+
+### Sensitivity
+
+```{r inc.sens}
+tvec <- seq(1, 60, 0.2)
+pars <- c(beta = 0.5,
+	gamma = 0.1,
+	N= 501,
+	i0 = 0.01)
+
+pars2 <- c(beta = 0.5,
+	gamma = 0.101,
+	N= 501,
+	i0 = 0.01)
+
+a = SIR.detsim(tvec, pars, findSens = TRUE, inc = TRUE)
+
+a2 = SIR.detsim(tvec, pars2, findSens = TRUE, inc = TRUE)
+
+z = (a2$inc-a$inc)/0.001
+
+plot(a$inc, type = "l")
+lines(a2$inc, col = "2")
+
+plot(z, type = "l", ylim = c(-50, 50))
+
+lines(a$nu_gamma_I, col = 2)
+
+lines(a2$nu_gamma_I, col = 3)
+
+
+```
+
