@@ -123,8 +123,26 @@ findSens(bombay2, fit.pars, plot.it = TRUE)
 
 ```
 
-```{r}
-fitP2 <- fitsir.optim(bombay2, start = startfun(), plot.it=TRUE)
+```{r, error = FALSE}
+(fitP2 <- fitsir.optim(bombay2, start = startfun(), plot.it=TRUE))
+
+findSens(bombay2, fitP2, plot.it = TRUE)
+
+##with auto start?
+
+(fitP3 <- fitsir.optim(bombay2, start = startfun(data=bombay2, auto = TRUE), plot.it=TRUE))
+
+findSens(bombay2, fitP3, plot.it = TRUE)
+
+```
+
+This is weird... We get lower sensitivity values but higher SSQ...
+
+```{r }
+
+(fitP4 <- fitsir.optim(bombay2, start = fitP, plot.it=TRUE))
+
+findSens(bombay2, fitP4, plot.it = TRUE)
 
 ```
 

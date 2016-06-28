@@ -353,15 +353,14 @@ fitsir.optim <- function(data,
 	assign("oldgrad",NULL,f.env)
 	assign("data", data, f.env)
 	objfun <- function(par) {
-		cat("begin\n")
 		if (identical(par,oldpar)) {
 			if (verbose) cat("returning old version of SSQ\n")
 			return(oldSSQ)
 		}
 		if (verbose) cat("computing new version (SSQ)\n")
-		cat(par, "\n")
+		
 		v <- findSens(data, par, incidence = incidence)
-		cat("found\n")
+		
 		oldSSQ <<- v["SSQ"]
 		oldgrad <<- v[-1]
 		oldpar <<- par
@@ -391,6 +390,7 @@ fitsir.optim <- function(data,
 	fit.p <- optim(fn = objfun,
 		par = pars,
 		method = "BFGS",
+		lower = 0,
 		gr = gradfun)$par
 	
 	cat("done")
