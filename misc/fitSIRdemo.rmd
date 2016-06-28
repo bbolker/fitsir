@@ -123,6 +123,11 @@ findSens(bombay2, fit.pars, plot.it = TRUE)
 
 ```
 
+```{r}
+fitP2 <- fitsir.optim(bombay2, start = startfun(), plot.it=TRUE)
+
+```
+
 ## Incidence
 
 We need new equations for incidence... Let's assume that bombay2 data is incidence data. We're going to use $I(t)$ for incidence and $P(t)$ for prevalence from here.
@@ -145,6 +150,12 @@ lines(cumsum(SIR.detsim(bombay2$tvec, fit.pars2, incidence = TRUE)), col = 2)
 ```
 
 I think I made incidence fitting to work but I still want to figure out the starting parameters.
+
+```{r}
+
+plot(SIR.detsim(1:800, fit.pars2, incidence = TRUE))
+
+```
 
 ### Auto-start
 
@@ -202,7 +213,5 @@ plot(z, type = "l", ylim = c(-50, 50))
 lines(a$nu_gamma_I, col = 2)
 
 lines(a2$nu_gamma_I, col = 3)
-
-
 ```
 

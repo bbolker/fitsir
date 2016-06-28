@@ -119,15 +119,13 @@ alr <- function(x) {
 ##' transform parameters log->exp or alr->raw
 ##' *assume* R=0/S=N at start of epidemic
 ##' @param params parameter vector containing \code{log.beta}, \code{log.gamma}, \code{log.N}, \code{logit.i}
-##' @return params transformed parameter vector containing \code{beta}, \code{gamma}, \code{N}, \code{s0}, \code{i0}
+##' @return params transformed parameter vector containing \code{beta}, \code{gamma}, \code{N}, \code{i0}
 ##' @export
 trans.pars <- function(params) {
     tpars <- with(as.list(params),
                   c(beta=exp(log.beta),
                     gamma=exp(log.gamma),
                     N=exp(log.N),
-                    ## use alrinv() instead?
-                    s0=exp(log.N),
                     i0=plogis(logit.i)))
     if (is.list(params)) tpars <- as.list(tpars)
     return(tpars)
@@ -164,14 +162,14 @@ summarize.pars <- function(params) {
 SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll = FALSE){
 	with(as.list(params),{
 		
-		if(incidence == TRUE){
+		if(incidence){
 			l <- length(t)
 			t.d <- diff(t[(l-1):l])
 			t <- c(t, t[l]+t.d)
 			t.interval <- diff(t)
 		}
 		
-		if(findSens == TRUE){
+		if(findSens){
 			func <- SIR.grad.sens
 			yini <- c(S = N*(1-i0), logI = log(N*i0),
 				nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1,
@@ -190,14 +188,14 @@ SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll
 			dllname = "fitsir",
 			initfunc = "initmod"))
 		
-		if(reportAll == TRUE){
+		if(reportAll){
 			return(odesol)
 		}
 		
-		if(incidence == TRUE){
+		if(incidence){
 			odesol <- as.data.frame(diff(as.matrix(odesol)))
 			
-			if(findSens == TRUE){
+			if(findSens){
 				
 				odesol.inc <- -odesol[,c("S", "nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S")]
 				names(odesol.inc) <- c("inc", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")	
@@ -208,7 +206,7 @@ SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll
 			}
 			
 		}else{
-			if(findSens == TRUE){
+			if(findSens){
 				return(odesol[,c("I", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")])
 			}else{
 				return(odesol[,"I"])
@@ -298,7 +296,7 @@ findSSQ <- function(data, params, incidence = FALSE){
 		t = data$tvec
 		sim = SIR.detsim(t, params, findSens = TRUE, incidence = incidence)
 		obs = data$count
-		if(incidence == TRUE){
+		if(incidence){
 			pred = sim$inc
 		}else{
 			pred = sim$I
@@ -313,8 +311,8 @@ findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALS
 	
 	attach(ssqL)
 	
-	if(plot.it == TRUE){
-		if(log == TRUE){
+	if(plot.it){
+		if(log){
 			matplot(cbind(log(obs), log(pred)), type = "l")
 		}else{
 			matplot(cbind(obs, pred), type = "l")
@@ -336,4 +334,66 @@ findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALS
 	detach(ssqL)
 	
 	return(sensitivity)
+}
+
+fitsir.optim <- function(data,
+												 start = startfun(),
+												 incidence = FALSE,
+												 verbose = FALSE,
+												 plot.it = FALSE){
+	
+	if(plot.it){
+		plot(data)
+	}
+	
+	f.env <- new.env()
+	## set initial values
+	assign("oldSSQ",NULL,f.env)
+	assign("oldpar",NULL,f.env)
+	assign("oldgrad",NULL,f.env)
+	assign("data", data, f.env)
+	objfun <- function(par) {
+		cat("begin\n")
+		if (identical(par,oldpar)) {
+			if (verbose) cat("returning old version of SSQ\n")
+			return(oldSSQ)
+		}
+		if (verbose) cat("computing new version (SSQ)\n")
+		cat(par, "\n")
+		v <- findSens(data, par, incidence = incidence)
+		cat("found\n")
+		oldSSQ <<- v["SSQ"]
+		oldgrad <<- v[-1]
+		oldpar <<- par
+		
+		if(plot.it){
+			lines(lines(SIR.detsim(data$tvec, par, incidence = incidence)))
+		}
+		return(oldSSQ)
+	}
+	environment(objfun) <- f.env
+	gradfun <- function(par) {
+		if (identical(par,oldpar)) {
+			if (verbose) cat("returning old version of grad\n")
+			return(oldgrad)
+		}
+		if (verbose) cat("computing new version (grad)\n")
+		v <- findSens(data, par, incidence = incidence)
+		oldSSQ <<- v["SSQ"]
+		oldgrad <<- v[-1]
+		oldpar <<- par
+		return(oldgrad)
+	}
+	environment(gradfun) <- f.env
+	
+	pars <- trans.pars(start)
+	
+	fit.p <- optim(fn = objfun,
+		par = pars,
+		method = "BFGS",
+		gr = gradfun)$par
+	
+	cat("done")
+	
+	return(fit.p)
 }
