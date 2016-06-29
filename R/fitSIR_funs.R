@@ -366,7 +366,7 @@ fitsir.optim <- function(data,
 		oldpar <<- par
 		
 		if(plot.it){
-			lines(lines(SIR.detsim(data$tvec, par, incidence = incidence)))
+			lines(data$tvec, SIR.detsim(data$tvec, par, incidence = incidence))
 		}
 		return(oldSSQ)
 	}
@@ -390,7 +390,7 @@ fitsir.optim <- function(data,
 	fit.p <- optim(fn = objfun,
 		par = pars,
 		method = "BFGS",
-		lower = 0,
+		lower = c(0,0,0,0),
 		gr = gradfun)$par
 	
 	cat("done")

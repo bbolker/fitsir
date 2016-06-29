@@ -206,30 +206,41 @@ fit.pars[1] ## 0.372
 ### Sensitivity
 
 ```{r inc.sens}
-tvec <- seq(1, 60, 0.2)
+tvec <- seq(1, 50, 0.5)
+
 pars <- c(beta = 0.5,
-	gamma = 0.1,
-	N= 501,
+	gamma = 0.3,
+	N= 2001,
 	i0 = 0.01)
 
-pars2 <- c(beta = 0.5,
-	gamma = 0.101,
-	N= 501,
-	i0 = 0.01)
+fake.inc = data.frame(tvec, count = SIR.detsim(tvec, pars, incidence = TRUE))
 
-a = SIR.detsim(tvec, pars, findSens = TRUE, inc = TRUE)
+plot(fake.inc)
 
-a2 = SIR.detsim(tvec, pars2, findSens = TRUE, inc = TRUE)
+fake.P <- coef(fitsir(fake.inc, incidence = TRUE))
 
-z = (a2$inc-a$inc)/0.001
+trans.pars(fake.P)
 
-plot(a$inc, type = "l")
-lines(a2$inc, col = "2")
+findSens(fake.inc, trans.pars(fake.P), plot.it = TRUE, incidence = TRUE)
+```
 
-plot(z, type = "l", ylim = c(-50, 50))
+```{r}
+(fake.P2 <- fitsir.optim(fake.inc, start = startfun(), plot.it=TRUE, incidence = TRUE))
 
-lines(a$nu_gamma_I, col = 2)
+findSens(fake.inc, fake.P2, plot.it = TRUE, incidence = TRUE)
 
-lines(a2$nu_gamma_I, col = 3)
+```
+
+This is weird... All three parameters are different but they give us similar incidence trajectory...
+
+```{r}
+
+r1 <- SIR.detsim(tvec, pars, reportAll = TRUE)
+r2 <- SIR.detsim(tvec, trans.pars(fake.P), reportAll = TRUE)
+r3 <- SIR.detsim(tvec, fake.P2, reportAll = TRUE)
+
+plot(-diff(r1$S), type = "l")
+lines(-diff(r2$S), col = 2)
+lines(-diff(r3$S), col = 3)
 ```
 
