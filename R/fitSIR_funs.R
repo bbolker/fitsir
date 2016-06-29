@@ -194,24 +194,21 @@ SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll
 		
 		if(incidence){
 			odesol <- as.data.frame(diff(as.matrix(odesol)))
-			
 			if(findSens){
-				
-				odesol.inc <- -odesol[,c("S", "nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S")]
-				names(odesol.inc) <- c("inc", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")	
-				return(odesol.inc)
+				odesol <- -odesol[,c("S", "nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S")]
+				names(odesol) <- c("I", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")		
 			}else{
-				odesol.inc <- -odesol[,c("S")]
-				return(odesol.inc)
-			}
-			
-		}else{
-			if(findSens){
-				return(odesol[,c("I", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")])
-			}else{
-				return(odesol[,"I"])
+				odesol <- -odesol
+				names(odesol) <- c("NA.t","I","NA.p")
 			}
 		}
+		
+		if(findSens){
+			return(odesol)
+		}else{
+			return(odesol[,"I"])
+		}
+		
 	})
 }
 
@@ -296,11 +293,8 @@ findSSQ <- function(data, params, incidence = FALSE){
 		t = data$tvec
 		sim = SIR.detsim(t, params, findSens = TRUE, incidence = incidence)
 		obs = data$count
-		if(incidence){
-			pred = sim$inc
-		}else{
-			pred = sim$I
-		}
+		pred = sim$I
+		
 		SSQ = sum(c(pred - obs)^2)
 	})
 	return(ssqL)
@@ -320,8 +314,6 @@ findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALS
 	}
 	
 	dSSQ = 2 * (pred - obs)
-	
-	
 	
 	sensitivity <- c(
 		SSQ = SSQ,
@@ -393,7 +385,13 @@ fitsir.optim <- function(data,
 		lower = c(0,0,0,0),
 		gr = gradfun)$par
 	
-	cat("done")
-	
-	return(fit.p)
+	with(as.list(fit.p),{
+		final.pars <- list(
+			log.beta = log(beta),
+			log.gamma = log(gamma),
+			log.N = log(N),
+			logit.i = qlogis(i0)
+		)
+		return(final.pars)
+	})	
 }
