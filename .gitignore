@@ -12,6 +12,15 @@
 
 # emacs files
 *~
+*.bak
+#*
+.#*
+
+*.so
+*.o
+
+*.aux
+*.log
 
 #vignette builds
 cache/
