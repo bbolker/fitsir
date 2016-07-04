@@ -123,6 +123,29 @@ findSens(bombay2, fit.pars, plot.it = TRUE)
 
 ```
 
+```{r, error = FALSE}
+(fitP2 <- fitsir.optim(bombay2, start = startfun(), plot.it=TRUE))
+
+findSens(bombay2, trans.pars(fitP2), plot.it = TRUE)
+
+##with auto start?
+
+(fitP3 <- fitsir.optim(bombay2, start = startfun(data=bombay2, auto = TRUE), plot.it=TRUE))
+
+findSens(bombay2, trans.pars(fitP3), plot.it = TRUE)
+
+```
+
+This is weird... We get lower sensitivity values but higher SSQ...
+
+```{r }
+
+(fitP4 <- fitsir.optim(bombay2, start = fitP, plot.it=TRUE))
+
+findSens(bombay2, trans.pars(fitP4), plot.it = TRUE)
+
+```
+
 ## Incidence
 
 We need new equations for incidence... Let's assume that bombay2 data is incidence data. We're going to use $I(t)$ for incidence and $P(t)$ for prevalence from here.
@@ -133,18 +156,22 @@ bombay2 <- setNames(bombay,c("tvec","count"))
 
 fitP.inc <- coef(fitsir(bombay2, incidence = TRUE))
 
-(fit.pars2 <- trans.pars(fitP.inc))
-
-findSens(bombay2, fit.pars2, plot.it = TRUE, incidence = TRUE)
+findSens(bombay2, trans.pars(fitP.inc), plot.it = TRUE, incidence = TRUE)
 
 bombay3 <- data.frame(tvec = bombay2$tvec, count = cumsum(bombay2$count))
 
 plot(bombay3)
 
-lines(cumsum(SIR.detsim(bombay2$tvec, fit.pars2, incidence = TRUE)), col = 2)
+lines(cumsum(SIR.detsim(bombay2$tvec, trans.pars(fitP.inc), incidence = TRUE)), col = 2)
 ```
 
 I think I made incidence fitting to work but I still want to figure out the starting parameters.
+
+```{r}
+
+plot(SIR.detsim(1:800, trans.pars(fitP.inc), incidence = TRUE))
+
+```
 
 ### Auto-start
 
@@ -154,7 +181,7 @@ tvec <- bombay2$tvec
 count <- bombay2$count
 
 count[1] #4
-with(as.list(fit.pars),{beta * N * (1 -i0) * i0}) ## 4.35
+with(as.list(trans.pars(fitP.inc)),{beta * N * (1 -i0) * i0}) ## 4.35
 ```
 
 We also know that the the initial exponential rate of growth for $\int I(t) dt$ is $\beta$.
@@ -171,38 +198,47 @@ ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
 m1 <- lm(log(count)~tvec, data =bombay3[ss.thalf:ss.tmax,])
 
 coef(m1)[2] ## 0.28
-fit.pars[1] ## 0.372
+trans.pars(fitP.inc)[1] ## 0.372
 ```
 
 ### Sensitivity
 
 ```{r inc.sens}
-tvec <- seq(1, 60, 0.2)
+tvec <- seq(1, 50, 0.5)
+
 pars <- c(beta = 0.5,
-	gamma = 0.1,
-	N= 501,
+	gamma = 0.3,
+	N= 2001,
 	i0 = 0.01)
 
-pars2 <- c(beta = 0.5,
-	gamma = 0.101,
-	N= 501,
-	i0 = 0.01)
+fake.inc = data.frame(tvec, count = SIR.detsim(tvec, pars, incidence = TRUE))
 
-a = SIR.detsim(tvec, pars, findSens = TRUE, inc = TRUE)
+plot(fake.inc)
 
-a2 = SIR.detsim(tvec, pars2, findSens = TRUE, inc = TRUE)
+fake.P <- coef(fitsir(fake.inc, incidence = TRUE))
 
-z = (a2$inc-a$inc)/0.001
+trans.pars(fake.P)
 
-plot(a$inc, type = "l")
-lines(a2$inc, col = "2")
+findSens(fake.inc, trans.pars(fake.P), plot.it = TRUE, incidence = TRUE)
+```
 
-plot(z, type = "l", ylim = c(-50, 50))
+```{r}
+(fake.P2 <- fitsir.optim(fake.inc, start = startfun(), plot.it=TRUE, incidence = TRUE))
 
-lines(a$nu_gamma_I, col = 2)
+findSens(fake.inc, trans.pars(fake.P2), plot.it = TRUE, incidence = TRUE)
 
-lines(a2$nu_gamma_I, col = 3)
+```
 
+This is weird... All three parameters are different but they give us similar incidence trajectory...
 
+```{r}
+
+r1 <- SIR.detsim(tvec, pars, reportAll = TRUE)
+r2 <- SIR.detsim(tvec, trans.pars(fake.P), reportAll = TRUE)
+r3 <- SIR.detsim(tvec, trans.pars(fake.P2), reportAll = TRUE)
+
+plot(-diff(r1$S), type = "l")
+lines(-diff(r2$S), col = 2)
+lines(-diff(r3$S), col = 3)
 ```
 
