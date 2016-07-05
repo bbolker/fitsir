@@ -11,7 +11,19 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 	if (auto) {
 		tvec <- data$tvec
 		count <- data$count
-		ss <- smooth.spline(tvec,log(count),spar=0.5)
+                ## smooth data; start with smoothing par 0.5, try
+                ## to increase it until there is a single critical point ...
+                ## (check that second deriv is negative???)
+                ncrit <- Inf
+                it <- 1
+                spar <- 0.5
+                while (ncrit>1 && it<10) {
+                    ss <- smooth.spline(tvec,log(count),spar=spar)
+                    dd <- predict(ss,deriv=1)$y
+                    ncrit <- sum(diff(sign(dd))!=0)
+                    spar <- (1+spar)/2
+                }
+                if (it==10) stop("couldn't smooth enough")
 		## find max value
 		ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
 		## find a point halfway between initial and max
