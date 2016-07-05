@@ -300,7 +300,6 @@ findSSQ <- function(data, params, incidence = FALSE){
 	
 	ssqL <- within(ssqL, {
 		t = data$tvec
-		plist = as.list(params)
 		sim = SIR.detsim(t, trans.pars(params), findSens = TRUE, incidence = incidence)
 		obs = data$count
 		pred = sim$I
@@ -326,18 +325,16 @@ findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALS
 	dSSQ = 2 * (pred - obs)
 	
 	attach(sim)
-	attach(plist)
 	
 	sensitivity <- c(
 		SSQ = SSQ,
-		SSQ_beta = sum(dSSQ * nu_beta_I * exp(log.beta)),
-		SSQ_gamma = sum(dSSQ * nu_gamma_I * exp(log.gamma)),
-		SSQ_N = sum(dSSQ * nu_N_I * exp(log.N)),
+		SSQ_beta = sum(dSSQ * nu_beta_I),
+		SSQ_gamma = sum(dSSQ * nu_gamma_I),
+		SSQ_N = sum(dSSQ * nu_N_I),
 		SSQ_I0 = sum(dSSQ * nu_I0_I)
 	)
 	
 	detach(sim)
-	detach(plist)
 	
 	detach(ssqL)
 	
@@ -394,7 +391,8 @@ fitsir.optim <- function(data,
 	
 	fit.p <- optim(fn = objfun,
 		par = start,
-		method = "BFGS",
+		method = "L-BFGS-B",
+		upper = c(15, 15, 15, 15),
 		gr = gradfun)$par
 	
 	return(fit.p)

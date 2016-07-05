@@ -54,29 +54,6 @@ lines(a2$nu_beta_I, col = 3)
 
 ```
 
-## SSQ example
-
-```{r ssq.ex}
-fake.obs = as.data.frame(cbind(tvec, I=a[,c("I")]))
-colnames(fake.obs) = c("tvec", "count")
-
-pars3 <- c(log.beta = -0.7,
-	log.gamma = -3.1,
-	log.N= 5,
-	logit.i = -2)
-
-findSens(fake.obs, pars3, plot.it = TRUE)
-
-pars4 <- c(log.beta = -0.7,
-	log.gamma = -2.3,
-	log.N= 6.21,
-	logit.i = -4.6)
-
-
-findSens(fake.obs, pars4)
-
-```
-
 ## Bombay example - initial values
 
 We start with these three equations:
@@ -132,17 +109,15 @@ findSens(bombay2, fitP2, plot.it = TRUE)
 
 (fitP3 <- fitsir.optim(bombay2, start = startfun(data=bombay2, auto = TRUE), plot.it=TRUE))
 
-findSens(bombay2, trans.pars(fitP3), plot.it = TRUE)
+findSens(bombay2, fitP3, plot.it = TRUE)
 
 ```
-
-This is weird... We get lower sensitivity values but higher SSQ...
 
 ```{r }
 
 (fitP4 <- fitsir.optim(bombay2, start = fitP, plot.it=TRUE))
 
-findSens(bombay2, trans.pars(fitP4), plot.it = TRUE)
+findSens(bombay2, fitP4, plot.it = TRUE)
 
 ```
 
@@ -165,14 +140,6 @@ plot(bombay3)
 lines(cumsum(SIR.detsim(bombay2$tvec, trans.pars(fitP.inc), incidence = TRUE)), col = 2)
 ```
 
-I think I made incidence fitting to work but I still want to figure out the starting parameters.
-
-```{r}
-
-plot(SIR.detsim(1:800, trans.pars(fitP.inc), incidence = TRUE))
-
-```
-
 ### Sensitivity
 
 ```{r inc.sens}
@@ -192,23 +159,10 @@ findSens(fake.inc, fake.P, plot.it = TRUE, incidence = TRUE)
 ```
 
 ```{r}
-(fake.P2 <- fitsir.optim(fake.inc, start = fake.P2, plot.it=TRUE, incidence = TRUE, verbose = TRUE))
+(fake.P2 <- fitsir.optim(fake.inc, start = startfun(), plot.it=TRUE, incidence = TRUE))
 
 findSens(fake.inc, fake.P2, plot.it = TRUE, incidence = TRUE)
 
-```
-
-This is weird... All three parameters are different but they give us similar incidence trajectory...
-
-```{r}
-
-r1 <- SIR.detsim(tvec, pars, reportAll = TRUE)
-r2 <- SIR.detsim(tvec, trans.pars(fake.P), reportAll = TRUE)
-r3 <- SIR.detsim(tvec, trans.pars(fake.P2), reportAll = TRUE)
-
-plot(-diff(r1$S), type = "l")
-lines(-diff(r2$S), col = 2)
-lines(-diff(r3$S), col = 3)
 ```
 
 ### Auto-start
@@ -220,8 +174,8 @@ count <- fake.inc$count
 
 t.diff0 <- tvec[2] - tvec[1]
 
-count[1] #5.19
-with(as.list(pars),{beta * N * (1 -i0) * i0 * t.diff0}) ## 4.95
+count[1] #1.34
+with(as.list(trans.pars(pars)),{beta * N * (1 -i0) * i0 * t.diff0}) ## 1.217
 ```
 
 We also know that the the initial exponential rate of growth for $\int I(t) dt$ is $\beta$.
@@ -250,8 +204,8 @@ m1 <- lm(log(cum.count)~tvec, data =subset(fake.inc, tvec < ss.thalf))
 plot(tvec,log(fake.inc$cum.count))
 lines(subset(fake.inc, tvec < ss.thalf)$tvec,predict(m1))
 
-coef(m1)[2] ## 0.4087
-pars[1] ## 0.5
+coef(m1)[2] ## 0.64
+trans.pars(pars)[1] ## 0.496
 ```
 
 Let's look at the derivative
@@ -276,15 +230,15 @@ $$
 Let's see how accurate this is...
 
 ```{r testDeriv}
-df.test <- SIR.detsim(tvec, pars, reportAll = TRUE)
+df.test <- SIR.detsim(tvec, trans.pars(pars), reportAll = TRUE)
 
 ss.tmax.n = which(tvec == floor(ss.tmax))
 
-attach(as.list(pars))
+attach(as.list(trans.pars(pars)))
 attach(df.test)
-beta/N*(S[ss.tmax.n] - I[ss.tmax.n]) ##0.314
-gamma ##0.3
-detach(as.list(pars))
+beta/N*(S[ss.tmax.n] - I[ss.tmax.n]) ##0.16
+gamma ##0.1
+detach(as.list(trans.pars(pars)))
 detach(df.test)
 
 ```
