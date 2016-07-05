@@ -24,8 +24,9 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 		Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 		Ip <- exp(max(predict(ss,tvec)$y))
 		c <- -Qp.alt/Ip
-		inc = data$count*diff(c(0,tvec))/10
-		intI = iniI+sum(inc[1:ss.tmax+1])
+		inc = data$count*diff(c((2*tvec[1]-tvec[2]),tvec))/10
+		n.tmax = which(tvec == ceiling(ss.tmax))
+		intI = iniI+sum(inc[1:n.tmax])
 		
 		gamma = intI * c/r
 		beta = gamma + r
@@ -188,6 +189,14 @@ SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll
 			dllname = "fitsir",
 			initfunc = "initmod"))
 		
+		if(findSens){
+			sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
+			
+			logSens <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
+			
+			odesol[,sensName] = sweep(odesol[,sensName], 2, rep(logSens,2), "*")
+		}
+		
 		if(reportAll){
 			return(odesol)
 		}
@@ -291,7 +300,8 @@ findSSQ <- function(data, params, incidence = FALSE){
 	
 	ssqL <- within(ssqL, {
 		t = data$tvec
-		sim = SIR.detsim(t, params, findSens = TRUE, incidence = incidence)
+		plist = as.list(params)
+		sim = SIR.detsim(t, trans.pars(params), findSens = TRUE, incidence = incidence)
 		obs = data$count
 		pred = sim$I
 		
@@ -315,13 +325,19 @@ findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALS
 	
 	dSSQ = 2 * (pred - obs)
 	
+	attach(sim)
+	attach(plist)
+	
 	sensitivity <- c(
 		SSQ = SSQ,
-		SSQ_beta = sum(dSSQ * sim$nu_beta_I),
-		SSQ_gamma = sum(dSSQ * sim$nu_gamma_I),
-		SSQ_N = sum(dSSQ * sim$nu_N_I),
-		SSQ_I0 = sum(dSSQ * sim$nu_I0_I)
+		SSQ_beta = sum(dSSQ * nu_beta_I * exp(log.beta)),
+		SSQ_gamma = sum(dSSQ * nu_gamma_I * exp(log.gamma)),
+		SSQ_N = sum(dSSQ * nu_N_I * exp(log.N)),
+		SSQ_I0 = sum(dSSQ * nu_I0_I)
 	)
+	
+	detach(sim)
+	detach(plist)
 	
 	detach(ssqL)
 	
@@ -329,10 +345,10 @@ findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALS
 }
 
 fitsir.optim <- function(data,
-												 start = startfun(),
-												 incidence = FALSE,
-												 verbose = FALSE,
-												 plot.it = FALSE){
+	start = startfun(),
+	incidence = FALSE,
+	verbose = FALSE,
+	plot.it = FALSE){
 	
 	if(plot.it){
 		plot(data)
@@ -352,13 +368,12 @@ fitsir.optim <- function(data,
 		if (verbose) cat("computing new version (SSQ)\n")
 		
 		v <- findSens(data, par, incidence = incidence)
-		
 		oldSSQ <<- v["SSQ"]
 		oldgrad <<- v[-1]
 		oldpar <<- par
 		
 		if(plot.it){
-			lines(data$tvec, SIR.detsim(data$tvec, par, incidence = incidence))
+			lines(data$tvec, SIR.detsim(data$tvec, trans.pars(par), incidence = incidence))
 		}
 		return(oldSSQ)
 	}
@@ -369,7 +384,7 @@ fitsir.optim <- function(data,
 			return(oldgrad)
 		}
 		if (verbose) cat("computing new version (grad)\n")
-		v <- findSens(data, par, incidence = incidence)
+		v <- findSens(data, trans.pars(par), incidence = incidence)
 		oldSSQ <<- v["SSQ"]
 		oldgrad <<- v[-1]
 		oldpar <<- par
@@ -377,21 +392,10 @@ fitsir.optim <- function(data,
 	}
 	environment(gradfun) <- f.env
 	
-	pars <- trans.pars(start)
-	
 	fit.p <- optim(fn = objfun,
-		par = pars,
+		par = start,
 		method = "BFGS",
-		lower = c(0,0,0,0),
 		gr = gradfun)$par
 	
-	with(as.list(fit.p),{
-		final.pars <- list(
-			log.beta = log(beta),
-			log.gamma = log(gamma),
-			log.N = log(N),
-			logit.i = qlogis(i0)
-		)
-		return(final.pars)
-	})	
+	return(fit.p)
 }
