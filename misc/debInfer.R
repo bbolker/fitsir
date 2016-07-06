@@ -24,11 +24,11 @@ SIR.logLik <- function(data, sim.data, samp){
 
 library(deBInfer)
 beta <- debinfer_par(name = "beta", var.type = "de", fixed = FALSE,
-									value = 10, prior="unif", hypers=list(min = 0, max = 30),
+									value = 5, prior="unif", hypers=list(min = 0, max = 30),
 									prop.var=3, samp.type="rw")
 
 gamma <- debinfer_par(name = "gamma", var.type = "de", fixed = FALSE,
-									value = 10, prior="unif", hypers=list(min = 0, max = 30),
+									value = 5, prior="unif", hypers=list(min = 0, max = 30),
 									prop.var=3, samp.type="rw")
 
 
@@ -54,14 +54,11 @@ mcmc_samples <- de_mcmc(N = iter, data=bombay2, de.model=SIR.grad,
 
 plot(mcmc_samples)
 
-burnin = 500
+burnin = 700
 pairs(mcmc_samples, burnin = burnin, scatter=TRUE, trend=TRUE)
 
 post_traj <- post_sim(mcmc_samples, n=500, times=1:31, burnin=burnin, output = 'all', prob = 0.95)
 
 plot(post_traj, plot.type = "medianHDI", lty = c(2,1), lwd=3, col=c("red","grey20"),
 		 panel.first=lines(bombay2, col="darkblue", lwd=2))
-
-legend("topleft", legend=c("posterior median", "95% HDI", "true model"),
-			 lty=c(2,1,1), lwd=c(3,2,2), col=c("red","grey20","darkblue"), bty='n')
 
