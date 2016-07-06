@@ -8,7 +8,7 @@ SIR.grad <- function(t, x, params) {
 		dS = -beta*S*I/(S+I+R)
 		dI = beta*S*I/(S+I+R)-gamma*I
 		dR = gamma*I
-		list(c(dS,dI,dR))
+		list(c(dI,dS,dR))
 	})
 }
 
@@ -18,40 +18,43 @@ dnorm2 <- function(x,mean,log=FALSE) {
 }
 
 SIR.logLik <- function(data, sim.data, samp){
-	r <- -sum(dnorm2(data$count, sim.data[,"I"], log = TRUE))
+	r <- sum(dnorm2(data$count, sim.data[,"I"], log = TRUE))
 	return(r)
 }
 
 library(deBInfer)
 beta <- debinfer_par(name = "beta", var.type = "de", fixed = FALSE,
-									value = 1.3, prior="lnorm", hypers=list(meanlog = 0.3, sdlog = 0.1),
-									prop.var=0.001, samp.type="rw")
+									value = 10, prior="unif", hypers=list(min = 0, max = 30),
+									prop.var=3, samp.type="rw")
 
 gamma <- debinfer_par(name = "gamma", var.type = "de", fixed = FALSE,
-									value = 0.1, prior="lnorm", hypers=list(meanlog = 0, sdlog = 0.05),
-									prop.var=0.001, samp.type="rw")
+									value = 10, prior="unif", hypers=list(min = 0, max = 30),
+									prop.var=3, samp.type="rw")
 
 
 S <- debinfer_par(name = "S", var.type = "init", fixed = FALSE,
-									value = 500, prior="lnorm", hypers=list(meanlog = 8, sdlog = 1),
-									prop.var=0.5, samp.type="rw")
+									value = 10000, prior="lnorm", hypers=list(meanlog = 10, sdlog = 1),
+									prop.var=1000, samp.type="rw")
 
-I <- debinfer_par(name = "I", var.type = "init", fixed = TRUE,
-									value = bombay2$count[1])
+I <- debinfer_par(name = "I", var.type = "init", fixed = FALSE,
+									value = 4, prior="unif", hypers=list(min = 0, max = 2*bombay2$count[1]),
+									prop.var=0.1, samp.type="rw")
 
 R <- debinfer_par(name = "R", var.type = "init", fixed = TRUE,
 									value = 0)
 
-mcmc.pars <- setup_debinfer(beta, gamma, S, I, R)
+mcmc.pars <- setup_debinfer(beta, gamma, I, S, R)
 
 iter = 5000
 
 mcmc_samples <- de_mcmc(N = iter, data=bombay2, de.model=SIR.grad,
 												obs.model=SIR.logLik, all.params=mcmc.pars,
-												Tmax = max(bombay2$tvec), data.times=bombay2$tvec, cnt=500, 
+												Tmax = max(bombay2$tvec), data.times=bombay2$tvec, cnt=500,
 												plot=TRUE, solver="ode")
 
-burnin = 250
+plot(mcmc_samples)
+
+burnin = 500
 pairs(mcmc_samples, burnin = burnin, scatter=TRUE, trend=TRUE)
 
 post_traj <- post_sim(mcmc_samples, n=500, times=1:31, burnin=burnin, output = 'all', prob = 0.95)
