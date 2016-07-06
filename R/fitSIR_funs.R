@@ -11,19 +11,19 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 	if (auto) {
 		tvec <- data$tvec
 		count <- data$count
-                ## smooth data; start with smoothing par 0.5, try
-                ## to increase it until there is a single critical point ...
-                ## (check that second deriv is negative???)
-                ncrit <- Inf
-                it <- 1
-                spar <- 0.5
-                while (ncrit>1 && it<10) {
-                    ss <- smooth.spline(tvec,log(count),spar=spar)
-                    dd <- predict(ss,deriv=1)$y
-                    ncrit <- sum(diff(sign(dd))!=0)
-                    spar <- (1+spar)/2
-                }
-                if (it==10) stop("couldn't smooth enough")
+		## smooth data; start with smoothing par 0.5, try
+		## to increase it until there is a single critical point ...
+		## (check that second deriv is negative???)
+		ncrit <- Inf
+		it <- 1
+		spar <- 0.5
+		while (ncrit>1 && it<10) {
+			ss <- smooth.spline(tvec,log(count),spar=spar)
+			dd <- predict(ss,deriv=1)$y
+			ncrit <- sum(diff(sign(dd))!=0)
+			spar <- (1+spar)/2
+		}
+		if (it==10) stop("couldn't smooth enough")
 		## find max value
 		ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
 		## find a point halfway between initial and max
@@ -36,11 +36,12 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 		Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 		Ip <- exp(max(predict(ss,tvec)$y))
 		c <- -Qp.alt/Ip
-		inc = data$count*diff(c((2*tvec[1]-tvec[2]),tvec))/10
-		n.tmax = which(tvec == ceiling(ss.tmax))
-		intI = iniI+sum(inc[1:n.tmax])
+		n.tmax = which(tvec == floor(ss.tmax))
+		inc = exp(predict(ss)$y)*diff(c((2*tvec[1]-tvec[2]),tvec))
 		
-		gamma = intI * c/r
+		sumI = sum(inc[1:n.tmax])
+		
+		gamma = iniI/(r/c-sumI)
 		beta = gamma + r
 		N = beta*gamma/c
 		i0 = iniI/N
@@ -185,8 +186,8 @@ SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll
 		if(findSens){
 			func <- SIR.grad.sens
 			yini <- c(S = N*(1-i0), logI = log(N*i0),
-				nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1,
-				nu_I0_S = 0,
+				nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1-i0,
+				nu_I0_S = -N,
 				nu_beta_I = 0, nu_gamma_I = 0, nu_N_I = i0,
 				nu_I0_I = N)
 		}else{
@@ -253,6 +254,7 @@ SIR.logLik <- function(incidence = FALSE){
 		if (debug) cat(params)
 		tpars <- trans.pars(params)
 		i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
+		
 		r <- -sum(dnorm2(count,i.hat,log=TRUE))
 		if (debug) cat(" ",r,"\n")
 		return(r)
@@ -404,7 +406,6 @@ fitsir.optim <- function(data,
 	fit.p <- optim(fn = objfun,
 		par = start,
 		method = "L-BFGS-B",
-		upper = c(15, 15, 15, 15),
 		gr = gradfun)$par
 	
 	return(fit.p)

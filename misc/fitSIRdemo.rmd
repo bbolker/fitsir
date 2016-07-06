@@ -32,9 +32,9 @@ pars <- c(log.beta = -0.7,
 	log.N= 6.21,
 	logit.i = -4.6)
 
-pars2 <- c(log.beta = -0.69,
+pars2 <- c(log.beta = -0.7,
 	log.gamma = -2.3,
-	log.N= 6.21,
+	log.N= 6.22,
 	logit.i = -4.6)
 
 a = SIR.detsim(tvec, trans.pars(pars), findSens = TRUE)
@@ -48,9 +48,9 @@ lines(a2$I, col = "2")
 
 plot(z, type = "l")
 
-lines(a$nu_beta_I, col = 2)
+lines(a$nu_I0_I, col = 2)
 
-lines(a2$nu_beta_I, col = 3)
+lines(a2$nu_I0_I, col = 3)
 
 ```
 
@@ -94,7 +94,7 @@ iniP.ex <- startfun(data=bombay2, auto = TRUE)
 
 findSens(bombay2, iniP.ex, plot.it = TRUE)
 
-fitP <- coef(fitsir(bombay2, start = startfun(data=bombay2, auto = TRUE)))
+(fitP <- coef(fitsir(bombay2, start = startfun())))
 
 findSens(bombay2, fitP, plot.it = TRUE)
 
