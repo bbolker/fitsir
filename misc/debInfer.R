@@ -1,0 +1,64 @@
+library(deSolve)
+library(fitsir)
+
+bombay2 <- setNames(bombay, c("tvec", "count"))
+
+SIR.grad <- function(t, x, params) {
+	g <- with(as.list(c(x,params)),{
+		dS = -beta*S*I/(S+I+R)
+		dI = beta*S*I/(S+I+R)-gamma*I
+		dR = gamma*I
+		list(c(dS,dI,dR))
+	})
+}
+
+dnorm2 <- function(x,mean,log=FALSE) {
+	rmse <- sqrt(sum((x-mean))^2/(length(x)-1))
+	return(dnorm(x,mean,sd=rmse,log=log))
+}
+
+SIR.logLik <- function(data, sim.data, samp){
+	r <- -sum(dnorm2(data$count, sim.data[,"I"], log = TRUE))
+	return(r)
+}
+
+library(deBInfer)
+beta <- debinfer_par(name = "beta", var.type = "de", fixed = FALSE,
+									value = 1.3, prior="lnorm", hypers=list(meanlog = 0.3, sdlog = 0.1),
+									prop.var=0.001, samp.type="rw")
+
+gamma <- debinfer_par(name = "gamma", var.type = "de", fixed = FALSE,
+									value = 0.1, prior="lnorm", hypers=list(meanlog = 0, sdlog = 0.05),
+									prop.var=0.001, samp.type="rw")
+
+
+S <- debinfer_par(name = "S", var.type = "init", fixed = FALSE,
+									value = 500, prior="lnorm", hypers=list(meanlog = 8, sdlog = 1),
+									prop.var=0.5, samp.type="rw")
+
+I <- debinfer_par(name = "I", var.type = "init", fixed = TRUE,
+									value = bombay2$count[1])
+
+R <- debinfer_par(name = "R", var.type = "init", fixed = TRUE,
+									value = 0)
+
+mcmc.pars <- setup_debinfer(beta, gamma, S, I, R)
+
+iter = 5000
+
+mcmc_samples <- de_mcmc(N = iter, data=bombay2, de.model=SIR.grad,
+												obs.model=SIR.logLik, all.params=mcmc.pars,
+												Tmax = max(bombay2$tvec), data.times=bombay2$tvec, cnt=500, 
+												plot=TRUE, solver="ode")
+
+burnin = 250
+pairs(mcmc_samples, burnin = burnin, scatter=TRUE, trend=TRUE)
+
+post_traj <- post_sim(mcmc_samples, n=500, times=1:31, burnin=burnin, output = 'all', prob = 0.95)
+
+plot(post_traj, plot.type = "medianHDI", lty = c(2,1), lwd=3, col=c("red","grey20"),
+		 panel.first=lines(bombay2, col="darkblue", lwd=2))
+
+legend("topleft", legend=c("posterior median", "95% HDI", "true model"),
+			 lty=c(2,1,1), lwd=c(3,2,2), col=c("red","grey20","darkblue"), bty='n')
+
