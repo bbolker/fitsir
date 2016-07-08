@@ -8,9 +8,12 @@ output: html_document
 ```{r optim, error=FALSE}
 library("deSolve")
 library("bbmle")
-source("../R/fitSIR_funs.R")
-library("fitsir")
-
+## source("../R/fitSIR_funs.R")
+## load *development* version of the package ...
+library("devtools")
+load_all("..")
+## library("fitsir")
+## set up names for consistency with fitsir
 bombay2 <- setNames(bombay,c("tvec","count"))
 
 #(fitP <- coef(fitsir(bombay2, start = startfun())))
@@ -18,53 +21,98 @@ bombay2 <- setNames(bombay,c("tvec","count"))
 #findSens(bombay2, fitP, plot.it = TRUE)
 ```
 
-First, here is a set of parameters we get from the initial curve fittting attempt with \code{optim()}
+First, here is a set of parameters we get from the initial curve fittting attempt with \code{optim()}:
+this is using `incidence=FALSE` and the new sensitivity machinery, but *not* using the new "autostart"
+machinery (i.e. using the not-necessarily-sensible
+default values of $\beta=0.12$, $\gamma=0.09$, $N=10^4$, $I(0)=0.01$), or
 
-```{r error = FALSE}
-(fitP2 <- fitsir.optim(bombay2, start = startfun()))
+```{r params}
+summarize.pars(p0 <- startfun())
+p1 <- p0
+p1$log.beta <- p1$log.beta + 0.1
+p2 <- p0
+p2$log.beta <- p2$log.beta + 0.2
+p3 <- p0
+p3$log.beta <- p2$log.beta + 0.3
+pList <- list(p0,p1,p2,p3)
 ```
 
-The first time we interate it, we get a large jump, but if we iterate the process few more times, we get a stable answer.
-
-```{r error = FALSE}
-(fitP3 <- fitsir.optim(bombay2, start = fitP2))
-
-(fitP4 <- fitsir.optim(bombay2, start = fitP3))
-
-(fitP5 <- fitsir.optim(bombay2, start = fitP4))
-
-all.equal(fitP4, fitP5)
-
-findSens(bombay2, fitP5, plot.it = TRUE)
-
+```{r SSQ_vs_NLL}
+SSQvec <- sapply(pList,findSens,data=bombay2,incidence=FALSE)["SSQ",]
+tmpfun <- function(p) with(bombay2,SIR.logLik()(p,count,tvec))
+nllvec <- sapply(pList,tmpfun)
+plot(nllvec,SSQvec)
 ```
 
-Now we use that value as a starting point and use it with the mle method.
+Hmmm.  I thought SSQ and negative log-likelihood should be perfectly linearly related, because `dnorm2` is defined as
+
+$$
+\begin{split}
+\hat\sigma & = \sqrt{\sum{(x_i-\mu_i)^2/(n-1)}} \\
+\cal L & = -n/2 \log(2 \pi) -n \log(\hat \sigma) - \sum((x_i-\mu_i)^2)/(2 \hat \sigma^2)
+$$
+
+Maybe they're not, but they should have their minima in the same place ... ??
+
+The first time we iterate it, we get a large jump, but if we iterate the process few more times, we get a stable answer.
+
+```{r sfits}
+## set up matrix for results
+nsteps <- 8
+npar <- 4
+f0 <- unlist(startfun())
+sfits <- matrix(NA,ncol=npar,nrow=nsteps,
+               dimnames=list(NULL,names(f0)))
+sfits[1,] <- f0  ## set first row
+ffits <- sfits   ## setup for next step (see below)
+for (i in 2:nsteps) {
+  sfits[i,] <- fitsir.optim(bombay2, start=sfits[i-1,])
+}
+```
+
+Now let's try the same thing with plain old `fitsir` (`dnorm2` instead of SSQ, Nelder-Mead
+instead of BFGS + sensitivity equations)
+
+```{r ffits,cache=TRUE}
+for (i in 2:nsteps) {
+  ffits[i,] <- coef(fitsir(bombay2, start=ffits[i-1,]))
+}
+```
+
+```{r diffs,echo=FALSE}
+par(las=1,bty="l")
+matplot(ffits,col=1:4,type="l",lty=1,
+        xlab="step",ylab="param value",
+        xlim=c(1,10))
+matlines(sfits,col=1:4,lty=2)
+text(8,tail(ffits,1),colnames(ffits),col=1:4,adj=-1)
+```
+
+How different are the fits, and the implied likelihoods?
+```{r}
+tmpf <- SIR.logLik()
+ffit.final <- ffits[nsteps,]
+sfit.final <- sfits[nsteps,]
+with(bombay2,tmpf(ffit.final,count,tvec))
+with(bombay2,tmpf(sfit.final,count,tvec))  ## huge!
+```
+
+If we start with the `sfits` result do we get back to the `ffits` result?
+```{r}
+newfit <- fitsir(bombay2, start=sfit.final)
+all.equal(sfit.final,coef(newfit),tol=5e-3)
+all.equal(ffit.final,coef(newfit))
+```
 
 ```{r}
-(fitP6 <- coef(fitsir(bombay2, start = fitP5)))
-
-(fitP7 <- coef(fitsir(bombay2, start = fitP6)))
-
-(fitP8 <- coef(fitsir(bombay2, start = fitP7)))
-
-findSens(bombay2, fitP8, plot.it = TRUE)
-
+straj <- SIR.detsim(bombay2$tvec,trans.pars(sfits[nsteps,]))
+ftraj <- SIR.detsim(bombay2$tvec,trans.pars(ffits[nsteps,]))
+with(bombay2,plot(tvec,count))
+lines(straj)
+lines(ftraj,lty=2)
 ```
+Are we stuck at a local max?
 
-We get a large jump again... Put this in optim again...?
-
-```{r}
-
-(fitP9 <- fitsir.optim(bombay2, start = fitP8))
-
-(fitP10 <- fitsir.optim(bombay2, start = fitP9))
-
-all.equal(fitP9, fitP10)
-
-findSens(bombay2, fitP10, plot.it = TRUE)
-
-```
 
 I tried this (I set eval = FALSE) and the parameters keep on changing bit by bit...
 
