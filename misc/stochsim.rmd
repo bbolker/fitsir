@@ -17,6 +17,10 @@ library(plyr)  ## for raply()
 ```{r stochsimfun}
 ##' Stochastic simulation (observation/uncorrelated error only)
 ##' 
+##' should this be called SIR.stochsim instead?
+##' allow facility for (discrete and/or continuous time) process-error
+##'   sims?
+##'
 ##' @param pars parameters (on "original" constrained scale)
 ##' @param tmax max times
 ##' @param dt time step
