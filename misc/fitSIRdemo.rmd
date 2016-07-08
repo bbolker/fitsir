@@ -27,51 +27,30 @@ $$
 ```{r ex.sim}
 tvec <- seq(1, 60, 0.2)
 
-pars <- c(beta = 0.5,
-	gamma = 0.1,
-	N= 501,
-	i0 = 0.01)
+pars <- c(log.beta = -0.7,
+	log.gamma = -2.3,
+	log.N= 6.21,
+	logit.i = -4.6)
 
-pars2 <- c(beta = 0.505,
-	gamma = 0.1,
-	N= 501,
-	i0 = 0.01)
+pars2 <- c(log.beta = -0.7,
+	log.gamma = -2.3,
+	log.N= 6.22,
+	logit.i = -4.6)
 
-a = SIR.detsim(tvec, pars, findSens = TRUE)
+a = SIR.detsim(tvec, trans.pars(pars), findSens = TRUE)
 
-a2 = SIR.detsim(tvec, pars2, findSens = TRUE)
+a2 = SIR.detsim(tvec, trans.pars(pars2), findSens = TRUE)
 
-z = (a2$I-a$I)/0.005
+z = (a2$I-a$I)/0.01
 
 plot(a$I, type = "l")
 lines(a2$I, col = "2")
 
-plot(z, type = "l", ylim = c(-500, 1000))
+plot(z, type = "l")
 
-lines(a$nu_beta_I, col = 2)
+lines(a$nu_I0_I, col = 2)
 
-lines(a2$nu_beta_I, col = 3)
-
-```
-
-## SSQ example
-
-```{r ssq.ex}
-fake.obs = as.data.frame(cbind(tvec, I=a[,c("I")]))
-colnames(fake.obs) = c("tvec", "count")
-
-pars3 <- c(beta = 0.51,
-	gamma = 0.10,
-	N= 501,
-	i0 = 0.01)
-
-pars4 <- c(beta = 0.501,
-	gamma = 0.10,
-	N= 501,
-	i0 = 0.01)
-
-findSens(fake.obs, pars3)
-findSens(fake.obs, pars4)
+lines(a2$nu_I0_I, col = 3)
 
 ```
 
@@ -111,38 +90,34 @@ library("fitsir")
 
 bombay2 <- setNames(bombay,c("tvec","count"))
 
-iniP.ex <- trans.pars(startfun(data=bombay2, auto = TRUE))
+iniP.ex <- startfun(data=bombay2, auto = TRUE)
 
 findSens(bombay2, iniP.ex, plot.it = TRUE)
 
-fitP <- coef(fitsir(bombay2, start = startfun(data=bombay2, auto = TRUE)))
+(fitP <- coef(fitsir(bombay2, start = startfun())))
 
-(fit.pars <- trans.pars(fitP))
-
-findSens(bombay2, fit.pars, plot.it = TRUE)
+findSens(bombay2, fitP, plot.it = TRUE)
 
 ```
 
 ```{r, error = FALSE}
 (fitP2 <- fitsir.optim(bombay2, start = startfun(), plot.it=TRUE))
 
-findSens(bombay2, trans.pars(fitP2), plot.it = TRUE)
+findSens(bombay2, fitP2, plot.it = TRUE)
 
 ##with auto start?
 
 (fitP3 <- fitsir.optim(bombay2, start = startfun(data=bombay2, auto = TRUE), plot.it=TRUE))
 
-findSens(bombay2, trans.pars(fitP3), plot.it = TRUE)
+findSens(bombay2, fitP3, plot.it = TRUE)
 
 ```
-
-This is weird... We get lower sensitivity values but higher SSQ...
 
 ```{r }
 
 (fitP4 <- fitsir.optim(bombay2, start = fitP, plot.it=TRUE))
 
-findSens(bombay2, trans.pars(fitP4), plot.it = TRUE)
+findSens(bombay2, fitP4, plot.it = TRUE)
 
 ```
 
@@ -156,7 +131,7 @@ bombay2 <- setNames(bombay,c("tvec","count"))
 
 fitP.inc <- coef(fitsir(bombay2, incidence = TRUE))
 
-findSens(bombay2, trans.pars(fitP.inc), plot.it = TRUE, incidence = TRUE)
+findSens(bombay2, fitP.inc, plot.it = TRUE, incidence = TRUE)
 
 bombay3 <- data.frame(tvec = bombay2$tvec, count = cumsum(bombay2$count))
 
@@ -165,23 +140,42 @@ plot(bombay3)
 lines(cumsum(SIR.detsim(bombay2$tvec, trans.pars(fitP.inc), incidence = TRUE)), col = 2)
 ```
 
-I think I made incidence fitting to work but I still want to figure out the starting parameters.
+### Sensitivity
+
+```{r inc.sens}
+tvec <- seq(1, 50, 0.5)
+
+trans.pars(pars)
+
+fake.inc = data.frame(tvec, count = SIR.detsim(tvec, trans.pars(pars), incidence = TRUE))
+
+plot(fake.inc)
+
+fake.P <- coef(fitsir(fake.inc, incidence = TRUE))
+
+trans.pars(fake.P)
+
+findSens(fake.inc, fake.P, plot.it = TRUE, incidence = TRUE)
+```
 
 ```{r}
+(fake.P2 <- fitsir.optim(fake.inc, start = startfun(), plot.it=TRUE, incidence = TRUE))
 
-plot(SIR.detsim(1:800, trans.pars(fitP.inc), incidence = TRUE))
+findSens(fake.inc, fake.P2, plot.it = TRUE, incidence = TRUE)
 
 ```
 
 ### Auto-start
 
-First, we know that $I(0)/ \Delta t = \beta N (1-i_0) i_0 $, where $\Delta t$ is the reporting time interval.
+First, we know that $I(0)/ (t_1 - t_0) = \beta N (1-i_0) i_0 $, where $\Delta t$ is the reporting time interval.
 ```{r}
-tvec <- bombay2$tvec
-count <- bombay2$count
+tvec <- fake.inc$tvec
+count <- fake.inc$count
 
-count[1] #4
-with(as.list(trans.pars(fitP.inc)),{beta * N * (1 -i0) * i0}) ## 4.35
+t.diff0 <- tvec[2] - tvec[1]
+
+count[1] #1.34
+with(as.list(trans.pars(pars)),{beta * N * (1 -i0) * i0 * t.diff0}) ## 1.217
 ```
 
 We also know that the the initial exponential rate of growth for $\int I(t) dt$ is $\beta$.
@@ -195,50 +189,69 @@ ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
 		##  scaling could be adjustable?
 ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
 
-m1 <- lm(log(count)~tvec, data =bombay3[ss.thalf:ss.tmax,])
+ss.1 = floor(min(tvec) + 0.5 *(ss.thalf - min(tvec)))
 
-coef(m1)[2] ## 0.28
-trans.pars(fitP.inc)[1] ## 0.372
+cum.count = cumsum(count)
+
+plot(tvec, log(count))
+lines(predict(ss), col = 2)
+abline(v = ss.1, lty = 2)
+
+fake.inc <- transform(fake.inc, cum.count = cumsum(count))
+
+m1 <- lm(log(cum.count)~tvec, data =subset(fake.inc, tvec < ss.thalf))
+
+plot(tvec,log(fake.inc$cum.count))
+lines(subset(fake.inc, tvec < ss.thalf)$tvec,predict(m1))
+
+coef(m1)[2] ## 0.64
+trans.pars(pars)[1] ## 0.496
 ```
 
-### Sensitivity
+Let's look at the derivative
 
-```{r inc.sens}
-tvec <- seq(1, 50, 0.5)
+$$
+\begin{aligned}
+\frac{dI}{dt} &= \beta/N (\frac{dS}{dt} P + S \frac{dP}{dt}) \\
+&= \beta/N (-\beta S P^2/N + S (\beta S P/N - \gamma P)) \\
+\end{aligned}
+$$
 
-pars <- c(beta = 0.5,
-	gamma = 0.3,
-	N= 2001,
-	i0 = 0.01)
+When $dI/dt = 0$, we have
 
-fake.inc = data.frame(tvec, count = SIR.detsim(tvec, pars, incidence = TRUE))
+$$
+\begin{aligned}
+-\beta S P^2/N + S (\beta S P/N - \gamma P) &= 0 \\
+-\beta P/N + \beta S /N - \gamma &= 0 \\
+\beta/N (S - P) &= \gamma \\
+\end{aligned}
+$$
 
-plot(fake.inc)
+Let's see how accurate this is...
 
-fake.P <- coef(fitsir(fake.inc, incidence = TRUE))
+```{r testDeriv}
+df.test <- SIR.detsim(tvec, trans.pars(pars), reportAll = TRUE)
 
-trans.pars(fake.P)
+ss.tmax.n = which(tvec == floor(ss.tmax))
 
-findSens(fake.inc, trans.pars(fake.P), plot.it = TRUE, incidence = TRUE)
+attach(as.list(trans.pars(pars)))
+attach(df.test)
+beta/N*(S[ss.tmax.n] - I[ss.tmax.n]) ##0.16
+gamma ##0.1
+detach(as.list(trans.pars(pars)))
+detach(df.test)
+
 ```
 
-```{r}
-(fake.P2 <- fitsir.optim(fake.inc, start = startfun(), plot.it=TRUE, incidence = TRUE))
+It seems fairly accurate.. Let's see if we can approximate it
 
-findSens(fake.inc, trans.pars(fake.P2), plot.it = TRUE, incidence = TRUE)
+First, we can approximate prevalence trajectory using the following equation: $P = I/(\gamma \Delta t)$. Substituting it in the equation given above: $\beta \gamma (N - I_0 - \int_0^{t_{max}} I d\tau) - \beta I_{max}/\Delta t = N\gamma^2$.
+
+We can figure out all the
+
+```{r findPrev}
+
+
+
 
 ```
-
-This is weird... All three parameters are different but they give us similar incidence trajectory...
-
-```{r}
-
-r1 <- SIR.detsim(tvec, pars, reportAll = TRUE)
-r2 <- SIR.detsim(tvec, trans.pars(fake.P), reportAll = TRUE)
-r3 <- SIR.detsim(tvec, trans.pars(fake.P2), reportAll = TRUE)
-
-plot(-diff(r1$S), type = "l")
-lines(-diff(r2$S), col = 2)
-lines(-diff(r3$S), col = 3)
-```
-

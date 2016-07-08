@@ -1,0 +1,248 @@
+---
+title: "Problems"
+output: html_document
+---
+
+## Optim problem
+
+```{r optim, error=FALSE}
+library("deSolve")
+library("bbmle")
+source("../R/fitSIR_funs.R")
+library("fitsir")
+
+bombay2 <- setNames(bombay,c("tvec","count"))
+
+#(fitP <- coef(fitsir(bombay2, start = startfun())))
+
+#findSens(bombay2, fitP, plot.it = TRUE)
+```
+
+First, here is a set of parameters we get from the initial curve fittting attempt with \code{optim()}
+
+```{r error = FALSE}
+(fitP2 <- fitsir.optim(bombay2, start = startfun()))
+```
+
+The first time we interate it, we get a large jump, but if we iterate the process few more times, we get a stable answer.
+
+```{r error = FALSE}
+(fitP3 <- fitsir.optim(bombay2, start = fitP2))
+
+(fitP4 <- fitsir.optim(bombay2, start = fitP3))
+
+(fitP5 <- fitsir.optim(bombay2, start = fitP4))
+
+all.equal(fitP4, fitP5)
+
+findSens(bombay2, fitP5, plot.it = TRUE)
+
+```
+
+Now we use that value as a starting point and use it with the mle method.
+
+```{r}
+(fitP6 <- coef(fitsir(bombay2, start = fitP5)))
+
+(fitP7 <- coef(fitsir(bombay2, start = fitP6)))
+
+(fitP8 <- coef(fitsir(bombay2, start = fitP7)))
+
+findSens(bombay2, fitP8, plot.it = TRUE)
+
+```
+
+We get a large jump again... Put this in optim again...?
+
+```{r}
+
+(fitP9 <- fitsir.optim(bombay2, start = fitP8))
+
+(fitP10 <- fitsir.optim(bombay2, start = fitP9))
+
+all.equal(fitP9, fitP10)
+
+findSens(bombay2, fitP10, plot.it = TRUE)
+
+```
+
+I tried this (I set eval = FALSE) and the parameters keep on changing bit by bit...
+
+```{r eval = FALSE}
+(fitP11 <- coef(fitsir(bombay2, start = fitP10)))
+
+(fitP12 <- coef(fitsir(bombay2, start = fitP11)))
+
+(fitP13 <- coef(fitsir(bombay2, start = fitP12)))
+
+(fitP14 <- coef(fitsir(bombay2, start = fitP13)))
+
+(fitP15 <- coef(fitsir(bombay2, start = fitP14)))
+
+(fitP16 <- coef(fitsir(bombay2, start = fitP15)))
+
+(fitP17 <- coef(fitsir(bombay2, start = fitP16)))
+
+(fitP18 <- coef(fitsir(bombay2, start = fitP17)))
+
+(fitP19 <- coef(fitsir(bombay2, start = fitP18)))
+```
+
+Here's something interesting:
+
+```{r}
+
+plot(bombay2$count)
+
+tvec = bombay2$tvec
+
+lines(SIR.detsim(tvec, trans.pars(fitP2)))
+
+lines(SIR.detsim(tvec, trans.pars(fitP5)), col = 2)
+
+lines(SIR.detsim(tvec, trans.pars(fitP8)), col = 3)
+
+fitP2
+fitP5
+fitP8
+```
+
+Something weird is happening...
+
+## Startfun problem
+
+We have the following four equations:
+
+$$
+\begin{aligned}
+r &= \beta - \gamma\\
+\frac{Q_p}{I_p} &= \frac{\beta \gamma}{N}\\
+I(0) &= N i0\\
+\frac{\gamma N}{\beta} &= N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt
+\end{aligned}
+$$
+
+Here is a made-up data:
+
+```{r ex,sim}
+
+pars <- list(
+	beta = 0.5,
+	gamma = 0.1,
+	N = 500,
+	i0 = 0.01
+)
+
+r = SIR.detsim(tvec, pars, reportAll = TRUE)
+
+count = r$I
+S = r$S
+
+data = data.frame(tvec, count)
+
+```
+
+I'm going to test the equations one by one...
+$r = \beta - \gamma$
+
+```{r}
+attach(pars)
+ncrit <- Inf
+it <- 1
+spar <- 0.5
+while (ncrit>1 && it<10) {
+	ss <- smooth.spline(tvec,log(count),spar=spar)
+	dd <- predict(ss,deriv=1)$y
+	ncrit <- sum(diff(sign(dd))!=0)
+	spar <- (1+spar)/2
+}
+if (it==10) stop("couldn't smooth enough")
+		## find max value
+ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+		## find a point halfway between initial and max
+		##  scaling could be adjustable?
+ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+
+m1 <- lm(log(count)~tvec,data=subset(data,tvec<ss.thalf))
+(r <- as.numeric(coef(m1)[2])) ##beta - gamma
+beta-gamma
+
+plot(log(count))
+lines(predict(ss))
+abline(v = ss.tmax, lty = 2)
+abline(v = ss.thalf, lty = 2)
+
+lines(predict(m1), col = 2)
+
+```
+
+0.37 is fairly close to 0.4 so this one is OK.
+
+$\frac{Q_p} = \frac{\beta \gamma I_p}{N}$
+
+```{r}
+
+iniI <- count[1] ## N * i0
+	    ## curvature of spline at max
+Qp.real = -beta*gamma*max(count)/N
+Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+(Q <- c(Qp.real=Qp.real, Qp.alt=Qp.alt))
+
+```
+
+This is OK too. For convenience, we're going to let $\alpha = \frac{\beta \gamma}{N} = \frac{Q_p}{I_p}$. This is nice because we can approximate the right term. Here is the problem:
+
+$\frac{\gamma N}{\beta} = \hat{S} = N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt$, where $I(t)$ is incidence
+
+```{r}
+
+plot(S)
+abline(v = ss.tmax, lty = 2)
+abline(h = gamma * N/beta, lty = 2)
+
+```
+
+The problem is that we can't approximate incidence from prevalence so well using this formula: $P = I/\gamma$
+
+```{r}
+plot(-diff(S), type = "l")
+lines(count * gamma)
+```
+
+This is a problem because this is what we want to do:
+
+$$
+\begin{aligned}
+\frac{\gamma N}{\beta} &= N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt\\
+\frac{\gamma N}{\beta} &= N - I(0) - \gamma \sum_0^{\tau_\text{peak}}  P(t) dt\\
+N(1 - \frac{\gamma}{\beta})  &= I(0) + \gamma \sum_0^{\tau_\text{peak}}  P(t) dt\\
+\frac{\beta\gamma}{\alpha} (1 - \frac{\gamma}{\beta})  &= I(0) + \gamma \sum_0^{\tau_\text{peak}}  P(t) dt\\
+\gamma \frac{r}{\alpha} &= I(0) + \gamma \sum_0^{\tau_\text{peak}}  P(t) dt\\
+\gamma (\frac{r}{\alpha} - \sum_0^{\tau_\text{peak}}  P(t) dt) &= I(0) \\
+\gamma  &= I(0)/(\frac{r}{\alpha} - \sum_0^{\tau_\text{peak}}  P(t) dt)\\
+\end{aligned}
+$$
+
+We test it with the predicted values
+
+```{r}
+Ip = max(exp(predict(ss)$y))
+
+alpha = -Qp.alt/Ip
+
+(new.gamma = iniI/(r/alpha - sum(count[1:ss.tmax])))
+
+```
+
+Here's is the real gamma value:
+
+```{r}
+iniI/(0.4/(-Qp.real/max(count)) - (N - 100 -iniI)/gamma)
+```
+
+In the equations above, we're assuming that $N  - I0 - \sum (P(t) gamma) = \hat{S}$ but it doesn't work so well...
+
+```{r}
+detach(pars)
+```
+
