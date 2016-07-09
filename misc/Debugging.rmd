@@ -97,12 +97,31 @@ with(bombay2,tmpf(ffit.final,count,tvec))
 with(bombay2,tmpf(sfit.final,count,tvec))  ## huge!
 ```
 
-If we start with the `sfits` result do we get back to the `ffits` result?
+If we start with the `sfits` result do we get back to the `ffits` result
+(and *vice versa*) ?
 ```{r}
 newfit <- fitsir(bombay2, start=sfit.final)
-all.equal(sfit.final,coef(newfit),tol=5e-3)
+all.equal(sfit.final,coef(newfit),tol=1e-2)
 all.equal(ffit.final,coef(newfit))
+newfit2 <- fitsir.optim(bombay2, start=ffit.final)
+all.equal(sfit.final,newfit2,tol=1e-2)
+all.equal(ffit.final,newfit2,tol=1e-2)
 ```
+i.e., both methods get stuck when we start them at the alternative
+location
+```{r}
+slice1 <- bbmle:::slicetrans(ffit.final,sfit.final,
+                   function(x) with(bombay2,tmpf(x,count,tvec)),
+                   extend=0.2)
+with(slice1$slices[[1]],
+     plot(x,z,log="y",type="l"))
+with(subset(slice1$slices[[1]],x<0.1),
+     plot(x,z,log="y",type="l"))
+with(subset(slice1$slices[[1]],x>0.9),
+     plot(x,z,log="y",type="l"))
+```
+
+Looks like local maxima! Try full slices ...
 
 ```{r}
 straj <- SIR.detsim(bombay2$tvec,trans.pars(sfits[nsteps,]))

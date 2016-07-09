@@ -46,6 +46,7 @@ plot(count~tvec,data=s0)
 lines(s0$tvec,ss2)  ## incidence/prevalence mismatch?
 lines(s0$tvec,ss3,col=2)  ## decent fit anyway
 lines(s0$tvec,predict(m1,type="response"),col=4)
+-logLik(m1)-(-logLik(f1))
 
 ## takes about 1 minute per sim ...
 fitfun <- function(data) {
@@ -56,10 +57,13 @@ fitfun <- function(data) {
     return(res)
 }
 
+load("stochsim.rda")
 fitfun(s0)
 
 library(plyr)
 set.seed(101)
-options(error=recover)
 res1 <- raply(20,fitfun(simfun(rpars=list(size=10))),
               .progress="text")
+res1 <- as.data.frame(res1)
+save("res1",file="stochsim.rda")
+with(res1,hist(nll.SIR-nll.gam,col="gray"))
