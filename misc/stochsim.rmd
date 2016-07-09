@@ -1,9 +1,26 @@
+---
+title: "Stochastic sims"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pkgs, message=FALSE}
 library(fitsir)
 library(bbmle) ## needed for coef() ...
 library(splines) ## for ns()
+library(plyr)  ## for raply()
+```
 
+```{r stochsimfun}
 ##' Stochastic simulation (observation/uncorrelated error only)
 ##' 
+##' should this be called SIR.stochsim instead?
+##' allow facility for (discrete and/or continuous time) process-error
+##'   sims?
+##'
 ##' @param pars parameters (on "original" constrained scale)
 ##' @param tmax max times
 ##' @param dt time step
@@ -23,10 +40,16 @@ simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
     count <- do.call(rfun,noiseArgs)
     return(data.frame(tvec,count))
 }
+```
 
+```{r ssex1}
 set.seed(101)
 s0 <- simfun(rpars=list(size=10))
+```
 
+
+Various ways of fitting ...
+```{r fitex1,cache=TRUE}
 ## get starting values and trajectory based on them
 ss0 <- startfun(auto=TRUE,data=s0)
 ss2 <- SIR.detsim(s0$tvec,trans.pars(ss0))
@@ -41,13 +64,20 @@ ss3 <- SIR.detsim(s0$tvec,trans.pars(coef(f1)))
 ##   counting for intercept and residual var(?)
 m1 <- glm(count~ns(tvec,df=3),
           family=gaussian(link="log"),data=s0)
+```
 
+```{r fitex1_plot,echo=FALSE}
+par(las=1,bty="l")
 plot(count~tvec,data=s0)
 lines(s0$tvec,ss2)  ## incidence/prevalence mismatch?
 lines(s0$tvec,ss3,col=2)  ## decent fit anyway
 lines(s0$tvec,predict(m1,type="response"),col=4)
--logLik(m1)-(-logLik(f1))
+```
 
+
+## Preliminary ensemble results
+
+```{r fitsim1,cache=TRUE}
 ## takes about 1 minute per sim ...
 fitfun <- function(data) {
     t1 <- system.time(f1 <- fitsir(data,start=startfun(auto=TRUE,data=data)))
@@ -56,14 +86,39 @@ fitfun <- function(data) {
       nll.SIR=c(-logLik(f1)),nll.gam=c(-logLik(m1)))
     return(res)
 }
+system.time(print(fitfun(s0)))
+```
 
-load("stochsim.rda")
-fitfun(s0)
-
-library(plyr)
+```{r loadsims}
+simfn <- "stochsim.rda"
+if (file.exists(simfn)) {
+   load(simfn)
+} else {
 set.seed(101)
 res1 <- raply(20,fitfun(simfun(rpars=list(size=10))),
               .progress="text")
-res1 <- as.data.frame(res1)
-save("res1",file="stochsim.rda")
-with(res1,hist(nll.SIR-nll.gam,col="gray"))
+}
+```
+
+How well does this work?
+
+```{r simhist,echo=FALSE}
+par(las=1,bty="l")
+with(res1,hist(nll.SIR-nll.gam,col="gray",breaks=20,
+               main=""))
+```
+
+## Notes/preliminary conclusions
+
+- these are fits to a reasonably well-behaved (although fairly noisy simulation example)
+- with the current "autofit" functionality, `fitsir` mostly works OK, doesn't need Latin hypercube for this example
+- in 20 sims, GAM/spline fit does slightly better most (90%) of the time, but not a big difference (<2 log-likelihood units)
+
+## To do
+
+- larger sample
+- parameters more typical of DR/music-download data: esp. more samples (will presumably make differences *more* significant/favour GAMs more?)
+- try factorial experiment:
+    - multiple sims
+    - range of sample sizes
+    - range of true parameter values (Latin hypercube??)
