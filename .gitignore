@@ -25,3 +25,4 @@
 #vignette builds
 cache/
 figure/
+.Rproj.user
