@@ -158,7 +158,9 @@ summarize.pars <- function(params) {
          c(R0=exp(log.beta-log.gamma),
            r=exp(log.beta)-exp(log.gamma),
            infper=exp(-log.gamma),
-           i0=plogis(logit.i)))
+           i0=plogis(logit.i),
+           I0=plogis(logit.i)*exp(log.N),
+           N=exp(log.N)))
 }
 
 ##' deterministic trajectory of SIR
@@ -310,49 +312,33 @@ fitsir <- function(data,method="Nelder-Mead",
 ##' 
 ##' @param observed data and parameters for deterministic simulation
 findSSQ <- function(data, params, incidence = FALSE){
-	ssqL <- list()
-	
-	ssqL <- within(ssqL, {
-		t = data$tvec
-		sim = SIR.detsim(t, trans.pars(params), findSens = TRUE, incidence = incidence)
-		obs = data$count
-		pred = sim$I
-		
-		SSQ = sum(c(pred - obs)^2)
-	})
-	return(ssqL)
+    ssqL <- list()
+    ssqL <- within(ssqL, {
+        t = data$tvec
+        sim <- SIR.detsim(t, trans.pars(params),
+                          findSens = TRUE, incidence = incidence)
+        obs = data$count
+        pred = sim$I
+        SSQ = sum(c(pred - obs)^2)
+    })
+    return(ssqL)
 }
 
-findSens <- function(data, params, plot.it = FALSE, log = TRUE, incidence = FALSE){
-	ssqL <- findSSQ(data, params, incidence = incidence)
-	
-	attach(ssqL)
-	
-	if(plot.it){
-		if(log){
-			matplot(cbind(log(obs), log(pred)), type = "l")
-		}else{
-			matplot(cbind(obs, pred), type = "l")
-		}
-	}
-	
-	dSSQ = 2 * (pred - obs)
-	
-	attach(sim)
-	
-	sensitivity <- c(
-		SSQ = SSQ,
-		SSQ_beta = sum(dSSQ * nu_beta_I),
-		SSQ_gamma = sum(dSSQ * nu_gamma_I),
-		SSQ_N = sum(dSSQ * nu_N_I),
-		SSQ_I0 = sum(dSSQ * nu_I0_I)
-	)
-	
-	detach(sim)
-	
-	detach(ssqL)
-	
-	return(sensitivity)
+findSens <- function(data, params, plot.it = FALSE, log = "xy", incidence = FALSE) {
+    ssqL <- findSSQ(data, params, incidence = incidence)
+    if (plot.it) {
+        matplot(cbind(ssqL$obs, ssqL$pred), log=log, type = "l")
+    }
+    dSSQ <- 2 * (ssqL$pred - ssqL$obs)
+    sensitivity <- with(ssqL$sim,
+         c(
+             SSQ = ssqL$SSQ,
+             SSQ_beta = sum(dSSQ * nu_beta_I),
+             SSQ_gamma = sum(dSSQ * nu_gamma_I),
+             SSQ_N = sum(dSSQ * nu_N_I),
+             SSQ_I0 = sum(dSSQ * nu_I0_I)
+         ))
+    return(sensitivity)
 }
 
 fitsir.optim <- function(data,
@@ -372,41 +358,43 @@ fitsir.optim <- function(data,
 	assign("oldgrad",NULL,f.env)
 	assign("data", data, f.env)
 	objfun <- function(par) {
-		if (identical(par,oldpar)) {
-			if (verbose) cat("returning old version of SSQ\n")
-			return(oldSSQ)
-		}
-		if (verbose) cat("computing new version (SSQ)\n")
+            if (identical(par,oldpar)) {
+                if (verbose) cat("returning old version of SSQ\n")
+                return(oldSSQ)
+            }
+            if (verbose) cat("computing new version (SSQ)\n")
 		
-		v <- findSens(data, par, incidence = incidence)
-		oldSSQ <<- v["SSQ"]
-		oldgrad <<- v[-1]
-		oldpar <<- par
+            v <- findSens(data, par, incidence = incidence)
+            oldSSQ <<- v["SSQ"]
+            oldgrad <<- v[-1]
+            oldpar <<- par
 		
-		if(plot.it){
-			lines(data$tvec, SIR.detsim(data$tvec, trans.pars(par), incidence = incidence))
-		}
-		return(oldSSQ)
+            if(plot.it){
+                lines(data$tvec,
+                      SIR.detsim(data$tvec, trans.pars(par),
+                                 incidence = incidence))
+            }
+            return(oldSSQ)
 	}
-	environment(objfun) <- f.env
-	gradfun <- function(par) {
-		if (identical(par,oldpar)) {
-			if (verbose) cat("returning old version of grad\n")
-			return(oldgrad)
-		}
-		if (verbose) cat("computing new version (grad)\n")
-		v <- findSens(data, trans.pars(par), incidence = incidence)
-		oldSSQ <<- v["SSQ"]
-		oldgrad <<- v[-1]
-		oldpar <<- par
-		return(oldgrad)
-	}
-	environment(gradfun) <- f.env
+    environment(objfun) <- f.env
+    gradfun <- function(par) {
+        if (identical(par,oldpar)) {
+            if (verbose) cat("returning old version of grad\n")
+            return(oldgrad)
+        }
+        if (verbose) cat("computing new version (grad)\n")
+        v <- findSens(data, trans.pars(par), incidence = incidence)
+        oldSSQ <<- v["SSQ"]
+        oldgrad <<- v[-1]
+        oldpar <<- par
+        return(oldgrad)
+    }
+    environment(gradfun) <- f.env
 	
-	fit.p <- optim(fn = objfun,
-		par = start,
-		method = "L-BFGS-B",
-		gr = gradfun)$par
+    fit.p <- optim(fn = objfun,
+                   par = start,
+                   method = "L-BFGS-B",
+                   gr = gradfun)$par
 	
-	return(fit.p)
+    return(fit.p)
 }

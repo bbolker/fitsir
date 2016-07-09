@@ -1,13 +1,17 @@
 ---
-title: "Problems"
+title: "Debugging fitsir problems"
+author: Daniel Park and Ben Bolker
+date: "`r format(Sys.time(), '%H:%M %d %B %Y')`"
 output: html_document
 ---
 
 ## Optim problem
 
-```{r optim, error=FALSE}
+```{r pkgs, message=FALSE}
 library("deSolve")
 library("bbmle")
+library(lattice) ## for splom()
+library(numDeriv)
 ## source("../R/fitSIR_funs.R")
 ## load *development* version of the package ...
 library("devtools")
@@ -37,7 +41,8 @@ p3$log.beta <- p2$log.beta + 0.3
 pList <- list(p0,p1,p2,p3)
 ```
 
-```{r SSQ_vs_NLL}
+```{r SSQ_vs_NLL,message=FALSE}
+## TO DO: get rid of attach()/detach() in findSens ...
 SSQvec <- sapply(pList,findSens,data=bombay2,incidence=FALSE)["SSQ",]
 tmpfun <- function(p) with(bombay2,SIR.logLik()(p,count,tvec))
 nllvec <- sapply(pList,tmpfun)
@@ -50,13 +55,14 @@ $$
 \begin{split}
 \hat\sigma & = \sqrt{\sum{(x_i-\mu_i)^2/(n-1)}} \\
 \cal L & = -n/2 \log(2 \pi) -n \log(\hat \sigma) - \sum((x_i-\mu_i)^2)/(2 \hat \sigma^2)
+\end{split}
 $$
 
 Maybe they're not, but they should have their minima in the same place ... ??
 
 The first time we iterate it, we get a large jump, but if we iterate the process few more times, we get a stable answer.
 
-```{r sfits}
+```{r sfits,cache=TRUE,message=FALSE}
 ## set up matrix for results
 nsteps <- 8
 npar <- 4
@@ -89,30 +95,42 @@ text(8,tail(ffits,1),colnames(ffits),col=1:4,adj=-1)
 ```
 
 How different are the fits, and the implied likelihoods?
-```{r}
-tmpf <- SIR.logLik()
+```{r compare_fits}
 ffit.final <- ffits[nsteps,]
 sfit.final <- sfits[nsteps,]
-with(bombay2,tmpf(ffit.final,count,tvec))
-with(bombay2,tmpf(sfit.final,count,tvec))  ## huge!
+tmpfun(ffit.final)
+tmpfun(sfit.final)
 ```
 
 If we start with the `sfits` result do we get back to the `ffits` result
 (and *vice versa*) ?
-```{r}
+```{r reciprocal_start,cache=TRUE,message=FALSE}
+## start fitsir from fitsir.optim best-fit
 newfit <- fitsir(bombay2, start=sfit.final)
-all.equal(sfit.final,coef(newfit),tol=1e-2)
-all.equal(ffit.final,coef(newfit))
+## start fitsir.optim from fitsir best-fit
 newfit2 <- fitsir.optim(bombay2, start=ffit.final)
-all.equal(sfit.final,newfit2,tol=1e-2)
-all.equal(ffit.final,newfit2,tol=1e-2)
+reldiff <- function(x,y) {
+    max(abs((x-y)/((x+y)/2)))
+}
+print(cmat <- matrix(
+    c(reldiff(sfit.final,coef(newfit)),
+      reldiff(ffit.final,coef(newfit)),
+      reldiff(sfit.final,newfit2),
+      reldiff(ffit.final,newfit2)),
+    nrow=2,
+    dimnames=list(orig=c("fitsir","fitsir.optim"),
+                  restart=c("fitsir.optim","fitsir"))),
+    digits=3)
 ```
 i.e., both methods get stuck when we start them at the alternative
-location
-```{r}
+location. Visualizing a "slice" along a line in parameter space (where 0 represents the place where the old fitsir gets stuck, 1 represents the solution found by `fitsir.optim`):
+
+```{r slice1}
 slice1 <- bbmle:::slicetrans(ffit.final,sfit.final,
-                   function(x) with(bombay2,tmpf(x,count,tvec)),
+                   tmpfun,
                    extend=0.2)
+par(las=1,bty="l")
+par(mfrow=c(1,3))
 with(slice1$slices[[1]],
      plot(x,z,log="y",type="l"))
 with(subset(slice1$slices[[1]],x<0.1),
@@ -121,60 +139,88 @@ with(subset(slice1$slices[[1]],x>0.9),
      plot(x,z,log="y",type="l"))
 ```
 
-Looks like local maxima! Try full slices ...
+Looks like local maxima! Try full slices ... we probably won't be able
+to see what's going on at the full scale (i.e. since the peak in the
+middle is so huge), so let's just look at windows around
 
-```{r}
-straj <- SIR.detsim(bombay2$tvec,trans.pars(sfits[nsteps,]))
-ftraj <- SIR.detsim(bombay2$tvec,trans.pars(ffits[nsteps,]))
+```{r slice2D,cache=TRUE}
+## redo 'slice transect' computation
+params <- ffit.final; params2 <- sfit.final
+extend <- c(0.2,0.2); nt <- 401
+cutoff <- 500
+np <- length(params)
+slicep <- sort(unique(c(0, 1, seq(-extend[1], 1 + extend[2], 
+                                  length = nt))))
+slicepars <- t(sapply(slicep, function(x) (1 - x) * params + 
+                                          x * params2))
+## select either end of the transect
+s2Apars1 <- slicepars[slicep>(-0.2) & slicep<0.1,]
+s2Apars2 <- slicepars[slicep>1 & slicep<1.2,]
+## get first and last rows ...
+s2Arange1 <- t(s2Apars1[c(1,nrow(s2Apars1)),])
+s2Arange2 <- t(s2Apars2[c(1,nrow(s2Apars2)),])
+s2A <- slice2D(sfit.final,
+        tmpfun,
+        tranges=s2Arange1,
+        nt=41,verbose=FALSE)
+## clean up crazy values: should incorporate in slice2D ...
+s2Ax <- s2A
+for (i in 1:3) {
+    for (j in 1:4) {
+        if (!is.null(s2Ax$slices[[i]][[j]])) {
+            zz <- s2Ax$slices[[i]][[j]]$z
+            s2Ax$slices[[i]][[j]]$z[zz>cutoff] <- NA
+        }
+    }
+}
+```
+
+What's going on along the `log.beta`/`log.gamma` diagonal here?
+Am I just being stupid?
+(We should really restrict `log.beta>log.gamma` ... although I would
+have thought that would just lead to bad fits?)
+
+```{r persp3d,eval=FALSE}
+library(rgl)
+persp3d(1:41,1:41,matrix(s2Ax$slices[[1]][[2]]$z,41),
+        col="blue",alpha=0.8,zlab="NLL")
+```
+
+OK, I'm giving up on trying to visualize the local region
+for now.
+
+Trying to compute local derivatives/Hessians isn't making sense
+either ... ?
+
+```{r localgrad,eval=FALSE}
+grad(tmpfun,sfit.final,method="simple",method.args=list(eps=1e-2))
+grad(tmpfun,ffit.final,method="simple",method.args=list(eps=1e-3))
+h1 <- hessian(tmpfun,ffit.final)
+h2 <- hessian(tmpfun,sfit.final)
+```
+
+How different are the trajectories?
+```{r comp_traj}
+straj <- SIR.detsim(bombay2$tvec,trans.pars(sfit.final))
+ftraj <- SIR.detsim(bombay2$tvec,trans.pars(ffit.final))
 with(bombay2,plot(tvec,count))
 lines(straj)
 lines(ftraj,lty=2)
 ```
-Are we stuck at a local max?
 
+How different are the parameter values from a more
+epidemiological point of view (i.e. in terms of $R_0$, $r$, etc.)?
 
-I tried this (I set eval = FALSE) and the parameters keep on changing bit by bit...
-
-```{r eval = FALSE}
-(fitP11 <- coef(fitsir(bombay2, start = fitP10)))
-
-(fitP12 <- coef(fitsir(bombay2, start = fitP11)))
-
-(fitP13 <- coef(fitsir(bombay2, start = fitP12)))
-
-(fitP14 <- coef(fitsir(bombay2, start = fitP13)))
-
-(fitP15 <- coef(fitsir(bombay2, start = fitP14)))
-
-(fitP16 <- coef(fitsir(bombay2, start = fitP15)))
-
-(fitP17 <- coef(fitsir(bombay2, start = fitP16)))
-
-(fitP18 <- coef(fitsir(bombay2, start = fitP17)))
-
-(fitP19 <- coef(fitsir(bombay2, start = fitP18)))
+```{r summarize_pars}
+print(summarize.pars(ffit.final),digits=3)
+print(summarize.pars(sfit.final),digits=3)
 ```
 
-Here's something interesting:
+Maybe the problem is caused by using the "wrong" parameterization?
+Would we better off parameterizing via `log(R0)`, `log(r)` ... rather
+than `log(beta)`, `log(gamma)`, ... ??
 
-```{r}
 
-plot(bombay2$count)
-
-tvec = bombay2$tvec
-
-lines(SIR.detsim(tvec, trans.pars(fitP2)))
-
-lines(SIR.detsim(tvec, trans.pars(fitP5)), col = 2)
-
-lines(SIR.detsim(tvec, trans.pars(fitP8)), col = 3)
-
-fitP2
-fitP5
-fitP8
-```
-
-Something weird is happening...
 
 ## Startfun problem
 
@@ -184,29 +230,25 @@ $$
 \begin{aligned}
 r &= \beta - \gamma\\
 \frac{Q_p}{I_p} &= \frac{\beta \gamma}{N}\\
-I(0) &= N i0\\
+I(0) &= N i_0\\
 \frac{\gamma N}{\beta} &= N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt
 \end{aligned}
 $$
 
 Here is a made-up data:
 
-```{r ex,sim}
-
+```{r ex_sim}
 pars <- list(
 	beta = 0.5,
 	gamma = 0.1,
 	N = 500,
 	i0 = 0.01
 )
-
+tvec <- bombay2$tvec
 r = SIR.detsim(tvec, pars, reportAll = TRUE)
-
 count = r$I
 S = r$S
-
 data = data.frame(tvec, count)
-
 ```
 
 I'm going to test the equations one by one...
@@ -307,7 +349,7 @@ Here's is the real gamma value:
 iniI/(0.4/(-Qp.real/max(count)) - (N - 100 -iniI)/gamma)
 ```
 
-In the equations above, we're assuming that $N  - I0 - \sum (P(t) gamma) = \hat{S}$ but it doesn't work so well...
+In the equations above, we're assuming that $N  - I_0 - \sum (P(t) \gamma) = \hat{S}$ but it doesn't work so well...
 
 ```{r}
 detach(pars)
