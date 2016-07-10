@@ -37,15 +37,14 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 		Ip <- exp(max(predict(ss,tvec)$y))
 		c <- -Qp.alt/Ip
 		n.tmax = which(tvec == floor(ss.tmax))
+                ## first "delta-t" is set equal to the second
+                ## (t[1]-(2*tvec[1]-tvec[2])) = tvec[2]-tvec[1]
 		inc = exp(predict(ss)$y)*diff(c((2*tvec[1]-tvec[2]),tvec))
-		
 		sumI = sum(inc[1:n.tmax])
-		
 		gamma = iniI/(r/c-sumI)
 		beta = gamma + r
 		N = beta*gamma/c
 		i0 = iniI/N
-		
 		x <- list(
 			log.beta = log(beta),
 			log.gamma = log(gamma),
@@ -175,9 +174,9 @@ summarize.pars <- function(params) {
 ##' tvec <- seq(0,200,by=0.01)
 ##' ss <- SIR.detsim(tvec,pars)
 ##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
-SIR.detsim <- function(t, params, findSens = FALSE, incidence = FALSE, reportAll = FALSE){
+SIR.detsim <- function(t, params, findSens = FALSE,
+                       incidence = FALSE, reportAll = FALSE){
 	with(as.list(params),{
-		
 		if(incidence){
 			l <- length(t)
 			t.d <- diff(t[(l-1):l])

@@ -220,7 +220,12 @@ Maybe the problem is caused by using the "wrong" parameterization?
 Would we better off parameterizing via `log(R0)`, `log(r)` ... rather
 than `log(beta)`, `log(gamma)`, ... ??
 
+Do we do better (can we ignore this problem) if we use autostart ... ?
 
+```{r autostart}
+autofit.f <- fitsir(bombay2, start=startfun(auto=TRUE,data=bombay2))
+## start fitsir.optim from fitsir best-fit
+autofit.s <- fitsir.optim(bombay2, start=ffit.final)
 
 ## Startfun problem
 
@@ -228,8 +233,8 @@ We have the following four equations:
 
 $$
 \begin{aligned}
-r &= \beta - \gamma\\
-\frac{Q_p}{I_p} &= \frac{\beta \gamma}{N}\\
+r &= \beta - \gamma \\
+\frac{Q_p}{I_p} &= \frac{\beta \gamma}{N} \\
 I(0) &= N i_0\\
 \frac{\gamma N}{\beta} &= N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt
 \end{aligned}
@@ -248,11 +253,14 @@ tvec <- bombay2$tvec
 r = SIR.detsim(tvec, pars, reportAll = TRUE)
 count = r$I
 S = r$S
+incid = c(NA,-diff(S))
 data = data.frame(tvec, count)
 ```
 
 I'm going to test the equations one by one...
-$r = \beta - \gamma$
+$$
+r = \beta - \gamma
+$$
 
 ```{r}
 attach(pars)
@@ -274,48 +282,48 @@ ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
 
 m1 <- lm(log(count)~tvec,data=subset(data,tvec<ss.thalf))
 (r <- as.numeric(coef(m1)[2])) ##beta - gamma
-beta-gamma
 
 plot(log(count))
 lines(predict(ss))
 abline(v = ss.tmax, lty = 2)
 abline(v = ss.thalf, lty = 2)
-
 lines(predict(m1), col = 2)
-
 ```
 
 0.37 is fairly close to 0.4 so this one is OK.
 
-$\frac{Q_p} = \frac{\beta \gamma I_p}{N}$
+$$
+Q_p = -\frac{\beta \gamma I_p}{N}
+$$
 
 ```{r}
-
 iniI <- count[1] ## N * i0
-	    ## curvature of spline at max
+## curvature of spline at max: could also do this, possibly
+##  more robustly, from a local quadratic fit
 Qp.real = -beta*gamma*max(count)/N
 Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 (Q <- c(Qp.real=Qp.real, Qp.alt=Qp.alt))
-
 ```
 
-This is OK too. For convenience, we're going to let $\alpha = \frac{\beta \gamma}{N} = \frac{Q_p}{I_p}$. This is nice because we can approximate the right term. Here is the problem:
+This is OK too. For convenience, we're going to let $\alpha = \frac{\beta \gamma}{N} = -\frac{Q_p}{I_p}$. This is nice because we can approximate the right term. Here is the problem:
 
-$\frac{\gamma N}{\beta} = \hat{S} = N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt$, where $I(t)$ is incidence
+$$
+\frac{\gamma N}{\beta} = \hat{S} = N - I(0) - \sum_0^{\tau_\text{peak}} I(t) dt$,
+$$
+
+where $I(t)$ is incidence
 
 ```{r}
-
 plot(S)
 abline(v = ss.tmax, lty = 2)
 abline(h = gamma * N/beta, lty = 2)
-
 ```
 
 The problem is that we can't approximate incidence from prevalence so well using this formula: $P = I/\gamma$
 
 ```{r}
 plot(-diff(S), type = "l")
-lines(count * gamma)
+lines(count*gamma,lty=2,col=2)
 ```
 
 This is a problem because this is what we want to do:
@@ -355,3 +363,13 @@ In the equations above, we're assuming that $N  - I_0 - \sum (P(t) \gamma) = \ha
 detach(pars)
 ```
 
+Can we get anything from knowing the peak prevalence ($I_p$)
+other than the calculation we've already done with $Q_p$?
+The $dI/dt$ equation isn't useful (it just gives us
+$\beta S = \gamma$, and we don't know $S$ without doing
+the fancy stuff we're working for ...
+
+```{r}
+plot(incid,count,type="b",
+     ylab="prevalence")
+abline(a=0,b=1/gamma,lty=2)
