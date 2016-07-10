@@ -222,10 +222,13 @@ than `log(beta)`, `log(gamma)`, ... ??
 
 Do we do better (can we ignore this problem) if we use autostart ... ?
 
-```{r autostart}
+(following is broken ATM)
+
+```{r autostart,eval=FALSE}
 autofit.f <- fitsir(bombay2, start=startfun(auto=TRUE,data=bombay2))
 ## start fitsir.optim from fitsir best-fit
 autofit.s <- fitsir.optim(bombay2, start=ffit.final)
+```
 
 ## Startfun problem
 
@@ -373,3 +376,4 @@ the fancy stuff we're working for ...
 plot(incid,count,type="b",
      ylab="prevalence")
 abline(a=0,b=1/gamma,lty=2)
+```
