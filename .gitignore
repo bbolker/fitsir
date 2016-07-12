@@ -26,3 +26,5 @@
 cache/
 figure/
 .Rproj.user
+*_cache/
+*_files/
