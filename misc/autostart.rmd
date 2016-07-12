@@ -1,0 +1,119 @@
+---
+title: "Autostart"
+output: html_document
+---
+
+We need to figure out auto-start method...
+
+```{r}
+
+library("fitsir")
+
+bombay2 <- setNames(bombay, c("tvec", "count"))
+
+```
+
+```{r}
+
+plot(bombay2)
+
+```
+
+I'm going to try doing things mostly based on the spline fit.
+
+```{r}
+
+tvec <- bombay2$tvec
+count <- bombay2$count
+
+ncrit <- Inf
+it <- 1
+spar <- 0.5
+while (ncrit>1 && it<10) {
+	ss <- smooth.spline(tvec,log(count),spar=spar)
+  dd <- predict(ss,deriv=1)$y
+	ncrit <- sum(diff(sign(dd))!=0)
+	spar <- (1+spar)/2
+}
+if (it==10) stop("couldn't smooth enough")
+
+ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
+
+```
+
+We know $r = \beta - \gamma$,,,
+
+```{r}
+
+plot(tvec,log(count))
+lines(predict(ss))
+
+## find max value
+ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+
+## find a point halfway between initial and max
+##  scaling could be adjustable?
+ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+
+abline(v = ss.tmax, lty = 2)
+abline(v = ss.thalf, lty = 2)
+
+m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<ss.thalf))
+
+r <- as.numeric(coef(m1)[2]) ##beta - gamma
+
+lines(predict(m1), col = 2)
+
+```
+
+We also know that $I(0) = N i_0$
+
+```{r}
+
+iniI <- ss.data$count[1] ## N * i0
+
+```
+
+This equation is still valid: $-\frac{Q_p}{I_p} = \frac{\beta \gamma}{N}$
+
+```{r}
+## curvature of spline at max
+
+Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+Ip <- exp(max(predict(ss,tvec)$y))
+c <- -Qp.alt/Ip
+
+```
+
+Can we assume that $N = S + I$ and say that $\frac{\gamma N}{\beta} = N - I_p$? This is probably as bad as the previous assumption but this shouldn't give us negative parameters at least... Probably more stable...
+
+$$
+\begin{aligned}
+\frac{\gamma N}{\beta} &= N - I_p\\
+I_p &= N (1 - \frac{\gamma}{\beta})\\
+I_p &= - \beta \gamma \frac{I_p}{Q_p} (1 - \frac{\gamma}{\beta})\\
+-Q_p/r &=  \gamma\\
+\end{aligned}
+$$
+
+```{r}
+gamma = -Qp.alt/r
+beta = gamma + r
+N = beta * gamma/c
+i0 = iniI/N
+
+auto.pars <- c(
+  log.beta = log(beta),
+  log.gamma = log(gamma),
+  log.N = log(N),
+  logit.i = qlogis(i0)
+)
+
+source("../R/fitSIR_funs.R")
+library(deSolve)
+
+I <- SIR.detsim(tvec, auto.pars)
+
+plot(tvec,log(count))
+lines(log(I),col = 2)
+```
