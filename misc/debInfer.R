@@ -24,28 +24,27 @@ SIR.logLik <- function(data, sim.data, samp){
 
 library(deBInfer)
 beta <- debinfer_par(name = "beta", var.type = "de", fixed = FALSE,
-									value = 5, prior="unif", hypers=list(min = 0, max = 30),
-									prop.var=3, samp.type="rw")
+									value = 10, prior="unif", hypers=list(min = 0, max = 30),
+									prop.var=5, samp.type="rw")
 
 gamma <- debinfer_par(name = "gamma", var.type = "de", fixed = FALSE,
-									value = 5, prior="unif", hypers=list(min = 0, max = 30),
-									prop.var=3, samp.type="rw")
-
+									value = 10, prior="unif", hypers=list(min = 0, max = 30),
+									prop.var=5, samp.type="rw")
 
 S <- debinfer_par(name = "S", var.type = "init", fixed = FALSE,
-									value = 10000, prior="lnorm", hypers=list(meanlog = 10, sdlog = 1),
+									value = 10000, prior="unif", hypers=list(min = 100, max = 100000),
 									prop.var=1000, samp.type="rw")
 
 I <- debinfer_par(name = "I", var.type = "init", fixed = FALSE,
 									value = 4, prior="unif", hypers=list(min = 0, max = 2*bombay2$count[1]),
-									prop.var=0.1, samp.type="rw")
+									prop.var=2, samp.type="rw")
 
 R <- debinfer_par(name = "R", var.type = "init", fixed = TRUE,
 									value = 0)
 
 mcmc.pars <- setup_debinfer(beta, gamma, I, S, R)
 
-iter = 5000
+iter = 10000
 
 mcmc_samples <- de_mcmc(N = iter, data=bombay2, de.model=SIR.grad,
 												obs.model=SIR.logLik, all.params=mcmc.pars,
@@ -54,11 +53,13 @@ mcmc_samples <- de_mcmc(N = iter, data=bombay2, de.model=SIR.grad,
 
 plot(mcmc_samples)
 
-burnin = 700
+burnin = 1000
 pairs(mcmc_samples, burnin = burnin, scatter=TRUE, trend=TRUE)
 
 post_traj <- post_sim(mcmc_samples, n=500, times=1:31, burnin=burnin, output = 'all', prob = 0.95)
 
 plot(post_traj, plot.type = "medianHDI", lty = c(2,1), lwd=3, col=c("red","grey20"),
+     log = "y",
 		 panel.first=lines(bombay2, col="darkblue", lwd=2))
+
 

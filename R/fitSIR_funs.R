@@ -24,27 +24,24 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 			spar <- (1+spar)/2
 		}
 		if (it==10) stop("couldn't smooth enough")
+		ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
 		## find max value
 		ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
 		## find a point halfway between initial and max
 		##  scaling could be adjustable?
 		ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
-		m1 <- lm(log(count)~tvec,data=subset(data,tvec<ss.thalf))
+		m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<ss.thalf))
 		r <- as.numeric(coef(m1)[2]) ##beta - gamma
-		iniI <- count[1] ## N * i0
+		iniI <- ss.data$count[1] ## N * i0
 	    ## curvature of spline at max
 		Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 		Ip <- exp(max(predict(ss,tvec)$y))
 		c <- -Qp.alt/Ip
-		n.tmax = which(tvec == floor(ss.tmax))
-                ## first "delta-t" is set equal to the second
-                ## (t[1]-(2*tvec[1]-tvec[2])) = tvec[2]-tvec[1]
-		inc = exp(predict(ss)$y)*diff(c((2*tvec[1]-tvec[2]),tvec))
-		sumI = sum(inc[1:n.tmax])
-		gamma = iniI/(r/c-sumI)
+		gamma = -Qp.alt/r
 		beta = gamma + r
 		N = beta*gamma/c
 		i0 = iniI/N
+		
 		x <- list(
 			log.beta = log(beta),
 			log.gamma = log(gamma),
