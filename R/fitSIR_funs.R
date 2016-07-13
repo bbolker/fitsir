@@ -241,8 +241,8 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param debug print debugging output?
 SIR.logLik <- function(incidence = FALSE){
 	g <- function(params, count, tvec=NULL,
-												 dist=dnorm2,
-												 debug=FALSE) {
+    dist=dnorm2,
+    debug=FALSE) {
 		## HACK: nloptr appears to strip names from parameters
 		## if (is.null(params)) return(NA_real_) ## why ???
 		## if (is.null(names(params)) &&
@@ -289,17 +289,17 @@ SIR.logLik <- function(incidence = FALSE){
 ##' mean((1-ss/cc)^2)
 ##' mean((1-ss2/cc)^2)
 fitsir <- function(data,method="Nelder-Mead",
-                   control=list(maxit=1e5),
-                   timescale=NULL,
-									 incidence = FALSE,
-                   start=startfun(),debug=FALSE) {
-	g <- SIR.logLik(incidence = incidence)
-    mle2(g,
-         vecpar=TRUE,
-         start=start,
-         method=method,
-         control=control,
-         data=c(data,list(debug=debug)))
+  control=list(maxit=1e5),
+  timescale=NULL,
+  incidence = FALSE,
+  start=startfun(),debug=FALSE) {
+    g <- SIR.logLik(incidence = incidence)
+      mle2(g,
+        vecpar=TRUE,
+        start=start,
+        method=method,
+        control=control,
+        data=c(data,list(debug=debug)))
 }
 
 ## Introducing sensitivity equations
