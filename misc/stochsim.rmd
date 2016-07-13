@@ -14,6 +14,8 @@ library(fitsir)
 library(bbmle) ## needed for coef() ...
 library(splines) ## for ns()
 library(plyr)  ## for raply()
+library(tidyr)
+library(ggplot2); theme_set(theme_bw())
 ```
 
 ```{r stochsimfun}
@@ -53,8 +55,10 @@ s0 <- simfun(rpars=list(size=10))
 Various ways of fitting ...
 ```{r fitex1,cache=TRUE}
 ## get starting values and trajectory based on them
-ss0 <- startfun(auto=TRUE,data=s0)
-ss2 <- SIR.detsim(s0$tvec,trans.pars(ss0))
+## ss0 <- startfun(auto=TRUE,data=s0)
+## use the generic (bad!) starting values
+ss0 <- startfun()
+ss2 <- SIR.detsim(s0$tvec,unlist(trans.pars(ss0)))
 
 ## fit and corresponding trajectory
 t1 <- system.time(f1 <- fitsir(s0,start=ss0))
@@ -68,12 +72,18 @@ m1 <- glm(count~ns(tvec,df=3),
           family=gaussian(link="log"),data=s0)
 ```
 
+`fitsir` works OK in this case even though we use the
+generic starting parameters (not auto-fit, which is currently
+broken):
 ```{r fitex1_plot,echo=FALSE}
 par(las=1,bty="l")
 plot(count~tvec,data=s0)
 lines(s0$tvec,ss2)  ## incidence/prevalence mismatch?
 lines(s0$tvec,ss3,col=2)  ## decent fit anyway
 lines(s0$tvec,predict(m1,type="response"),col=4)
+legend("topright",
+       c("start","fitsir","spline"),
+       col=c(1,2,4),lty=1)
 ```
 
 
@@ -82,7 +92,8 @@ lines(s0$tvec,predict(m1,type="response"),col=4)
 ```{r fitsim1,cache=TRUE}
 ## takes about 1 minute per sim ...
 fitfun <- function(data) {
-    t1 <- system.time(f1 <- fitsir(data,start=startfun(auto=TRUE,data=data)))
+    t1 <- system.time(f1 <- fitsir(data))
+                                   ## start=startfun(auto=TRUE,data=data)))
     m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
     res <- c(t=unname(t1["elapsed"]),coef(f1),
       nll.SIR=c(-logLik(f1)),nll.gam=c(-logLik(m1)))
@@ -90,6 +101,7 @@ fitfun <- function(data) {
 }
 system.time(print(fitfun(s0)))
 ```
+(autostart was used with these cached results ...)
 
 ```{r loadsims}
 simfn <- "stochsim.rda"
@@ -118,9 +130,59 @@ with(res1,hist(nll.SIR-nll.gam,col="gray",breaks=20,
 
 ## To do
 
-- larger sample
-- parameters more typical of DR/music-download data: esp. more samples (will presumably make differences *more* significant/favour GAMs more?)
-- try factorial experiment:
-    - multiple sims
-    - range of sample sizes
-    - range of true parameter values (Latin hypercube??)
+- compare `smooth.spline` and `glm(.,ns(.))` approaches
+- get parameter ranges from DR: $\beta$, $\gamma$, $N$, $I(0)$, and number of data points (for simplicity we will take the same overall time range, and use number of data points for `dt`)
+- calibrate neg binomial size parameter to observed mean squared error
+
+```{r}
+fitfun2 <- function(data,plot.it=FALSE,...) {
+    t1 <- system.time(f1 <- fitsir(data))
+    ## m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
+    ## m1 <- lm(log(count+1)~ns(tvec,df=3),data=data)
+    m1 <- smooth.spline(data,nknots=4)
+    fpred <- SIR.detsim(data$tvec,trans.pars(coef(f1)))
+    spred <- fitted(m1)
+    mse <- c(fitsir=mean((1-fpred/data$count)^2),
+             spline=mean((1-spred/data$count)^2))
+    if (plot.it) {
+        plot(data$tvec,data$count,xlab="time",ylab="count",type="l",...)
+        matpoints(data$tvec,cbind(fpred,spred),col=c(2,4),pch=1:2)
+        legend("topright",
+               c("data","fitsir","spline"),
+               col=c(1,2,4),lty=1)
+
+    }
+    return(mse)
+}
+fitfun(s0)[c("nll.SIR","nll.gam")]
+fitfun2(s0,plot.it=TRUE,log="y")
+```
+
+Note that in this case `fitsir` has *lower* mean-squared-error, despite having a higher negative log-likelihood. This makes some sense because `fitsir` appears better on the log scale ...
+
+```{r sizecal,cache=TRUE}
+sizevec <- 10^seq(0,2,length.out=20)
+repvals <- 1:10
+sres <- data.frame(expand.grid(size=sizevec,rep=repvals),
+                   cbind(fitsir=NA,spline=NA))
+set.seed(101)
+for (i in 1:nrow(sres)) {
+    sres[i,3:4] <- 
+        fitfun2(simfun(rpars=list(size=sres[i,"size"])))
+}
+sres2 <- gather(sres,method,mse,-size,-rep)
+ggplot(sres2,aes(size,mse,colour=method))+
+    scale_x_log10()+
+    scale_y_log10()+
+    geom_point()+geom_smooth()+scale_colour_brewer(palette="Set1")
+```
+
+We may need pretty small `size` values to get match the observed range of mean-squared error values ...
+
+A first crack at comparing `fitsir` and spline (three ways to do this -- (1) true start values; (2) generic start values; (3) LHS of starting values, pick best)
+```{r}
+beta_range <- c()
+gamma_range <- c()
+N_range <- c()
+I0_range <- c()
+```
