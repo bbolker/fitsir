@@ -117,3 +117,158 @@ I <- SIR.detsim(tvec, auto.pars)
 plot(tvec,log(count))
 lines(log(I),col = 2)
 ```
+
+### Incidence
+
+I'm going to make up the data...
+
+```{r}
+
+rm(list = ls())
+source("../R/fitSIR_funs.R")
+library(deSolve)
+
+pars <- c(
+  beta = 0.7,
+  gamma = 0.2,
+  N = 5000,
+  i0 = 0.01
+)
+
+tvec <- seq(1, 30, 0.1)
+
+count <- SIR.detsim(tvec, pars, incidence = TRUE)
+```
+
+
+```{r}
+
+ncrit <- Inf
+it <- 1
+spar <- 0.5
+while (ncrit>1 && it<10) {
+  ss <- smooth.spline(tvec,log(count),spar=spar)
+  dd <- predict(ss,deriv=1)$y
+	ncrit <- sum(diff(sign(dd))!=0)
+	spar <- (1+spar)/2
+}
+if (it==10) stop("couldn't smooth enough")
+
+ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
+
+```
+
+We know that $I = \beta S P/N$. In the initial phase of epidemic, $S \approx N$ so we have $\log I = \log(\beta) + \log P$. We also know that $\log P$ grows at a rate $r$. So the slope of $\log I$ is also $r$.
+
+
+```{r}
+plot(tvec,log(count))
+lines(tvec,log(ss.data$count), col = 2)
+
+## find max value
+ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
+
+## find a point halfway between initial and max
+##  scaling could be adjustable?
+ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+
+abline(v = ss.tmax, lty = 2)
+abline(v = ss.thalf, lty = 2)
+
+thalf.range <- which(tvec < ss.thalf)
+
+m1 <- lm(log(count)~tvec,data=ss.data[thalf.range,])
+
+r <- as.numeric(coef(m1)[2]) ##beta - gamma
+
+lines(tvec[thalf.range], predict(m1), col = 3)
+
+```
+
+We also know that $I(1)/(t_2 - t_1) = \beta N (1-i0) i0$
+
+```{r}
+
+count[1]/(tvec[2] - tvec[1])
+
+0.7 * 5000 * (1 - 0.01) * 0.01
+
+##Seems like it works
+
+```
+
+If the data is large enough, we're going to have $\int I(t) dt \approx N$
+
+```{r}
+
+N = cumsum(count)[length(tvec)]
+
+```
+
+We can convert incidence into prevalence by using the following equation: $P \approx I\Delta t/\gamma$. This is the equation we want to use: $-\frac{Q_p}{P_p} = \frac{\beta \gamma}{N}$.
+
+We can do this $P_p = \max(I\Delta t/\gamma) = \max(I\Delta t)/\gamma$. $Q_p$ can be also calculated by taking the second derivative of $I\Delta t$ and multiplying $1/\gamma$. Therefore, $Q_p/P_p$ ratio can be calculated without knowing $\gamma$.
+
+```{r}
+t.diff <- diff(tvec)
+t.diff <- c(t.diff[1], t.diff)
+
+P <- count/t.diff
+
+ncrit <- Inf
+it <- 1
+spar <- 0.5
+while (ncrit>1 && it<10) {
+  ss.P <- smooth.spline(tvec,log(P),spar=spar)
+  dd <- predict(ss.P,deriv=1)$y
+  ncrit <- sum(diff(sign(dd))!=0)
+	spar <- (1+spar)/2
+}
+
+ss.P.tmax <- uniroot(function(x) predict(ss.P,x,deriv=1)$y,range(tvec))$root
+
+Qp.alt <- predict(ss.P,ss.P.tmax,deriv=2)$y
+Ip <- exp(max(predict(ss.P,tvec)$y))
+
+c = -Qp.alt/Ip
+
+```
+
+Now, we can get all four parameters. 
+
+First, we can use $\beta \gamma = N \frac{-Q_p}{P_p}$ and $\beta - \gamma = r$:
+
+$$
+\begin{aligned}
+\gamma^2 + r \gamma - N c = 0
+\end{aligned}
+$$
+
+```{r}
+
+gamma = 0.5 * (sqrt(4*c*N + r^2)-r)
+
+beta = gamma + r
+
+N = N
+
+d = count[1]/(t.diff[1]* beta * N)
+
+i0 = 0.5 * (1-sqrt(1-4*d))
+
+pars.auto = c(
+  beta=beta,
+  gamma=gamma,
+  N=N,
+  i0 = i0
+)
+
+count2 <- SIR.detsim(tvec, pars.auto, incidence= TRUE)
+
+plot(count, log = "y")
+lines(count2)
+```
+
+
+
+i0^2 - i0 + d
