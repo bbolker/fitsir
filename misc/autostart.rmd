@@ -213,7 +213,7 @@ We can do this $P_p = \max(I\Delta t/\gamma) = \max(I\Delta t)/\gamma$. $Q_p$ ca
 t.diff <- diff(tvec)
 t.diff <- c(t.diff[1], t.diff)
 
-P <- count/t.diff
+P <- ss.data$count/t.diff
 
 ncrit <- Inf
 it <- 1
@@ -269,6 +269,29 @@ plot(count, log = "y")
 lines(count2)
 ```
 
+Here's the auto-start code:
+
+```{r}
+
+pars <- c(
+  beta = 0.8,
+  gamma = 0.4,
+  N = 50000,
+  i0 = 0.02
+)
+
+tvec <- seq(1, 30, 0.1)
+
+count <- SIR.detsim(tvec, pars, incidence = TRUE)
+
+(pars.auto2 <- trans.pars(startfun(data = data.frame(tvec = tvec, count = count), auto = TRUE, incidence = TRUE)))
+
+count2 <- SIR.detsim(tvec, pars.auto2, incidence= TRUE)
+
+plot(count, log = "y")
+lines(count2)
+```
 
 
-i0^2 - i0 + d
+
+

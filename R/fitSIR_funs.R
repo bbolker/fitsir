@@ -34,14 +34,43 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 		r <- as.numeric(coef(m1)[2]) ##beta - gamma
 		iniI <- ss.data$count[1] ## N * i0
 	    ## curvature of spline at max
+    
+    if(incidence){
+      N = cumsum(count)[length(tvec)]
+      t.diff <- diff(tvec)
+      t.diff <- c(t.diff[1], t.diff)
+      
+      P <- ss.data$count/t.diff
+      
+      ncrit <- Inf
+      it <- 1
+      spar <- 0.5
+      while (ncrit>1 && it<10) {
+        ss <- smooth.spline(tvec,log(P),spar=spar)
+        dd <- predict(ss,deriv=1)$y
+        ncrit <- sum(diff(sign(dd))!=0)
+        spar <- (1+spar)/2
+      }
+    }
+    
 		Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 		Ip <- exp(max(predict(ss,tvec)$y))
 		c <- -Qp.alt/Ip
-		gamma = -Qp.alt/r
-		beta = gamma + r
-		N = beta*gamma/c
-		i0 = iniI/N
-		
+    
+    
+    if(incidence){
+      gamma = 0.5 * (sqrt(4*c*N + r^2)-r)
+      beta = gamma + r
+      N = N
+      d = iniI/(t.diff[1]* beta * N)
+      i0 = 0.5 * (1-sqrt(1-4*d))
+    }else{
+		  gamma = -Qp.alt/r
+		  beta = gamma + r
+		  N = beta*gamma/c
+		  i0 = iniI/N
+    }
+    
 		x <- list(
 			log.beta = log(beta),
 			log.gamma = log(gamma),
