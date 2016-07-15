@@ -24,27 +24,53 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 			spar <- (1+spar)/2
 		}
 		if (it==10) stop("couldn't smooth enough")
+		ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
 		## find max value
 		ss.tmax <- uniroot(function(x) predict(ss,x,deriv=1)$y,range(tvec))$root
 		## find a point halfway between initial and max
 		##  scaling could be adjustable?
 		ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
-		m1 <- lm(log(count)~tvec,data=subset(data,tvec<ss.thalf))
+		m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<ss.thalf))
 		r <- as.numeric(coef(m1)[2]) ##beta - gamma
-		iniI <- count[1] ## N * i0
+		iniI <- ss.data$count[1] ## N * i0
 	    ## curvature of spline at max
+    
+    if(incidence){
+      N = cumsum(count)[length(tvec)]
+      t.diff <- diff(tvec)
+      t.diff <- c(t.diff[1], t.diff)
+      
+      P <- ss.data$count/t.diff
+      
+      ncrit <- Inf
+      it <- 1
+      spar <- 0.5
+      while (ncrit>1 && it<10) {
+        ss <- smooth.spline(tvec,log(P),spar=spar)
+        dd <- predict(ss,deriv=1)$y
+        ncrit <- sum(diff(sign(dd))!=0)
+        spar <- (1+spar)/2
+      }
+    }
+    
 		Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
 		Ip <- exp(max(predict(ss,tvec)$y))
 		c <- -Qp.alt/Ip
-		n.tmax = which(tvec == floor(ss.tmax))
-                ## first "delta-t" is set equal to the second
-                ## (t[1]-(2*tvec[1]-tvec[2])) = tvec[2]-tvec[1]
-		inc = exp(predict(ss)$y)*diff(c((2*tvec[1]-tvec[2]),tvec))
-		sumI = sum(inc[1:n.tmax])
-		gamma = iniI/(r/c-sumI)
-		beta = gamma + r
-		N = beta*gamma/c
-		i0 = iniI/N
+    
+    
+    if(incidence){
+      gamma = 0.5 * (sqrt(4*c*N + r^2)-r)
+      beta = gamma + r
+      N = N
+      d = iniI/(t.diff[1]* beta * N)
+      i0 = 0.5 * (1-sqrt(1-4*d))
+    }else{
+		  gamma = -Qp.alt/r
+		  beta = gamma + r
+		  N = beta*gamma/c
+		  i0 = iniI/N
+    }
+    
 		x <- list(
 			log.beta = log(beta),
 			log.gamma = log(gamma),
@@ -244,8 +270,8 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param debug print debugging output?
 SIR.logLik <- function(incidence = FALSE){
 	g <- function(params, count, tvec=NULL,
-												 dist=dnorm2,
-												 debug=FALSE) {
+    dist=dnorm2,
+    debug=FALSE) {
 		## HACK: nloptr appears to strip names from parameters
 		## if (is.null(params)) return(NA_real_) ## why ???
 		## if (is.null(names(params)) &&
@@ -292,17 +318,17 @@ SIR.logLik <- function(incidence = FALSE){
 ##' mean((1-ss/cc)^2)
 ##' mean((1-ss2/cc)^2)
 fitsir <- function(data,method="Nelder-Mead",
-                   control=list(maxit=1e5),
-                   timescale=NULL,
-									 incidence = FALSE,
-                   start=startfun(),debug=FALSE) {
-	g <- SIR.logLik(incidence = incidence)
-    mle2(g,
-         vecpar=TRUE,
-         start=start,
-         method=method,
-         control=control,
-         data=c(data,list(debug=debug)))
+  control=list(maxit=1e5),
+  timescale=NULL,
+  incidence = FALSE,
+  start=startfun(),debug=FALSE) {
+    g <- SIR.logLik(incidence = incidence)
+      mle2(g,
+        vecpar=TRUE,
+        start=start,
+        method=method,
+        control=control,
+        data=c(data,list(debug=debug)))
 }
 
 ## Introducing sensitivity equations

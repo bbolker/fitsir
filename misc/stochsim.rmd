@@ -128,12 +128,6 @@ with(res1,hist(nll.SIR-nll.gam,col="gray",breaks=20,
 - with the current "autofit" functionality, `fitsir` mostly works OK, doesn't need Latin hypercube for this example
 - in 20 sims, GAM/spline fit does slightly better most (90%) of the time, but not a big difference (<2 log-likelihood units)
 
-## To do
-
-- compare `smooth.spline` and `glm(.,ns(.))` approaches
-- get parameter ranges from DR: $\beta$, $\gamma$, $N$, $I(0)$, and number of data points (for simplicity we will take the same overall time range, and use number of data points for `dt`)
-- calibrate neg binomial size parameter to observed mean squared error
-
 ```{r}
 fitfun2 <- function(data,plot.it=FALSE,...) {
     t1 <- system.time(f1 <- fitsir(data))
@@ -186,3 +180,38 @@ gamma_range <- c()
 N_range <- c()
 I0_range <- c()
 ```
+
+```{r loadsims2}
+simfn2 <- "stochsim2.rda"
+
+fitfun.optim <- function(data) {
+    t1 <- system.time(f1 <- fitsir.optim(data,start=startfun(auto=TRUE,data=data)))
+    m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
+    res <- c(t=unname(t1["elapsed"]),coef(f1),
+      nll.SIR=c(-logLik(f1)),nll.gam=c(-logLik(m1)))
+    return(res)
+}
+
+
+if (file.exists(simfn2)) {
+   load(simfn2)
+} else {
+set.seed(101)
+res1 <- raply(20,fitfun(simfun(rpars=list(size=10))),
+              .progress="text")
+}
+
+```
+
+## To do
+
+- compare `smooth.spline` and `glm(.,ns(.))` approaches
+- get parameter ranges from DR: $\beta$, $\gamma$, $N$, $I(0)$, and number of data points (for simplicity we will take the same overall time range, and use number of data points for `dt`)
+- calibrate neg binomial size parameter to observed mean squared error
+- larger sample
+- parameters more typical of DR/music-download data: esp. more samples (will presumably make differences *more* significant/favour GAMs more?)
+- try factorial experiment:
+    - multiple sims
+    - range of sample sizes
+    - range of true parameter values (Latin hypercube??)
+

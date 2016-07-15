@@ -48,9 +48,9 @@ lines(a2$I, col = "2")
 
 plot(z, type = "l")
 
-lines(a$nu_I0_I, col = 2)
+lines(a$nu_N_I, col = 2)
 
-lines(a2$nu_I0_I, col = 3)
+lines(a2$nu_N_I, col = 3)
 
 ```
 
@@ -94,7 +94,7 @@ iniP.ex <- startfun(data=bombay2, auto = TRUE)
 
 findSens(bombay2, iniP.ex, plot.it = TRUE)
 
-(fitP <- coef(fitsir(bombay2, start = startfun())))
+(fitP <- coef(fitsir(bombay2, start = startfun(data = bombay2, auto = TRUE))))
 
 findSens(bombay2, fitP, plot.it = TRUE)
 
@@ -115,7 +115,7 @@ findSens(bombay2, fitP3, plot.it = TRUE)
 
 ```{r }
 
-(fitP4 <- fitsir.optim(bombay2, start = fitP, plot.it=TRUE))
+(fitP4 <- fitsir.optim(bombay2, start = fitP3, plot.it=TRUE))
 
 findSens(bombay2, fitP4, plot.it = TRUE)
 
