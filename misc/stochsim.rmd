@@ -14,34 +14,14 @@ library(fitsir)
 library(bbmle) ## needed for coef() ...
 library(splines) ## for ns()
 library(plyr)  ## for raply()
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(ggplot2); theme_set(theme_bw())
 ```
 
 ```{r stochsimfun}
-##' Stochastic simulation (observation/uncorrelated error only)
-##' 
-##' should this be called SIR.stochsim instead?
-##' allow facility for (discrete and/or continuous time) process-error
-##'   sims?
-##'
-##' @param pars parameters (on "original" constrained scale)
-##' @param tmax max times
-##' @param dt time step
-##' @param rfun function for generating random (observation) noise
-##' @param rmean name of mean for \code{rfun}
-##' @param rpars additional arguments for \code{rfun}
-simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
-                   tmax=100,dt=1,
-                   rfun=rnbinom,
-                   rmean="mu",
-                   rpars=list(size=1)
-                   ) {
-    tvec <- seq(0,tmax,by=dt)
-    ss <- SIR.detsim(tvec,pars)
-    noiseArgs <- c(setNames(list(length(ss),ss),c("n",rmean)),
-                   rpars)
-    count <- do.call(rfun,noiseArgs)
-    return(data.frame(tvec,count))
-}
+source("stochsim_funs.R")
 ```
 
 ```{r ssex1}
@@ -53,8 +33,10 @@ s0 <- simfun(rpars=list(size=10))
 Various ways of fitting ...
 ```{r fitex1,cache=TRUE}
 ## get starting values and trajectory based on them
-ss0 <- startfun(auto=TRUE,data=s0)
-ss2 <- SIR.detsim(s0$tvec,trans.pars(ss0))
+## ss0 <- startfun(auto=TRUE,data=s0)
+## use the generic (bad!) starting values
+ss0 <- startfun()
+ss2 <- SIR.detsim(s0$tvec,unlist(trans.pars(ss0)))
 
 ## fit and corresponding trajectory
 t1 <- system.time(f1 <- fitsir(s0,start=ss0))
@@ -62,18 +44,24 @@ ss3 <- SIR.detsim(s0$tvec,trans.pars(coef(f1)))
 
 ## GAM fit: match number of degrees of freedom
 ## glm() lists df as df+2 
-##          == length(coef())+1
+
 ##   counting for intercept and residual var(?)
 m1 <- glm(count~ns(tvec,df=3),
           family=gaussian(link="log"),data=s0)
 ```
 
+`fitsir` works OK in this case even though we use the
+generic starting parameters (not auto-fit, which is currently
+broken):
 ```{r fitex1_plot,echo=FALSE}
 par(las=1,bty="l")
 plot(count~tvec,data=s0)
 lines(s0$tvec,ss2)  ## incidence/prevalence mismatch?
 lines(s0$tvec,ss3,col=2)  ## decent fit anyway
 lines(s0$tvec,predict(m1,type="response"),col=4)
+legend("topright",
+       c("start","fitsir","spline"),
+       col=c(1,2,4),lty=1)
 ```
 
 
@@ -81,15 +69,9 @@ lines(s0$tvec,predict(m1,type="response"),col=4)
 
 ```{r fitsim1,cache=TRUE}
 ## takes about 1 minute per sim ...
-fitfun <- function(data) {
-    t1 <- system.time(f1 <- fitsir(data,start=startfun(auto=TRUE,data=data)))
-    m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
-    res <- c(t=unname(t1["elapsed"]),coef(f1),
-      nll.SIR=c(-logLik(f1)),nll.gam=c(-logLik(m1)))
-    return(res)
-}
 system.time(print(fitfun(s0)))
 ```
+(autostart was used with these cached results ...)
 
 ```{r loadsims}
 simfn <- "stochsim.rda"
@@ -116,14 +98,33 @@ with(res1,hist(nll.SIR-nll.gam,col="gray",breaks=20,
 - with the current "autofit" functionality, `fitsir` mostly works OK, doesn't need Latin hypercube for this example
 - in 20 sims, GAM/spline fit does slightly better most (90%) of the time, but not a big difference (<2 log-likelihood units)
 
-## To do
+```{r}
+fitfun(s0)[c("nll.SIR","nll.gam")]
+fitfun2(s0,plot.it=TRUE,log="y")
+```
 
-- larger sample
-- parameters more typical of DR/music-download data: esp. more samples (will presumably make differences *more* significant/favour GAMs more?)
-- try factorial experiment:
-    - multiple sims
-    - range of sample sizes
-    - range of true parameter values (Latin hypercube??)
+Note that in this case `fitsir` has *lower* mean-squared-error, despite having a higher negative log-likelihood. This makes some sense because `fitsir` appears better on the log scale ...
+
+```{r sizecal,cache=TRUE}
+sizevec <- 10^seq(0,2,length.out=20)
+repvals <- 1:10
+sres <- data.frame(expand.grid(size=sizevec,rep=repvals),
+                   cbind(fitsir=NA,spline=NA))
+set.seed(101)
+for (i in 1:nrow(sres)) {
+    sres[i,3:4] <- 
+        fitfun2(simfun(rpars=list(size=sres[i,"size"])))
+}
+sres2 <- gather(sres,method,mse,-size,-rep)
+ggplot(sres2,aes(size,mse,colour=method))+
+    scale_x_log10()+
+    scale_y_log10()+
+    geom_point()+geom_smooth()+scale_colour_brewer(palette="Set1")
+```
+
+We may need pretty small `size` values to get match the observed range of mean-squared error values ...
+
+A first crack at comparing `fitsir` and spline (three ways to do this -- (1) true start values; (2) generic start values; (3) LHS of starting values, pick best)
 
 ```{r loadsims2}
 simfn2 <- "stochsim2.rda"
@@ -146,3 +147,42 @@ res1 <- raply(20,fitfun(simfun(rpars=list(size=10))),
 }
 
 ```
+
+## Ranges
+
+from Dora:
+
+```{r}
+Nquant <- setNames(
+    c(9.908985e+00,4.492488e+02,2.096015e+03,2.878854e+04,2.865343e+31),
+    seq(0,100,by=25))
+I0quant <-  setNames(
+    c(6.573213e-193,6.255714e-04,9.216386e-03,4.933392e-02,9.990980e-01),
+    seq(0,100,by=25))
+
+m0 <- matrix(c(1.16,1.66,3.85,3.98,7.68,15.08,0.16,0.36,0.57,0.07,0.13,0.25,
+         1.12,1.34,2.11,3.61,6.85,11.07,0.15,0.28,0.55,0.09,0.14,0.28,
+         1.26,2.27,5.13,3.90,7.19,11.49,0.26,0.47,1.08,0.09,0.14,0.26,
+         1.24,1.88,8.60,4.71,12.97,42.06,0.16,0.31,0.73,0.02,0.08,0.21),
+         ncol=4)
+dimnames(m0) <- list(paste(rep(c("R0","1/gamma","beta","gamma"),each=3),
+                     rep(paste0("Q",1:3),4),sep="_"),
+                     c("GB","BR","FI","ID"))
+m1 <- m0 %>% as.data.frame %>% rownames_to_column("var") %>%
+    separate(var,c("var","quantile"),sep="_") %>%
+    gather(country,value,-c(var,quantile))
+## mutate(qq=as.numeric(gsub("Q","",quantile))*0.25)
+ggplot(m1,aes(country,value))+geom_point()+
+    facet_wrap(~var,scale="free")
+```
+
+- compare `smooth.spline` and `glm(.,ns(.))` approaches
+- get parameter ranges from DR: $\beta$, $\gamma$, $N$, $I(0)$, and number of data points (for simplicity we will take the same overall time range, and use number of data points for `dt`)
+- calibrate neg binomial size parameter to observed mean squared error
+- larger sample
+- parameters more typical of DR/music-download data: esp. more samples (will presumably make differences *more* significant/favour GAMs more?)
+- try factorial experiment:
+    - multiple sims
+    - range of sample sizes
+    - range of true parameter values (Latin hypercube??)
+
