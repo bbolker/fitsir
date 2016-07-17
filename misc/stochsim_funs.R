@@ -15,7 +15,8 @@ simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
                    rfun=rnbinom,
                    rmean="mu",
                    rpars=list(size=1),
-                   seed=NULL
+                   seed=NULL,
+                   drop.zeros=TRUE
                    ) {
     if (!is.null(seed)) set.seed(seed)
     tvec <- seq(0,tmax,by=dt)
@@ -23,7 +24,9 @@ simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
     noiseArgs <- c(setNames(list(length(ss),ss),c("n",rmean)),
                    rpars)
     count <- do.call(rfun,noiseArgs)
-    return(data.frame(tvec,count))
+    ##
+    lastpos <- tail(which(count>0),1)
+    return(data.frame(tvec,count)[1:lastpos,])
 }
 
 fitfun <- function(data) {

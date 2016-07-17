@@ -28,10 +28,10 @@ nmvec <- c("time", "log.beta", "log.gamma", "log.N", "logit.i", "nll.SIR",
 null_out <- setNames(rep(NA,length(nmvec)),nmvec)
 
 ## could use aaply but for loop is more transparent
-res <- matrix(NA,nrow=nrow(lhs_df),ncol=length(nmvec),
+res <- matrix(NA,nrow=nsim,ncol=length(nmvec),
               dimnames=list(NULL,nmvec))
 
-for (i in 1:25) {
+for (i in 1:nsim) {
     cat(i,"\n")
     p <- lhs_df[i,]
     p2 <- c(p[2:3],
@@ -43,6 +43,7 @@ for (i in 1:25) {
     if (!is(f,"try-error")) {
         res[i,] <- f
     }
+    save("res",file=fn)
 }
 
     
