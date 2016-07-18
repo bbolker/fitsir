@@ -1,3 +1,32 @@
+spline.fit <- function(tvec, count, ...){
+  args <- list(...)
+  
+  with(args, {
+    single_peak <- FALSE
+    it <- 1
+    spar <- 0.5
+    while (!single_peak && it<itmax) {
+      ss <- smooth.spline(tvec,log(count),spar=spar)
+      dd <- predict(ss,deriv=1)$y
+      ## change in sign of first derivative
+      dds <- diff(sign(dd))
+      spar <- if (spar<0.8) spar+0.05 else (1+spar)/2
+      it <- it+1
+      ncrit <- sum(dds<0)
+      peakvals <- count[dds<0]
+      relpeakvals <- peakvals[-1]/peakvals[1]
+      single_peak <- ncrit==1 ||
+        all(relpeakvals<relpeakcrit)
+    }
+    if (it==itmax) {
+      ## try harder?
+      stop("couldn't smooth enough")
+    }
+    
+    return(ss)
+  })
+}
+
 ##' Starting function
 ##' @rdname trans.pars
 ##' @param log.beta log of per capita transmission rate
@@ -19,27 +48,10 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
         ## smooth data; start with smoothing par 0.5, try
         ## to increase it until there is a single critical point ...
         ## (check that second deriv is negative???)
-        single_peak <- FALSE
-        it <- 1
-        spar <- 0.5
-        while (!single_peak && it<itmax) {
-            ss <- smooth.spline(tvec,log(count),spar=spar)
-            dd <- predict(ss,deriv=1)$y
-            ## change in sign of first derivative
-            dds <- diff(sign(dd))
-            spar <- if (spar<0.8) spar+0.05 else (1+spar)/2
-            it <- it+1
-            ncrit <- sum(dds>0)
-            peakvals <- count[dds>0]
-            relpeakvals <- peakvals[-1]/peakvals[1]
-            single_peak <- ncrit==1 ||
-                all(relpeakvals<relpeakcrit)
-        }
+        ss <- spline.fit(tvec, count, itmax = itmax, relpeakcrit = relpeakcrit)
+        
         ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
-        if (it==itmax) {
-            ## try harder?
-            stop("couldn't smooth enough")
-        }
+        
         ## find max value:
         ##  finding max based on data is a bit more robust
         ##   hard to distinguish between max and min with predict()
@@ -63,17 +75,9 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
             t.diff <- c(t.diff[1], t.diff)
             
             P <- ss.data$count/t.diff
+            
+            ss <- spline.fit(tvec, P, single_peak = FALSE, itmax = itmax, relpeakcrit = relpeakcrit)
 
-            ## DRY ...
-            ncrit <- Inf
-            it <- 1
-            spar <- 0.5
-            while (ncrit>1 && it<10) {
-                ss <- smooth.spline(tvec,log(P),spar=spar)
-                dd <- predict(ss,deriv=1)$y
-                ncrit <- sum(diff(sign(dd))!=0)
-                spar <- (1+spar)/2
-            }
         } ## if incidence
         
         Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
@@ -100,9 +104,8 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
             logit.i = qlogis(i0)
         )
         
-        return(unlist(x))
+        return(x)
     } ## if (auto)
-    ## ... why are we returning a list in one case and a vector in the other??
     
     list(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
          logit.i=logit.i)

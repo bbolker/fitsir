@@ -398,4 +398,4 @@ f.traj3 <- SIR.detsim(bombay2$tvec, trans.pars(fpars3))
 
 
 matplot(cbind(f.traj, f.traj2, f.traj3), type = "l", log = "y")
-lines(bombay2, col = 4, lty = 5)
+points(bombay2, col = 4, pch = 22)
