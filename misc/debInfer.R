@@ -5,6 +5,10 @@ bombay2 <- setNames(bombay, c("tvec", "count"))
 
 SIR.grad <- function(t, x, params) {
 	g <- with(as.list(c(x,params)),{
+    
+    gamma = r/R0.1
+    beta = gamma + r
+    
 		dS = -beta*S*I/(S+I+R)
 		dI = beta*S*I/(S+I+R)-gamma*I
 		dR = gamma*I
@@ -23,13 +27,13 @@ SIR.logLik <- function(data, sim.data, samp){
 }
 
 library(deBInfer)
-beta <- debinfer_par(name = "beta", var.type = "de", fixed = FALSE,
-									value = 10, prior="unif", hypers=list(min = 0, max = 30),
-									prop.var=5, samp.type="rw")
+R0.1 <- debinfer_par(name = "R0.1", var.type = "de", fixed = FALSE,
+									value = 2, prior="unif", hypers=list(min = 0, max = 30),
+									prop.var=1, samp.type="rw")
 
-gamma <- debinfer_par(name = "gamma", var.type = "de", fixed = FALSE,
-									value = 10, prior="unif", hypers=list(min = 0, max = 30),
-									prop.var=5, samp.type="rw")
+r <- debinfer_par(name = "r", var.type = "de", fixed = FALSE,
+									value = 0.6, prior="unif", hypers=list(min = 0, max = 30),
+									prop.var=0.3, samp.type="rw")
 
 S <- debinfer_par(name = "S", var.type = "init", fixed = FALSE,
 									value = 10000, prior="unif", hypers=list(min = 100, max = 100000),
@@ -42,7 +46,7 @@ I <- debinfer_par(name = "I", var.type = "init", fixed = FALSE,
 R <- debinfer_par(name = "R", var.type = "init", fixed = TRUE,
 									value = 0)
 
-mcmc.pars <- setup_debinfer(beta, gamma, I, S, R)
+mcmc.pars <- setup_debinfer(R0.1, r, I, S, R)
 
 iter = 10000
 
