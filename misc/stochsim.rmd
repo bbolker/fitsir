@@ -185,6 +185,11 @@ ggplot(m1,aes(country,value))+geom_point()+
 
 ## comparing smooth.spline and `lm(y~ns())`
 
+**to do/update**
+
+- it seems that a fairer matching of model complexity would use `df=4`/`nknots=2`: `?splines::ns` says "One can supply ‘df’ rather than knots; ‘ns()’ then chooses ‘df - 1 - intercept’ knots ...". However, `nknots=2` seems to *break* `smooth.spline()`, which does some fancy internal calculations to compute the smoothing parameter (see `?smooth.spline` ...)
+- compute the negative log-likelihood for spline fits: these have to be adjusted (by adding $\sum 1/y$??) to allow for change of scale if we fit the splines on the log scale and compute the likelihood of the SIR model on the linear scale (which raises the question why we're doing that in the first place ...)
+
 ```{r fitcomp,cache=TRUE}
 bombay2 <- setNames(bombay,c("tvec","count"))
 f1 <- fitsir(bombay2,start=startfun(auto=TRUE,data=bombay2))
