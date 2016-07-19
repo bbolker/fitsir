@@ -186,3 +186,40 @@ ggplot(m1,aes(country,value))+geom_point()+
     - range of sample sizes
     - range of true parameter values (Latin hypercube??)
 
+## comparing smooth.spline and `lm(y~ns())`
+
+```{r fitcomp,cache=TRUE}
+bombay2 <- setNames(bombay,c("tvec","count"))
+f1 <- fitsir(bombay2,start=startfun(auto=TRUE,data=bombay2))
+fpred1 <- SIR.detsim(bombay2$tvec,unlist(trans.pars(coef(f1))))
+s1 <- lm(log(count)~ns(tvec,df=6),data=bombay2)
+s2 <- with(bombay2,smooth.spline(tvec,log(count),nknots=4))
+plot(count~tvec,data=bombay2,log="y")
+with(bombay2,lines(tvec,exp(predict(s1)),col=2))
+with(bombay2,lines(tvec,exp(fitted(s2)),col=4))
+with(bombay2,lines(tvec,fpred1,col=1))
+```
+
+## stoch sim batch results
+
+```{r ss2}
+load("stochsim_4.rda")  ## main results
+load("stochsim_5.rda")  ## supplementary spline results, LHS data frame
+names(res.spline2)[1] <- "mse.spline1" ## disambiguate
+estpars <- res[,c("log.beta","log.gamma","log.N","logit.i")]
+match.lhspars <- function(p) {
+    tt <- trans.pars(p)
+    ss <- summarize.pars(p)
+    return(c(ss["R0"],tt["gamma"],ss[c("I0","N")]))
+}
+estpars2 <- t(apply(estpars,1,function(x) trans.pars))
+source("stochsim_funs.R")
+p <- lhs_df[1,]
+p2 <- c(p[2:3],
+        beta=unname(p["R0"]*p["gamma"]),
+        i0=unname(p["I0"]/p["N"]))
+d <- simfun(pars=p2,tmax=100,dt=1,rpars=list(size=3),seed=101)
+plot(count~tvec,data=d)
+f1 <- fitfun2(d)
+summarize.pars(f1[2:5])
+```
