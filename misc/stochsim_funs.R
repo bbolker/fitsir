@@ -41,7 +41,8 @@ fitfun <- function(data) {
 fitfun2 <- function(data,
                     start_method=c("auto","lhs","true","single"),
                     truepars=NULL,
-                    plot.it=FALSE,...) {
+                    plot.it=FALSE,
+                    spline.df=4,...) {
     require(bbmle)  ## for coef, logLik ... should patch up ...
     require(splines) ## ns()
     start_method <- match.arg(start_method)
@@ -59,8 +60,8 @@ fitfun2 <- function(data,
     ## m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
     ## m1 <- lm(log(count+1)~ns(tvec,df=3),data=data)
     nzdat <- subset(data,count>0)
-    m1 <- smooth.spline(nzdat$tvec,log(nzdat$count),nknots=4)
-    m2 <- lm(log(count)~ns(tvec,df=6),data=nzdat)
+    m1 <- smooth.spline(nzdat$tvec,log(nzdat$count),nknots=spline.df-2)
+    m2 <- lm(log(count)~ns(tvec,df=spline.df),data=nzdat)
     spred1 <- exp(fitted(m1))
     spred2 <- exp(fitted(m2))
     fpred <- SIR.detsim(nzdat$tvec,trans.pars(fcoef))
@@ -76,8 +77,8 @@ fitfun2 <- function(data,
     }
     res <- c(time=unname(t1["elapsed"]),fcoef,
              nll.SIR=c(-logLik(f1)),
-             nll.spline2=c(-logLik(m2)), ## FIXME: adjust for transformation
-             ## (+ sum(1/y) ?)
+             ## correction for transformation ... I think ...
+             nll.spline2=c(-logLik(m2))+sum(1/nzdat$count),
              mse)
     return(res)
 }
