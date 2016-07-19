@@ -69,14 +69,15 @@ fitfun2 <- function(data,
              mse.spline2=mean((1-spred2/nzdat$count)^2))
     if (plot.it) {
         plot(data$tvec,data$count,xlab="time",ylab="count",type="l",...)
-        matpoints(nzdat$tvec,cbind(fpred,spred),col=c(2,4),pch=1:2)
+        matpoints(nzdat$tvec,cbind(fpred,spred1),col=c(2,4),pch=1:2)
         legend("topright",
                c("data","fitsir","spline"),
                col=c(1,2,4),lty=1)
     }
     res <- c(time=unname(t1["elapsed"]),fcoef,
              nll.SIR=c(-logLik(f1)),
-             nll.spline2=c(-logLik(m2)),
+             nll.spline2=c(-logLik(m2)), ## FIXME: adjust for transformation
+             ## (+ sum(1/y) ?)
              mse)
     return(res)
 }
