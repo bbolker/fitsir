@@ -196,9 +196,12 @@ f1 <- fitsir(bombay2,start=startfun(auto=TRUE,data=bombay2))
 fpred1 <- SIR.detsim(bombay2$tvec,unlist(trans.pars(coef(f1))))
 s1 <- lm(log(count)~ns(tvec,df=6),data=bombay2)
 s2 <- with(bombay2,smooth.spline(tvec,log(count),nknots=4))
+s3 <- lm(log(count)~ns(tvec,df=4),data=bombay2)
+try(with(bombay2,smooth.spline(tvec,log(count),nknots=2)))
 plot(count~tvec,data=bombay2,log="y")
 with(bombay2,lines(tvec,exp(predict(s1)),col=2))
 with(bombay2,lines(tvec,exp(fitted(s2)),col=4))
+with(bombay2,lines(tvec,exp(fitted(s3)),col=5))
 with(bombay2,lines(tvec,fpred1,col=1))
 ```
 
