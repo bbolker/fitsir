@@ -1,0 +1,136 @@
+---
+title: "Hessian"
+output: html_document
+---
+
+I want to get used to using `numDeriv` first... Here's an arbitrary function:
+
+```{r}
+f <- function(par){
+    with(as.list(par),{
+        x^2 * y + 2 * x * y^3 - x 
+    })
+}
+
+```
+
+It's gradient function:
+
+```{r}
+f.g <- function(par){
+    with(as.list(par),{
+        dfx <- 2 * x * y + 2 * y^3 - 1
+        dfy <- x^2 + 6 * x * y^2
+        return(c(dfx, dfy))
+    })
+}
+
+```
+
+Example:
+
+```{r}
+
+library("numDeriv")
+pars <- c(x = 2, y =1)
+
+jacobian(f, pars)
+f.g(pars)
+
+```
+
+Hessian function:
+
+```{r}
+
+f.g2 <- function(par){
+    with(as.list(pars),{
+        dfxx <- 2 * y
+        dfxy <- 2 * x + 6 * y^2
+        dfyx <- 2 * x + 6 * y^2
+        dfyy <- 12 * x * y
+        return(c(dfxx, dfxy, dfyx, dfyy))
+    })
+}
+
+```
+
+Does this work well?
+
+```{r}
+
+hessian(f, pars)
+jacobian(f.g, pars)
+f.g2(pars)
+
+```
+
+I think I know how it works now...
+
+## SIR
+
+```{r load, error = FALSE}
+library(bbmle)
+library(fitsir)
+library("deSolve")
+source("../R/fitSIR_funs.R")
+
+bombay2 <- setNames(bombay, c("tvec", "count"))
+
+fpars <- coef(fitsir(bombay2, start = startfun()))
+
+jacobian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)
+
+findSens(bombay2, fpars, sensOnly = TRUE)
+
+```
+
+Jacobian seems to work fairly well. Can we find the Hessian?
+
+```{r}
+hess.m <- hessian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)
+hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE)
+
+eigen(hess.m)
+eigen(hess.grad)
+```
+
+OK... These should give us the same values but they're not... I'm assuming that `hess.grad` should be more accurate so if that is correct, we do have a local mimimum... It would be still nice to know if we can calculate the hessian algebraically... Here's the model:
+
+```{r}
+SIR.grad.hessian <- function(t, x, params) {
+    g <- with(as.list(c(x,params)),
+    {
+        I = exp(logI)
+        dS = -beta*S*I/N
+        dlogI = beta*S/N-gamma
+        
+        grad_SS = - beta * I/N
+        grad_SI = - beta * S/N
+        grad_IS = beta*I/N
+        grad_II = beta*S/N-gamma
+    
+        dnu_beta_S = grad_SS * nu_beta_S + grad_SI * nu_beta_I - S*I/N
+        
+        dnu_bS1 <- 
+	
+        dnu_N_S = grad_SS * nu_N_S + grad_SI * nu_N_I + beta*S*I/N^2
+	
+        dnu_gamma_S = grad_SS * nu_gamma_S + grad_SI * nu_gamma_I
+	
+        dnu_I0_S = grad_SS * nu_I0_S + grad_SI * nu_I0_I
+	
+        dnu_beta_I = grad_IS * nu_beta_S + grad_II * nu_beta_I + S*I/N
+	
+        dnu_N_I = grad_IS * nu_N_S + grad_II * nu_N_I - beta*S*I/N^2
+	
+        dnu_gamma_I = grad_IS * nu_gamma_S +  grad_II * nu_gamma_I - I
+	
+        dnu_I0_I = grad_IS * nu_I0_S + grad_II * nu_I0_I
+	
+        list(c(dS, dlogI, dnu_beta_S, dnu_gamma_S, dnu_N_S, dnu_I0_S, dnu_beta_I, dnu_gamma_I, dnu_N_I, dnu_I0_I), I = I)
+    })
+}
+
+```
+
