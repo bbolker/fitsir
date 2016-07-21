@@ -34,7 +34,9 @@ models (focusing particularly on SIR models) to epidemic data.
 
 \begin{itemize}
 \item what shall we use as a case study? sims; but also some real data set (pref. *not* Bombay data set, because of \cite{bacaer_model_2012} ...)
+\item \url{http://sherrytowers.com/2013/01/29/neiu-lecture-vi-fitting-the-parameters-of-an-sir-model-to-influenza-data/}
 \end{itemize}
+
 
 \bibliography{fitsir_ms}
 \end{document}
