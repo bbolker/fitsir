@@ -97,40 +97,182 @@ eigen(hess.grad)
 
 OK... These should give us the same values but they're not... I'm assuming that `hess.grad` should be more accurate so if that is correct, we do have a local mimimum... It would be still nice to know if we can calculate the hessian algebraically... Here's the model:
 
+$$
+\begin{aligned}
+&\frac{dSSQ}{d\log \theta}\\
+&= \frac{dSSQ}{d\theta} \frac{d\theta}{d\log \theta}\\
+&= \frac{dSSQ}{dI} \frac{dI}{d\theta} \frac{d\theta}{d\log\theta}\\
+&= 2(I-\hat{I}) \frac{dI}{d\theta} \theta
+\end{aligned}
+$$
+
+Second derivative:
+
+$$
+\begin{aligned}
+&\frac{d(dSSQ/d\log\theta_1)}{d\log\theta_2}\\
+&= \frac{d(dSSQ/d\log\theta_1)}{d\theta_2} \theta_2\\
+&= (2\frac{dI}{d\theta_2} \frac{dI}{d\theta)1} \theta_1 + 2(I-\hat{I}) \frac{d^2I}{d\theta_1\theta_2}\theta_1 + 2(I-\hat{I})\frac{dI}{d\theta_1} \frac{d\theta_1}{d\theta_2} ) \theta_2\\
+\end{aligned}
+$$
+
 ```{r}
 SIR.grad.hessian <- function(t, x, params) {
     g <- with(as.list(c(x,params)),
     {
-        I = exp(logI)
-        dS = -beta*S*I/N
-        dlogI = beta*S/N-gamma
+        I <- exp(logI)
+        dS <- -beta*S*I/N
+        dlogI <- beta*S/N-gamma
         
-        grad_SS = - beta * I/N
-        grad_SI = - beta * S/N
-        grad_IS = beta*I/N
-        grad_II = beta*S/N-gamma
+        grad_SS <- - beta * I/N
+        grad_SI <- - beta * S/N
+        grad_IS <- beta*I/N
+        grad_II <- beta*S/N-gamma
     
-        dnu_beta_S = grad_SS * nu_beta_S + grad_SI * nu_beta_I - S*I/N
+        ##Sens for beta 
+        dnu_S_b <- grad_SS * nu_S_b + grad_SI * nu_I_b - S*I/N
+        ##Need 4 more equations
+        dnu_S_bb <- (- I/N - beta/N * nu_I_b) * nu_S_b + grad_SS * nu_S_bb +  (- S/N - beta/N * nu_S_b) * nu_I_b + grad_SI * nu_I_bb - 
+            I/N * nu_S_b - S/N * nu_I_b
         
-        dnu_bS1 <- 
+        dnu_S_bg <- (-beta/N * nu_I_g) * nu_S_b + grad_SS * nu_S_bg + (-beta/N * nu_S_g) * nu_I_b + grad_SI * nu_I_bg -
+            I/N * nu_S_g - S/N * nu_I_g
+        
+        dnu_S_bN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_b + grad_SS * nu_S_bN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_b + grad_SI * nu_I_bN +
+            S * I/N^2 - I/N * nu_S_N - S/N * nu_I_N
+        
+        dnu_S_bi <- (-beta/N * nu_I_i) * nu_S_b + grad_SS * nu_S_bi + (-beta/N * nu_S_i) * nu_I_b + grad_SI * nu_I_bi -
+            I/N * nu_S_i - S/N * nu_I_i
+        
+        ##Sens for gamma
+        dnu_S_g <- grad_SS * nu_S_g + grad_SI * nu_I_g
+        ##Need 3 more equations
+        dnu_S_gg <- (-beta/N * nu_I_g) * nu_S_g + grad_SS * nu_S_gg + (-beta/N * nu_S_g) * nu_I_g + grad_SI * nu_I_gg
+        
+        dnu_S_gN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_g + grad_SS * nu_S_gN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_g + grad_SI * nu_I_gN
+        
+        dnu_S_gi <- (-beta/N * nu_I_i) * nu_S_g + grad_SS * nu_S_gi + (-beta/N * nu_S_i) * nu_I_g + grad_SI * nu_I_gi
+        
+        ##Sens for N
+        dnu_S_N <- grad_SS * nu_S_N + grad_SI * nu_I_N + beta*S*I/N^2
+        ##Need 2 more equations
+        dnu_S_NN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_N + grad_SS * nu_S_NN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_N + grad_SI * nu_I_NN -
+            2*beta*S*I/N^3 + beta*S/N^2 * nu_I_N + beta*I/N^2 * nu_S_N
+        
+        dnu_S_Ni <- (-beta/N * nu_I_i) * nu_S_N + grad_SS * nu_S_Ni + (-beta/N * nu_S_i) * nu_I_N + grad_SI * nu_I_Ni +
+            beta*S/N^2 * nu_I_i + beta*I/N^2 * nu_S_i
+        
+        ##Sens for i0
+        dnu_S_i <- grad_SS * nu_S_i + grad_SI * nu_I_i
+        ##Need 1 more equaion
+        dnu_S_ii <- (-beta/N * nu_I_i) * nu_S_i + grad_SS * nu_S_ii + (-beta/N * nu_S_i) * nu_I_i + grad_SI * nu_I_ii
+        
+        ##Sens for beta
+        dnu_I_b <- grad_IS * nu_S_b + grad_II * nu_I_b + S*I/N
+        ##Need 4 more equations
+        dnu_I_bb <- (I/N + beta/N * nu_I_b) * nu_S_b + grad_IS * nu_S_bb + (S/N + beta/N * nu_S_b) * nu_I_b + grad_II * nu_I_bb +
+            I/N * nu_S_b + S/N * nu_I_b
+        
+        dnu_I_bg <- (beta/N * nu_I_g) * nu_S_b + grad_IS * nu_S_bg + (-1 + beta/N * nu_S_g) * nu_I_b + grad_II * nu_I_bg + 
+            I/N * nu_S_g + S/N * nu_I_g
+        
+        dnu_I_bN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_b + grad_IS * nu_S_bN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_b + grad_II * nu_I_bN -
+            S * I/N^2 + I/N * nu_S_N - S/N * nu_I_N
+        
+        dnu_I_bi <- (beta/N * nu_I_i) * nu_S_b + grad_IS * nu_S_bi + (beta/N * nu_S_i) * nu_I_b + grad_II * nu_I_bi +
+            I/N * nu_S_i + S/N * nu_I_i
+        
+        ##Sens for gamma
+        dnu_I_g <- grad_IS * nu_S_g + grad_II * nu_I_g - I
+        ##Need 3 more equations
+        dnu_I_gg <- (beta/N * nu_I_g) * nu_S_g + grad_IS * nu_S_gg + (-1 + beta/N * nu_S_g) * nu_I_g + grad_II * nu_I_gg -
+            nu_I_g
+        
+        dnu_I_gN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_g + grad_IS * nu_S_gN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_g + grad_II * nu_I_gN -
+            nu_I_N
+        
+        dnu_I_gi <- (beta/N * nu_I_i) * nu_S_g + grad_IS * nu_S_gi + (beta/N * nu_S_i) * nu_I_g + grad_II * nu_I_gi -
+            nu_I_i
+        
+        ##Sens for N
+        dnu_I_N <- grad_IS * nu_S_N + grad_II * nu_I_N - beta*S*I/N^2
+        ##Need 2 more equations
+        dnu_I_NN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_N + grad_IS * nu_S_NN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_N + grad_II * nu_I_NN +
+            2*beta*S*I/N^3 - beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
+        
+        dnu_I_Ni <- (beta/N * nu_I_i) * nu_S_N + grad_IS * nu_S_Ni + (beta/N * nu_S_i) * nu_I_N + grad_II * nu_I_N -
+            beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
+        
+        ##Sens for i0
+        dnu_I_i <- grad_IS * nu_S_i + grad_II * nu_I_i
+        ##Need 1 more equaion
+        dnu_I_ii <- (beta/N * nu_I_i) * nu_S_i + grad_IS * nu_S_ii + (beta/N * nu_S_i) * nu_I_i + grad_II * nu_I_ii
+           
 	
-        dnu_N_S = grad_SS * nu_N_S + grad_SI * nu_N_I + beta*S*I/N^2
-	
-        dnu_gamma_S = grad_SS * nu_gamma_S + grad_SI * nu_gamma_I
-	
-        dnu_I0_S = grad_SS * nu_I0_S + grad_SI * nu_I0_I
-	
-        dnu_beta_I = grad_IS * nu_beta_S + grad_II * nu_beta_I + S*I/N
-	
-        dnu_N_I = grad_IS * nu_N_S + grad_II * nu_N_I - beta*S*I/N^2
-	
-        dnu_gamma_I = grad_IS * nu_gamma_S +  grad_II * nu_gamma_I - I
-	
-        dnu_I0_I = grad_IS * nu_I0_S + grad_II * nu_I0_I
-	
-        list(c(dS, dlogI, dnu_beta_S, dnu_gamma_S, dnu_N_S, dnu_I0_S, dnu_beta_I, dnu_gamma_I, dnu_N_I, dnu_I0_I), I = I)
+        list(c(dS, dlogI,
+               dnu_S_b, dnu_S_bb, dnu_S_bg, dnu_S_bN, dnu_S_bi,
+               dnu_S_g, dnu_S_gg, dnu_S_gN, dnu_S_gi,
+               dnu_S_N, dnu_S_NN, dnu_S_Ni,
+               dnu_S_i, dnu_S_ii,
+               dnu_I_b, dnu_I_bb, dnu_I_bg, dnu_I_bN, dnu_I_bi,
+               dnu_I_g, dnu_I_gg, dnu_I_gN, dnu_I_gi,
+               dnu_I_N, dnu_I_NN, dnu_I_Ni,
+               dnu_I_i, dnu_I_ii), I = I)
     })
 }
+
+SIR.detsim.hessian <- function(t, params){
+    with(as.list(c(params)),{
+        yini <- c(S = N*(1-i0), logI = log(N*i0),
+                  nu_S_b = 0, nu_S_bb = 0, nu_S_bg = 0, nu_S_bN = 0, nu_S_bi = 0,
+                  nu_S_g = 0, nu_S_gg = 0, nu_S_gN = 0, nu_S_gi = 0,
+                  nu_S_N = 1-i0, nu_S_NN = 0, nu_S_Ni = -1,
+                  nu_S_i = -N, nu_S_ii = 0,
+                  nu_I_b = 0, nu_I_bb = 0, nu_I_bg = 0, nu_I_bN = 0, nu_I_bi = 0,
+                  nu_I_g = 0, nu_I_gg = 0, nu_I_gN = 0, nu_I_gi = 0,
+                  nu_I_N = i0, nu_I_NN = 0, nu_I_Ni = 1,
+                  nu_I_i = N, nu_I_ii = 0
+                  )
+        odesol <- as.data.frame(rk(y=yini,
+                                    times=t,
+                                    func=SIR.grad.hessian,
+                                    parms=params))
+    })
+    
+}
+
+tvec <- seq(1,30,0.1)
+
+pars <- c(
+    beta = 0.5,
+    gamma = 0.1,
+    N = 51,
+    i0 = 0.01
+)
+
+pars2 <- c(
+    beta = 0.5,
+    gamma = 0.1,
+    N = 51.1,
+    i0 = 0.01
+)
+
+r1 <- SIR.detsim.hessian(tvec, pars)
+
+r2 <- SIR.detsim.hessian(tvec, pars2)
+
+nu_I_bb = (r2$nu_I_N-r1$nu_I_N)/0.1
+
+plot(nu_I_bb, type = "l")
+lines(r1$nu_I_NN, col = 2)
+lines(r2$nu_I_NN, col = 3)
+
+##Things that work
+
+##b, bb, bg, __, bi
+##g, gg, __, gi
+##N, NN? not sure... I think I messed up something with N equation..?
+##i, ii
 
 ```
 
