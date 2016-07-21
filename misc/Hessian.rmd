@@ -177,7 +177,7 @@ SIR.grad.hessian <- function(t, x, params) {
             I/N * nu_S_g + S/N * nu_I_g
         
         dnu_I_bN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_b + grad_IS * nu_S_bN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_b + grad_II * nu_I_bN -
-            S * I/N^2 + I/N * nu_S_N - S/N * nu_I_N
+            S * I/N^2 + I/N * nu_S_N + S/N * nu_I_N
         
         dnu_I_bi <- (beta/N * nu_I_i) * nu_S_b + grad_IS * nu_S_bi + (beta/N * nu_S_i) * nu_I_b + grad_II * nu_I_bi +
             I/N * nu_S_i + S/N * nu_I_i
@@ -200,8 +200,8 @@ SIR.grad.hessian <- function(t, x, params) {
         dnu_I_NN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_N + grad_IS * nu_S_NN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_N + grad_II * nu_I_NN +
             2*beta*S*I/N^3 - beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
         
-        dnu_I_Ni <- (beta/N * nu_I_i) * nu_S_N + grad_IS * nu_S_Ni + (beta/N * nu_S_i) * nu_I_N + grad_II * nu_I_N -
-            beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
+        dnu_I_Ni <- (beta/N * nu_I_i) * nu_S_N + grad_IS * nu_S_Ni + (beta/N * nu_S_i) * nu_I_N + grad_II * nu_I_Ni -
+            beta*S/N^2 * nu_I_i - beta*I/N^2 * nu_S_i
         
         ##Sens for i0
         dnu_I_i <- grad_IS * nu_S_i + grad_II * nu_I_i
@@ -254,24 +254,24 @@ pars2 <- c(
     beta = 0.5,
     gamma = 0.1,
     N = 51.1,
-    i0 = 0.01
+    i0 = 0.01000000001
 )
 
 r1 <- SIR.detsim.hessian(tvec, pars)
 
 r2 <- SIR.detsim.hessian(tvec, pars2)
 
-nu_I_bb = (r2$nu_I_N-r1$nu_I_N)/0.1
+nu_I_bb = (r2$nu_I_i-r1$nu_I_i)/0.1
 
 plot(nu_I_bb, type = "l")
-lines(r1$nu_I_NN, col = 2)
-lines(r2$nu_I_NN, col = 3)
+lines(r1$nu_I_Ni, col = 2)
+lines(r2$nu_I_Ni, col = 3)
 
 ##Things that work
 
-##b, bb, bg, __, bi
-##g, gg, __, gi
-##N, NN? not sure... I think I messed up something with N equation..?
+##b, bb, bg, bN, bi
+##g, gg, gN, gi
+##N, __ ,Ni
 ##i, ii
 
 ```
