@@ -69,7 +69,7 @@ I think I know how it works now...
 
 ## SIR
 
-```{r load, error = FALSE}
+```{r load, error = FALSE, message = FALSE}
 library(bbmle)
 library(fitsir)
 library("deSolve")
@@ -88,8 +88,8 @@ findSens(bombay2, fpars, sensOnly = TRUE)
 Jacobian seems to work fairly well. Can we find the Hessian?
 
 ```{r}
-hess.m <- hessian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)
-hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE)
+(hess.m <- hessian(findSSQ, fpars, data = bombay2, SSQonly = TRUE))
+(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
 
 eigen(hess.m)
 eigen(hess.grad)
@@ -112,7 +112,7 @@ $$
 \begin{aligned}
 &\frac{d(dSSQ/d\log\theta_1)}{d\log\theta_2}\\
 &= \frac{d(dSSQ/d\log\theta_1)}{d\theta_2} \theta_2\\
-&= (2\frac{dI}{d\theta_2} \frac{dI}{d\theta)1} \theta_1 + 2(I-\hat{I}) \frac{d^2I}{d\theta_1\theta_2}\theta_1 + 2(I-\hat{I})\frac{dI}{d\theta_1} \frac{d\theta_1}{d\theta_2} ) \theta_2\\
+&= (2\frac{dI}{d\theta_2} \frac{dI}{d\theta_1} \theta_1 + 2(I-\hat{I}) \frac{d^2I}{d\theta_1\theta_2}\theta_1 + 2(I-\hat{I})\frac{dI}{d\theta_1} \frac{d\theta_1}{d\theta_2} ) \theta_2\\
 \end{aligned}
 $$
 
@@ -246,33 +246,94 @@ tvec <- seq(1,30,0.1)
 pars <- c(
     beta = 0.5,
     gamma = 0.1,
-    N = 51,
+    N = 501,
     i0 = 0.01
 )
 
 pars2 <- c(
-    beta = 0.5,
-    gamma = 0.1,
-    N = 51.1,
-    i0 = 0.01000000001
+    beta = 0.5000001,
+    gamma = 0.101,
+    N = 501,
+    i0 = 0.01
 )
 
 r1 <- SIR.detsim.hessian(tvec, pars)
 
 r2 <- SIR.detsim.hessian(tvec, pars2)
 
-nu_I_bb = (r2$nu_I_i-r1$nu_I_i)/0.1
+nu_I_bg = (r2$nu_I_b-r1$nu_I_b)/0.001
 
-plot(nu_I_bb, type = "l")
-lines(r1$nu_I_Ni, col = 2)
-lines(r2$nu_I_Ni, col = 3)
+plot(nu_I_bg, type = "l")
+lines(r1$nu_I_bg, col = 2)
+lines(r2$nu_I_bg, col = 3)
 
 ##Things that work
 
 ##b, bb, bg, bN, bi
 ##g, gg, gN, gi
-##N, __ ,Ni
+##N, __ ,Ni 
 ##i, ii
 
+##Not sure if NN is not working or if it's just a numerical error...
+
+```
+
+True hessian function:
+
+```{r}
+
+findHess <- function(data, params){
+    t <- data$tvec
+    tpars <- trans.pars(params)
+    r <- SIR.detsim.hessian(t, tpars)
+    
+    with(as.list(c(tpars, r)),{
+        
+        parVec <- c(beta, gamma, N, i0)
+        
+        sensVec <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
+        
+        sensVec2 <- c(1, 1, 1, 2*i0*exp(-qlogis(i0)) - i0^2 * exp(-qlogis(i0)) * 1/(i0-i0^2))
+        
+        derVec <- c("nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
+        
+        derMat <- matrix(c("nu_I_bb", "nu_I_bg", "nu_I_bN", "nu_I_bi",
+                           "nu_I_bg", "nu_I_gg", "nu_I_gN", "nu_I_gi",
+                           "nu_I_bN", "nu_I_gN", "nu_I_NN", "nu_I_Ni",
+                           "nu_I_bi", "nu_I_gi", "nu_I_Ni", "nu_I_ii"), 4, 4)
+        
+        findDeriv <- function(n1, n2){
+            d1 <- get(derVec[n1])
+            d2 <- get(derVec[n2])
+            db <- get(derMat[n1,n2])
+            
+            if(n1 == n2){
+                d12 <- sensVec2[n1]
+            }else{
+                d12 <- 0
+            }
+            deriv <- 2 * sum(d1 * d2 + (I-data$count) * db + (I-data$count) * d1 * d12) * sensVec[n1] * sensVec[n2]
+            return(deriv)
+        }
+        
+        m <- matrix(NA, 4, 4)
+        
+        for(i in 1:4){
+            for(j in 1:4){
+                m[i,j] = findDeriv(i,j)
+            }
+        }
+        
+        return(m)
+    })
+    
+}
+
+findHess(bombay2, fpars)
+
+(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
+
+##This one is positive definite
+eigen(hess.grad)
 ```
 
