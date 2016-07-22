@@ -28,3 +28,9 @@ figure/
 .Rproj.user
 *_cache/
 *_files/
+
+# TeX stuff
+*.bbl
+*.blg
+*.aux
+*.out

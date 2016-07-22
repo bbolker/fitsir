@@ -1,0 +1,42 @@
+\documentclass{article}
+\title{Manuscript outline/draft}
+\author{Ben Bolker \and Daniel Park \and David Earn}
+\date{\Sexpr{format(Sys.time(), '%H:%M %d %B %Y')}}
+\usepackage[]{natbib}
+\usepackage{url}
+\newcommand{\code}[1]{\texttt{#1}}
+\bibliographystyle{chicago}
+\begin{document}
+\maketitle
+
+\section*{Introduction}
+
+The goal is a \emph{brief} (if possible) pedagogically oriented paper,
+aimed at biomathematicians/students coming for the first time to the
+idea of fitting curves to epidemic models. Without going too deeply
+into any one area (likelihood theory, optimization, ...), we aim to
+provide a primer and pitfall-avoidance guide for fits of simple ODE
+models (focusing particularly on SIR models) to epidemic data.
+
+\section*{Potential topics}
+
+\begin{description}
+\item[trajectory-matching vs. gradient-matching] what's the difference? when does it matter? (this paper will focus on trajectory matching) \citep{ellner_fitting_2002,bolker_ecological_2008}
+\item[early-epidemic vs. whole-epidemic] lots of work on fitting early epidemics, e.g. \cite{chowell_comparative_2007}, \cite{ma_estimating_2014}; that's not what we're doing here ... also, we're only going to discuss general principles here, focus on simple SIR (maybe comment on SEIR), but not worry about extensions (waning immunity, Ebola/funeral-transmission ... etc.)
+\item[prevalence vs. incidence]: need to distinguish these cases (typical cases will involve incidence data). Comment on pitfalls of cumulative-incidence approaches (Chowell) without appropriate corrections (maybe discussed elsewhere? \cite{king_avoidable_2015} ?) (Do we need to worry about mortality vs. incidence??)
+\item[least-squares vs. likelihood formulations] equivalence of least-squares and likelihood approaches; advantages of likelihood in providing a framework for inference (confidence intervals). Mention Wald vs likelihood profile CIs.
+\item[optimization issues] multiple maxima (if they exist?); ridges \citep{polansky_likelihood_2009}. Optimization frameworks (e.g. Nelder-Mead vs quasi-Newton); integrating on $\log(I)$ scale; sensitivity equations \citep{raue_lessons_2013}. Starting points (auto-start methods)
+\item[identifiability/estimability issues] (still in progress!) expected difficulties in optimization, especially with vague starting points. Something about solutions ... fixing parameters (with attendant dangers; \cite{elderd_uncertainty_2006}. Bayesian priors, bounds ... ?
+\item[advanced methods] \emph{brief} pointers to relevant literature here. Dealing with combined process/measurement error \citep{king_avoidable_2015}; iterated filtering, TSIR, etc.. Bayesian methods (Stan, \code{debInfer}, ...)
+\end{description}
+
+\section*{To do}
+
+\begin{itemize}
+\item what shall we use as a case study? sims; but also some real data set (pref. *not* Bombay data set, because of \cite{bacaer_model_2012} ...)
+\item \url{http://sherrytowers.com/2013/01/29/neiu-lecture-vi-fitting-the-parameters-of-an-sir-model-to-influenza-data/}
+\end{itemize}
+
+
+\bibliography{fitsir_ms}
+\end{document}

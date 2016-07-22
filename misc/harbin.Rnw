@@ -1,0 +1,152 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{scrtime}
+\title{Harbin plague epidemic}
+\date{\today @ \thistime}
+\newcommand{\rzero}{{\cal R}_0}
+\newcommand{\code}[1]{{\tt #1}}
+\bibliographystyle{chicago}
+\begin{document}
+\maketitle
+
+It occurred to me that it would be interesting to contrast information that we have on 20th-century plagues (Bombay, 1906, bubonic; Harbin, 1911, pneumonic; others??) with the 14th- and 17th-century London data that David Earn has been collecting.
+
+<<opts,echo=FALSE>>=
+library("knitr")
+opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,echo=FALSE)
+@
+
+Load packages:
+<<pkgs,message=FALSE>>=
+library("deSolve")
+library("ggplot2"); theme_set(theme_bw())
+library("bbmle")
+library("fitsir")
+## if necessary:
+## devtools::install_github("bbolker/fitsir")
+@
+
+From \cite{dietz_epidemics:_2009} \ldots
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=3in]{Dietz_harbin_sm.png}
+\end{center}
+\caption{Unnumbered figure (p. 102) from \cite{dietz_epidemics:_2009} showing the Harbin epidemic.}
+\label{fig:dietzfig}
+\end{figure}
+
+
+Figure~\ref{fig:dietzfig} shows Dietz's plot -- the only reference he gives to the data is "(International Plague Conference, 1912)" [not otherwise referenced in the paper!] Googling
+\code{'"international plague conference" harbin 1912'} does bring up some promising hits, especially \href{http://archive.org/details/reportofinternatinte}{this page}, and particularly \href{http://ia600505.us.archive.org/1/items/reportofinternatinte/reportofinternatinte.pdf}{this PDF file}, and particularly p. 529 of that page (Figure~\ref{fig:1912fig})
+
+\begin{figure}
+\begin{center}
+\includegraphics[height=4in]{harbin_plague.png}
+\end{center}
+\caption{
+A thumbnail of the relevant  page
+from \cite{international_plague_conference_1911_:_mukden_report_1912}, extracted from the PDF via
+\code{pdftk A=reportofinternatinte.pdf cat A529-529 harbin\_plague.pdf} \ldots}
+\label{fig:1912fig}
+\end{figure}
+
+I used \code{g3data} to extract data points from Dietz's figure (before I found the 1912 report).
+
+<<getdat>>=
+dat <- read.csv("Dietz_harbin_sm.csv",header=FALSE)
+names(dat) <- c("week","Deaths")
+g0 <- ggplot(dat,aes(week,Deaths))+geom_point()+
+  geom_smooth(method="loess")+
+  coord_cartesian(ylim=c(0,260))
+@
+
+Dietz gives the (Kermack-McKendrick) equations for the incidence, $dz/dt$ (based on a second-order Taylor expansion):
+\begin{equation}
+\begin{split}
+\frac{dz}{dt} & = \frac{\gamma x_0}{2 \rzero^2} c_1 \text{sech}^2(c_1 \gamma t - c_2) , \\
+c_1 & = \sqrt{(\rzero-1)^2 + \frac{2 \rzero^2}{x_0}} \\
+c_2 & = \text{tanh}^{-1} \left(\frac{\rzero-1}{c_1}\right).
+\end{split}
+\end{equation}
+and estimates ``$x_0 = 2985$, $\rzero=2.00$ and
+a mean infectious period of 11 days''.
+
+The weekly deaths should be approximately proportional to the incidence (this ignores the probability of survival, the integration over weeks, the second-order expansion, and all the other unrealities of the model \ldots)
+
+<<run_ode>>=
+dietz_harbin <- c(x0=2985,rzero=2,gamma=1/11)
+gSIR <- function(t,y,params) {
+  g <- with(as.list(c(y,params)),
+        {
+            ## R0 = beta*N/gamma
+            beta <- rzero*gamma/x0
+            c(S=-beta*S*I,
+              I=beta*S*I-gamma*I,
+              R=gamma*I)
+        })
+  list(g,NULL)
+}
+dat$day <- dat$week*7
+S0 <- c(S=unname(dietz_harbin["x0"])-1,I=1,R=0)
+hfit1 <- ode(y=S0,
+             times=c(0,dat$day),
+             func=gSIR,parms=dietz_harbin)
+dat$h1 <- diff(hfit1[,"R"])
+dat$h2 <- with(as.list(dietz_harbin), 
+        {
+           c1 <- sqrt((rzero-1)^2+2*rzero^2/x0)
+           c2 <- atanh((rzero-1)/c1)
+           gamma*x0/(2*rzero^2)*c1*
+             (1/cosh(c1*gamma*dat$day-c2-2))^2
+        })
+@
+
+Obviously I don't have this quite right yet ...
+
+<<hfit1>>=
+g0 + geom_line(data=dat,aes(x=week-2,y=h1),colour="red")+
+  geom_line(data=dat,aes(y=7*h2),colour="purple")
+@
+
+\section{To do}
+
+\begin{itemize}
+\item Figure out why neither the straight SIR fit nor the K-M fit are working with the parameters given by Dietz.  Unit problems?  Typos?  Failure of K-M second-order approximation?  Try the fits myself.
+\end{itemize}
+
+Better, but still not very good:
+<<fitsir,cache=TRUE>>=
+dat1 <- setNames(dat,c("tvec","count"))
+ff <- fitsir(dat1,start=startfun(auto=TRUE,data=dat1))
+dietz_pars <- c(R0=2,gamma=7/11,N=2985)
+dietz_lpars <- with(as.list(dietz_pars),
+      c(log.beta=log(R0*gamma),
+        log.gamma=log(gamma),
+        log.N=log(N),
+        logit.i=qlogis(1e-3)))
+ff2 <- fitsir(dat1,start=dietz_lpars)
+
+gettraj <- function(x,tvec=dat1$tvec) {
+    data.frame(tvec=tvec,
+               count=SIR.detsim(tvec,trans.pars(coef(x))))
+}
+tt <- gettraj(ff2,tvec=seq(0,18,length=51))
+@
+
+<<plot_fitsir_traj>>=
+par(las=1,bty="l")
+with(dat1,plot(tvec-2,count,xlab="time"))
+with(tt,lines(tvec,count),col=2)
+@
+
+<<sum_fitsir_pars>>=
+summarize.pars(coef(ff))
+@
+
+There's an issue with whether we're assuming $t=0$ at the beginning of the epidemic (Dietz's data starts with ``week 2'' ...)
+\bibliography{plague}
+\end{document}

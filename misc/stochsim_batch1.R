@@ -12,7 +12,6 @@ gamma_range <- c(0.07,0.3)
 N_range <- c(500,3e4)
 I0_range <- c(1,20)
 
-
 nsim <- 1000
 lhs_df <- cbind(
     ## beta=seq(beta_range[1],beta_range[2],length.out=nsim),
@@ -25,22 +24,35 @@ for (i in 2:ncol(lhs_df)) {
     lhs_df[,i] <- sample(lhs_df[,i])
 }
 fn <- "stochsim_4.rda"
-nmvec <- nmvec2 ## from stochsim_funs.R
-null_out <- setNames(rep(NA,length(nmvec)),nmvec)
 
-## could use aaply but for loop is more transparent
-res <- matrix(NA,nrow=nsim,ncol=length(nmvec),
-              dimnames=list(NULL,nmvec))
 
-for (i in 1:nsim) {
-    cat(i,"\n")
+sffun <- function(i,...) {
     p <- lhs_df[i,]
     p2 <- c(p[2:3],
             beta=unname(p["R0"]*p["gamma"]),
             i0=unname(p["I0"]/p["N"]))
+    p3 <- with(as.list(p2),
+               c(log.beta=log(beta),log.gamma=log(gamma),
+                 log.N=log(N),logit.i=qlogis(i0)))
     d <- simfun(pars=p2,tmax=100,dt=1,rpars=list(size=3),seed=101)
-    ss0 <- startfun(auto=TRUE,data=d)
-    f <- try(fitfun2(d))
+    f <- try(fitfun2(d,truepars=p3,...))
+    return(f)
+}
+
+ffargs <- list(start_method=c("auto","true"),
+               spline.method=c("ss","ns","ns","ns","ns"),
+               spline.var=c(NA,"lin","log","lin","log"),
+               spline.df=c(6,4,4,6,6))
+v1 <- do.call(sffun,c(1,ffargs))
+
+## could use aaply but for loop is more transparent
+res <- matrix(NA,nrow=nsim,ncol=length(v1),
+              dimnames=list(NULL,names(v1)))
+res[1,] <- v1
+
+for (i in 2:nsim) {
+    cat(i,"\n")
+    f <- do.call(sffun,c(i,ffargs))
     if (!is(f,"try-error")) {
         res[i,] <- f
     }

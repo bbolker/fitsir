@@ -39,47 +39,88 @@ fitfun <- function(data) {
 }
 
 fitfun2 <- function(data,
-                    start_method=c("auto","lhs","true","single"),
+                    start_method=c("auto","true"),
+                    ## other possibilities: "single", "lhs"
                     truepars=NULL,
-                    plot.it=FALSE,...) {
+                    plot.it=FALSE,
+                    spline.method="ss",
+                    spline.var="log",
+                    spline.df=6,
+                    ...) {
     require(bbmle)  ## for coef, logLik ... should patch up ...
     require(splines) ## ns()
-    start_method <- match.arg(start_method)
-    ss0 <- switch(start_method,
-                  auto=startfun(data=data,auto=TRUE),
-                  true=truepars,
-                  single=startfun(), ## default starting params
-                  lhs=NA)
-    if (start_method!="lhs") {
-        t1 <- system.time(f1 <- fitsir(data,start=ss0))
-    } else {
-        stop("lhs not implemented yet")
-    }
-    fcoef <- bbmle::coef(f1)
-    ## m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
-    ## m1 <- lm(log(count+1)~ns(tvec,df=3),data=data)
+    fitres <- list()
     nzdat <- subset(data,count>0)
-    m1 <- smooth.spline(nzdat$tvec,log(nzdat$count),nknots=4)
-    m2 <- lm(log(count)~ns(tvec,df=6),data=nzdat)
-    spred1 <- exp(fitted(m1))
-    spred2 <- exp(fitted(m2))
-    fpred <- SIR.detsim(nzdat$tvec,trans.pars(fcoef))
-    mse <- c(mse.fitsir=mean((1-fpred/nzdat$count)^2),
-             mse.spline1=mean((1-spred1/nzdat$count)^2),
-             mse.spline2=mean((1-spred2/nzdat$count)^2))
-    if (plot.it) {
-        plot(data$tvec,data$count,xlab="time",ylab="count",type="l",...)
-        matpoints(nzdat$tvec,cbind(fpred,spred),col=c(2,4),pch=1:2)
-        legend("topright",
-               c("data","fitsir","spline"),
-               col=c(1,2,4),lty=1)
+    for (s in start_method) {
+        ss0 <- switch(s,
+                      auto=startfun(data=data,auto=TRUE),
+                      true=truepars,
+                      single=startfun(), ## default starting params
+                      lhs=NA)
+        if (s!="lhs") {
+            t1 <- system.time(f1 <- fitsir(data,start=ss0))
+        } else {
+            stop("lhs not implemented yet")
+        }
+        fcoef <- coef(f1)
+        fpred <- SIR.detsim(nzdat$tvec,trans.pars(fcoef))
+        mse <- mean((1-fpred/nzdat$count)^2)
+        fitres[[s]] <- list(time=unname(t1["elapsed"]),fit=f1,coef=fcoef,
+                            pred=fpred,mse=mse,nll=c(-logLik(f1)))
     }
-    res <- c(time=unname(t1["elapsed"]),fcoef,
-             nll.SIR=c(-logLik(f1)),
-             nll.spline2=c(-logLik(m2)),
-             mse)
+    nspline <- max(length(spline.method),length(spline.df),
+                   length(spline.var))
+    spline.method <- rep(spline.method,length.out=nspline)
+    spline.var <- rep(spline.var,length.out=nspline)
+    spline.df <- rep(spline.df,length.out=nspline)
+    splineres <- list()
+    for (i in 1:nspline) {
+        meth <- spline.method[i]
+        cm1 <- setNames(rep(NA,spline.df[i]),
+                        c("intercept",paste0("beta",1:(spline.df[i]-1))))
+        if (meth=="ss") {
+            t1 <- system.time(m1 <- smooth.spline(nzdat$tvec,log(nzdat$count),
+                                nknots=spline.df[i]-2))
+            spred <- exp(fitted(m1))
+            nll <- NA
+
+        } else {  ## method == "ns"
+            if (spline.var[i]=="log") {
+                t1 <- system.time(m1 <- lm(log(count)~ns(tvec,df=spline.df[i]-1),data=nzdat))
+                nll <- c(-logLik(m1))+sum(1/nzdat$count)
+            } else {
+                t1 <- system.time(m1 <- glm(count~ns(tvec,df=spline.df[i]-1),
+                                            data=nzdat,
+                                            family=gaussian(link="log")))
+                nll <- c(-logLik(m1))
+            }
+            cm1[] <- coef(m1) ## leave names alone, reset values
+        }
+        spred <- exp(fitted(m1))
+        splineres[[i]] <- list(fit=m1,
+                               ## hack coeff names to be nicer ...
+                               coef=cm1,
+                               pred=spred,
+                               mse=mean((1-spred/nzdat$count)^2))
+    }
+    ## if (plot.it) {
+    ##     plot(data$tvec,data$count,xlab="time",ylab="count",type="l",...)
+    ##     matpoints(nzdat$tvec,cbind(fpred,spred1),col=c(2,4),pch=1:2)
+    ##     legend("topright",
+    ##            c("data","fitsir","spline"),
+    ##            col=c(1,2,4),lty=1)
+    ## }
+    ## collect
+    res <- numeric(0)
+    sumfun <- function(x,nm) {
+        r <- unlist(x[c("time","coef","mse","nll")])
+        names(r) <- paste(nm,names(r),sep="_")
+        return(r)
+    }
+    for (i in seq_along(fitres))
+        res <- c(res,sumfun(fitres[[i]],paste("fitsir",i,sep=".")))
+    for (i in seq_along(splineres))
+        res <- c(res,sumfun(splineres[[i]],paste("spline",i,sep=".")))
     return(res)
 }
 
-nmvec2 <- c("time", "log.beta", "log.gamma", "log.N", "logit.i", "nll.SIR", 
-            "nll.spline2", "mse.fitsir", "mse.spline1", "mse.spline2")
