@@ -156,8 +156,9 @@ SIR.grad.hessian <- function(t, x, params) {
         ##Sens for N
         dnu_S_N <- grad_SS * nu_S_N + grad_SI * nu_I_N + beta*S*I/N^2
         ##Need 2 more equations
-        dnu_S_NN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_N + grad_SS * nu_S_NN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_N + grad_SI * nu_I_NN -
-            2*beta*S*I/N^3 + beta*S/N^2 * nu_I_N + beta*I/N^2 * nu_S_N
+        ##dnu_S_NN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_N + grad_SS * nu_S_NN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_N + grad_SI * nu_I_NN -
+        ##    2*beta*S*I/N^3 + beta*S/N^2 * nu_I_N + beta*I/N^2 * nu_S_N
+        dnu_S_NN <- 0
         
         dnu_S_Ni <- (-beta/N * nu_I_i) * nu_S_N + grad_SS * nu_S_Ni + (-beta/N * nu_S_i) * nu_I_N + grad_SI * nu_I_Ni +
             beta*S/N^2 * nu_I_i + beta*I/N^2 * nu_S_i
@@ -197,8 +198,9 @@ SIR.grad.hessian <- function(t, x, params) {
         ##Sens for N
         dnu_I_N <- grad_IS * nu_S_N + grad_II * nu_I_N - beta*S*I/N^2
         ##Need 2 more equations
-        dnu_I_NN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_N + grad_IS * nu_S_NN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_N + grad_II * nu_I_NN +
-            2*beta*S*I/N^3 - beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
+        ##dnu_I_NN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_N + grad_IS * nu_S_NN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_N + grad_II * nu_I_NN +
+        ##    2*beta*S*I/N^3 - beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
+        dnu_I_NN <- 0
         
         dnu_I_Ni <- (beta/N * nu_I_i) * nu_S_N + grad_IS * nu_S_Ni + (beta/N * nu_S_i) * nu_I_N + grad_II * nu_I_Ni -
             beta*S/N^2 * nu_I_i - beta*I/N^2 * nu_S_i
@@ -246,14 +248,14 @@ tvec <- seq(1,30,0.1)
 pars <- c(
     beta = 0.5,
     gamma = 0.1,
-    N = 501,
+    N = 2,
     i0 = 0.01
 )
 
 pars2 <- c(
-    beta = 0.5000001,
-    gamma = 0.101,
-    N = 501,
+    beta = 0.5,
+    gamma = 0.1,
+    N = 3,
     i0 = 0.01
 )
 
@@ -261,11 +263,17 @@ r1 <- SIR.detsim.hessian(tvec, pars)
 
 r2 <- SIR.detsim.hessian(tvec, pars2)
 
-nu_I_bg = (r2$nu_I_b-r1$nu_I_b)/0.001
+matplot(cbind(r1$S, r2$S), type = "l")
+
+plot((r2$S-r1$S)/1, type = "l")
+lines(r1$nu_S_N, col = 2)
+lines(r2$nu_S_N, col = 3)
+
+nu_I_bg = (r2$nu_S_N-r1$nu_S_N)/1
 
 plot(nu_I_bg, type = "l")
-lines(r1$nu_I_bg, col = 2)
-lines(r2$nu_I_bg, col = 3)
+lines(r1$nu_S_NN, col = 2)
+lines(r2$nu_S_NN, col = 3)
 
 ##Things that work
 
@@ -312,7 +320,7 @@ findHess <- function(data, params){
             }else{
                 d12 <- 0
             }
-            deriv <- 2 * sum(d1 * d2 + (I-data$count) * db + (I-data$count) * d1 * d12) * sensVec[n1] * sensVec[n2]
+            deriv <- 2 * sum(d1 * d2 * sensVec[n1] + (I-data$count) * db * sensVec[n1] + (I-data$count) * d1 * d12) * sensVec[n2]
             return(deriv)
         }
         
@@ -329,11 +337,27 @@ findHess <- function(data, params){
     
 }
 
-findHess(bombay2, fpars)
+(hess.alg <- findHess(bombay2, fpars))
 
 (hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
 
-##This one is positive definite
-eigen(hess.grad)
+all.equal(hess.alg, hess.grad)
 ```
 
+I got the hessians to work.
+
+```{r}
+
+eigen(hess.alg)
+##Positive definite.
+
+fpars2 <- fitsir.optim(bombay2, start = startfun())
+
+(hess.alg2 <- findHess(bombay2, fpars2))
+(hess.m2 <- hessian(findSSQ, fpars2, data = bombay2, SSQonly = TRUE))
+(hess.grad2 <- jacobian(findSens, fpars2, data = bombay2, sensOnly = TRUE))
+
+eigen(hess.alg2)
+##Another local minima?
+
+```
