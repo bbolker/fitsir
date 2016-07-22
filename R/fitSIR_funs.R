@@ -212,6 +212,7 @@ summarize.pars <- function(params) {
            infper=exp(-log.gamma),
            i0=plogis(logit.i),
            I0=plogis(logit.i)*exp(log.N),
+           S0 = (1-plogis(logit.i))*exp(log.N),
            N=exp(log.N)))
 }
 
@@ -363,7 +364,7 @@ fitsir <- function(data,method="Nelder-Mead",
 ##' Calculate SSQ
 ##' 
 ##' @param observed data and parameters for deterministic simulation
-findSSQ <- function(data, params, incidence = FALSE){
+findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
     ssqL <- list()
     ssqL <- within(ssqL, {
         t = data$tvec
@@ -373,10 +374,14 @@ findSSQ <- function(data, params, incidence = FALSE){
         pred = sim$I
         SSQ = sum(c(pred - obs)^2)
     })
-    return(ssqL)
+    if(SSQonly){
+        return(ssqL$SSQ)
+    }else{
+        return(ssqL)
+    }
 }
 
-findSens <- function(data, params, plot.it = FALSE, log = "xy", incidence = FALSE) {
+findSens <- function(data, params, plot.it = FALSE, log = "xy", incidence = FALSE, sensOnly = FALSE) {
     ssqL <- findSSQ(data, params, incidence = incidence)
     if (plot.it) {
         matplot(cbind(ssqL$obs, ssqL$pred), log=log, type = "l")
@@ -390,6 +395,9 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy", incidence = FALS
                             SSQ_N = sum(dSSQ * nu_N_I),
                             SSQ_I0 = sum(dSSQ * nu_I0_I)
                         ))
+    if(sensOnly){
+        sensitivity <- sensitivity[-1]
+    }
     return(sensitivity)
 }
 
