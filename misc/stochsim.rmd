@@ -98,7 +98,7 @@ with(res1,hist(nll.SIR-nll.gam,col="gray",breaks=20,
 - with the current "autofit" functionality, `fitsir` mostly works OK, doesn't need Latin hypercube for this example
 - in 20 sims, GAM/spline fit does slightly better most (90%) of the time, but not a big difference (<2 log-likelihood units)
 
-```{r}
+```{r fit_try,cache=TRUE}
 fitfun(s0)[c("nll.SIR","nll.gam")]
 fitfun2(s0,plot.it=TRUE,log="y")
 ```
@@ -128,7 +128,6 @@ A first crack at comparing `fitsir` and spline (three ways to do this -- (1) tru
 
 ```{r loadsims2}
 simfn2 <- "stochsim2.rda"
-
 fitfun.optim <- function(data) {
     t1 <- system.time(f1 <- fitsir.optim(data,start=startfun(auto=TRUE,data=data)))
     m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
@@ -137,15 +136,13 @@ fitfun.optim <- function(data) {
     return(res)
 }
 
-
 if (file.exists(simfn2)) {
    load(simfn2)
 } else {
-set.seed(101)
-res1 <- raply(20,fitfun(simfun(rpars=list(size=10))),
-              .progress="text")
+    set.seed(101)
+    res1 <- raply(20,fitfun(simfun(rpars=list(size=10))))
+    save("res1",file=simfn2)
 }
-
 ```
 
 ## Ranges
@@ -186,3 +183,40 @@ ggplot(m1,aes(country,value))+geom_point()+
     - range of sample sizes
     - range of true parameter values (Latin hypercube??)
 
+## comparing smooth.spline and `lm(y~ns())`
+
+**to do/update**
+
+- it seems that a fairer matching of model complexity would use `df=4`/`nknots=2`: `?splines::ns` says "One can supply ‘df’ rather than knots; ‘ns()’ then chooses ‘df - 1 - intercept’ knots ...". However, `nknots=2` seems to *break* `smooth.spline()`, which does some fancy internal calculations to compute the smoothing parameter (see `?smooth.spline` ...)
+- compute the negative log-likelihood for spline fits: these have to be adjusted (by adding $\sum 1/y$??) to allow for change of scale if we fit the splines on the log scale and compute the likelihood of the SIR model on the linear scale (which raises the question why we're doing that in the first place ...)
+
+```{r fitcomp,cache=TRUE}
+bombay2 <- setNames(bombay,c("tvec","count"))
+f1 <- fitsir(bombay2,start=startfun(auto=TRUE,data=bombay2))
+fpred1 <- SIR.detsim(bombay2$tvec,unlist(trans.pars(coef(f1))))
+s1 <- lm(log(count)~ns(tvec,df=6),data=bombay2)
+s2 <- with(bombay2,smooth.spline(tvec,log(count),nknots=4))
+s3 <- lm(log(count)~ns(tvec,df=4),data=bombay2)
+try(with(bombay2,smooth.spline(tvec,log(count),nknots=2)))
+plot(count~tvec,data=bombay2,log="y")
+with(bombay2,lines(tvec,exp(predict(s1)),col=2))
+with(bombay2,lines(tvec,exp(fitted(s2)),col=4))
+with(bombay2,lines(tvec,exp(fitted(s3)),col=5))
+with(bombay2,lines(tvec,fpred1,col=1))
+```
+
+## stoch sim batch results
+
+```{r ss2,echo=FALSE}
+load("stochsim_4.rda")  ## main results
+cat("total number run:",tail(which(!is.na(res[,1])),1),"\n")  ## 85
+res <- na.omit(res)
+cat("total number successful:",nrow(res),"\n") ## 78; 8 autostarts failed
+res2 <- res  %>% as.data.frame %>% select(nll.SIR:mse.spline2) %>%
+    gather() %>% separate(key,c("stat","method"),sep="\\.") %>%
+    filter(stat!="nll") ## spline NLLs need to be scale-corrected
+ggplot(res2,aes(log10(value),fill=method,colour=method))+
+    geom_histogram(position="identity",alpha=0.5,bins=30)+
+    scale_colour_brewer(palette="Set1")+
+    scale_fill_brewer(palette="Set1")
+```

@@ -41,8 +41,10 @@ fitfun <- function(data) {
 fitfun2 <- function(data,
                     start_method=c("auto","lhs","true","single"),
                     truepars=NULL,
-                    plot.it=FALSE,...) {
+                    plot.it=FALSE,
+                    spline.df=4,...) {
     require(bbmle)  ## for coef, logLik ... should patch up ...
+    require(splines) ## ns()
     start_method <- match.arg(start_method)
     ss0 <- switch(start_method,
                   auto=startfun(data=data,auto=TRUE),
@@ -58,20 +60,28 @@ fitfun2 <- function(data,
     ## m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
     ## m1 <- lm(log(count+1)~ns(tvec,df=3),data=data)
     nzdat <- subset(data,count>0)
-    m1 <- smooth.spline(nzdat,nknots=4)
+    m1 <- smooth.spline(nzdat$tvec,log(nzdat$count),nknots=spline.df-2)
+    m2 <- lm(log(count)~ns(tvec,df=spline.df),data=nzdat)
+    spred1 <- exp(fitted(m1))
+    spred2 <- exp(fitted(m2))
     fpred <- SIR.detsim(nzdat$tvec,trans.pars(fcoef))
-    spred <- fitted(m1)
     mse <- c(mse.fitsir=mean((1-fpred/nzdat$count)^2),
-             mse.spline=mean((1-spred/nzdat$count)^2))
+             mse.spline1=mean((1-spred1/nzdat$count)^2),
+             mse.spline2=mean((1-spred2/nzdat$count)^2))
     if (plot.it) {
         plot(data$tvec,data$count,xlab="time",ylab="count",type="l",...)
-        matpoints(nzdat$tvec,cbind(fpred,spred),col=c(2,4),pch=1:2)
+        matpoints(nzdat$tvec,cbind(fpred,spred1),col=c(2,4),pch=1:2)
         legend("topright",
                c("data","fitsir","spline"),
                col=c(1,2,4),lty=1)
     }
     res <- c(time=unname(t1["elapsed"]),fcoef,
              nll.SIR=c(-logLik(f1)),
+             ## correction for transformation ... I think ...
+             nll.spline2=c(-logLik(m2))+sum(1/nzdat$count),
              mse)
     return(res)
 }
+
+nmvec2 <- c("time", "log.beta", "log.gamma", "log.N", "logit.i", "nll.SIR", 
+            "nll.spline2", "mse.fitsir", "mse.spline1", "mse.spline2")

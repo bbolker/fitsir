@@ -23,8 +23,7 @@ for (i in 2:ncol(lhs_df)) {
     lhs_df[,i] <- sample(lhs_df[,i])
 }
 fn <- "stochsim_4.rda"
-nmvec <- c("time", "log.beta", "log.gamma", "log.N", "logit.i", "nll.SIR", 
-           "mse.fitsir", "mse.spline")
+nmvec <- nmvec2 ## from stochsim_funs.R
 null_out <- setNames(rep(NA,length(nmvec)),nmvec)
 
 ## could use aaply but for loop is more transparent
@@ -35,7 +34,7 @@ for (i in 1:nsim) {
     cat(i,"\n")
     p <- lhs_df[i,]
     p2 <- c(p[2:3],
-            beta=unname(p["R0"]/p["gamma"]),
+            beta=unname(p["R0"]*p["gamma"]),
             i0=unname(p["I0"]/p["N"]))
     d <- simfun(pars=p2,tmax=100,dt=1,rpars=list(size=3),seed=101)
     ss0 <- startfun(auto=TRUE,data=d)
@@ -45,5 +44,6 @@ for (i in 1:nsim) {
     }
     save("res",file=fn)
 }
+save("res","lhs_df",file=fn)
 
     

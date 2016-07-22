@@ -1,0 +1,33 @@
+---
+title: "Manuscript outline/draft"
+author: Ben Bolker, Daniel Park, David Earn
+date: "`r format(Sys.time(), '%H:%M %d %B %Y')`"
+output: html_document
+bibliography: fitsir_ms.bib
+---
+
+## Introduction
+
+The general goal is a *brief* (if possible) pedagogically oriented paper,
+aimed at biomathematicians/students coming for the first time to the
+idea of fitting curves to epidemic models. Without going too deeply
+into any one area (likelihood theory, optimization, ...), we aim to
+provide a primer and pitfall-avoidance guide for fits of simple ODE
+models (focusing particularly on SIR models) to epidemic data.
+
+## Potential topics:
+
+- **trajectory-matching vs. gradient-matching**; what's the difference? when does it matter? (this paper will focus on trajectory matching) [@ellner_fitting_2002;@bolker_ecological_2008]
+- **early-epidemic vs whole-epidemic**: lots of work on fitting early epidemics, e.g. @chowell_comparative_2007, @ma_estimating_2014 ; that's not what we're doing here ... also, we're only going to discuss general principles here, focus on simple SIR (maybe comment on SEIR), but not worry about extensions (waning immunity, Ebola/funeral-transmission ... etc.)
+- **prevalence vs. incidence**: need to distinguish these cases (typical cases will involve incidence data). Comment on pitfalls of cumulative-incidence approaches (Chowell) without appropriate corrections (maybe discussed elsewhere? @king_avoidable_2015 ?)
+- **least-squares vs. likelihood formulations**: equivalence of least-squares and likelihood approaches; advantages of likelihood in providing a framework for inference (confidence intervals). Mention Wald vs likelihood profile CIs.
+- **optimization issues**: multiple maxima (if they exist?); ridges [@polansky_likelihood_2009]. Optimization frameworks (e.g. Nelder-Mead vs quasi-Newton); sensitivity equations [@raue_lessons_2013]. Starting points (auto-start methods)
+- **identifiability/estimability issues**: (still in progress!) expected difficulties in optimization, especially with vague starting points. Something about solutions ... fixing parameters (with attendant dangers; @elderd_uncertainty_2006). Bayesian priors, bounds ... ?
+- **advanced methods**: *brief* pointers to relevant literature here. Dealing with combined process/measurement error [@king_avoidable_2015]; iterated filtering, TSIR, etc.. Bayesian methods (Stan, `debInfer`, ...)
+
+## To do
+
+- convert document to `.Rnw` format?
+- what shall we use as a case study? sims; but also some real data set (pref. *not* Bombay data set, because of @bacaer_model_2012 ...)
+
+## References
