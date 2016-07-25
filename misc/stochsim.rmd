@@ -233,23 +233,9 @@ grid.arrange(ggspline,ggspline+scale_y_log10(),nrow=1)
 
 ## stoch sim batch results
 
-```{r ss2,echo=FALSE,eval=FALSE}
-## OBSOLETE
-load("stochsim_4.rda")  ## main results
-cat("total number run:",tail(which(!is.na(res[,1])),1),"\n")  ## 85
-res <- na.omit(res)
-cat("total number successful:",nrow(res),"\n") ## 78; 8 autostarts failed
-res2 <- res  %>% as.data.frame %>% select(nll.SIR:mse.spline2) %>%
-    gather() %>% separate(key,c("stat","method"),sep="\\.") %>%
-    filter(stat!="nll") ## spline NLLs need to be scale-corrected
-ggplot(res2,aes(log10(value),fill=method,colour=method))+
-    geom_histogram(position="identity",alpha=0.5,bins=30)+
-    scale_colour_brewer(palette="Set1")+
-    scale_fill_brewer(palette="Set1")
-```
 
 ```{r loadnewres,echo=FALSE}
-load("stochsim_5.rda")  ## main results
+load("stochsim_4.rda")  ## main results
 res2 <- res %>% data.frame(as.is=TRUE) %>% select(contains("mse")) %>% na.omit()
 ```
 
