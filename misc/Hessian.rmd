@@ -5,18 +5,17 @@ output: html_document
 
 I want to get used to using `numDeriv` first... Here's an arbitrary function:
 
-```{r}
+```{r fun1}
 f <- function(par){
     with(as.list(par),{
         x^2 * y + 2 * x * y^3 - x 
     })
 }
-
 ```
 
-It's gradient function:
+Its gradient function:
 
-```{r}
+```{r grad1}
 f.g <- function(par){
     with(as.list(par),{
         dfx <- 2 * x * y + 2 * y^3 - 1
@@ -24,25 +23,20 @@ f.g <- function(par){
         return(c(dfx, dfy))
     })
 }
-
 ```
 
 Example:
 
-```{r}
-
+```{r jac1}
 library("numDeriv")
 pars <- c(x = 2, y =1)
-
 jacobian(f, pars)
 f.g(pars)
-
 ```
 
 Hessian function:
 
-```{r}
-
+```{r hess1}
 f.g2 <- function(par){
     with(as.list(pars),{
         dfxx <- 2 * y
@@ -52,37 +46,29 @@ f.g2 <- function(par){
         return(c(dfxx, dfxy, dfyx, dfyy))
     })
 }
-
 ```
 
 Does this work well?
 
-```{r}
-
+```{r hessjac2}
 hessian(f, pars)
 jacobian(f.g, pars)
 f.g2(pars)
-
 ```
 
 I think I know how it works now...
 
 ## SIR
 
-```{r load, error = FALSE, message = FALSE}
+```{r load, error = FALSE, message = FALSE, warning=FALSE}
 library(bbmle)
 library(fitsir)
-library("deSolve")
-source("../R/fitSIR_funs.R")
-
+library(deSolve)
+## source("../R/fitSIR_funs.R")
 bombay2 <- setNames(bombay, c("tvec", "count"))
-
-fpars <- coef(fitsir(bombay2, start = startfun()))
-
+fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
 jacobian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)
-
 findSens(bombay2, fpars, sensOnly = TRUE)
-
 ```
 
 Jacobian seems to work fairly well. Can we find the Hessian?

@@ -381,7 +381,15 @@ findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
     }
 }
 
-findSens <- function(data, params, plot.it = FALSE, log = "xy", incidence = FALSE, sensOnly = FALSE) {
+##' returns
+##'
+## convert to NLL:
+## NLL = C + n/2*log(SSQ/n)
+## d(NLL)/dQ = d(NLL)/d(SSQ)*d(SSQ)/dQ = n/2*(n/SSQ)*1/n * d(SSQ)/dQ =
+##     n/(2*SSQ) * d(SSQ)/dQ
+findSens <- function(data, params, plot.it = FALSE, log = "xy",
+                     incidence = FALSE, sensOnly = FALSE,
+                     nll = FALSE) {
     ssqL <- findSSQ(data, params, incidence = incidence)
     if (plot.it) {
         matplot(cbind(ssqL$obs, ssqL$pred), log=log, type = "l")
@@ -395,6 +403,15 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy", incidence = FALS
                             SSQ_N = sum(dSSQ * nu_N_I),
                             SSQ_I0 = sum(dSSQ * nu_I0_I)
                         ))
+    if (nll) {
+        n <- length(ssqL$SSQ)
+        NLL <- n/2*log(sensivity["SSQ"]/n)
+        NLLsens <- sensitivity[-1]*n/(2*sensitivity["SSQ"])
+        sensitivity <- c(NLL=NLL,
+                         setNames(NLLsens,
+                                  paste0("SSQ",c("beta","gamma","N","I0"),
+                                         sep="_")))
+    }
     if(sensOnly){
         sensitivity <- sensitivity[-1]
     }

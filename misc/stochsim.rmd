@@ -18,6 +18,7 @@ library(dplyr)
 library(tibble)
 library(tidyr)
 library(ggplot2); theme_set(theme_bw())
+library(gridExtra)
 ```
 
 ```{r stochsimfun}
@@ -149,7 +150,7 @@ if (file.exists(simfn2)) {
 
 from Dora:
 
-```{r}
+```{r dora_ranges}
 Nquant <- setNames(
     c(9.908985e+00,4.492488e+02,2.096015e+03,2.878854e+04,2.865343e+31),
     seq(0,100,by=25))
@@ -173,7 +174,6 @@ ggplot(m1,aes(country,value))+geom_point()+
     facet_wrap(~var,scale="free")
 ```
 
-- compare `smooth.spline` and `glm(.,ns(.))` approaches
 - get parameter ranges from DR: $\beta$, $\gamma$, $N$, $I(0)$, and number of data points (for simplicity we will take the same overall time range, and use number of data points for `dt`)
 - calibrate neg binomial size parameter to observed mean squared error
 - larger sample
@@ -185,29 +185,56 @@ ggplot(m1,aes(country,value))+geom_point()+
 
 ## comparing smooth.spline and `lm(y~ns())`
 
-**to do/update**
+How do we fit a reasonable spline model of equivalent complexity to `fitsir` (with 4 total parameters)?
 
-- it seems that a fairer matching of model complexity would use `df=4`/`nknots=2`: `?splines::ns` says "One can supply ‘df’ rather than knots; ‘ns()’ then chooses ‘df - 1 - intercept’ knots ...". However, `nknots=2` seems to *break* `smooth.spline()`, which does some fancy internal calculations to compute the smoothing parameter (see `?smooth.spline` ...)
+`?ns` says
+
+> One can supply ‘df’ rather than knots; ‘ns()’ then chooses ‘df - 1 - intercept’ knots ...
+
+however, the `df` refers to the number of *spline* degrees of freedom; if we set `df=3` we get 4 parameters (intercept+3). `smooth.spline` with $k$ knots gives $k+2$ coefficients (but it's almost impossible to make it work with $k=2$ knots \ldots)
+
+```{r check_spline_coefs}
+set.seed(101)
+dx <- data.frame(x=rnorm(100),y=rnorm(100))
+length(coef(lm(y~ns(x,df=3),data=dx)))
+ss <- with(dx,smooth.spline(x,y,nknots=4))
+length(ss$fit$coef)
+```
+
+- it seems that a fairer matching of model complexity would use `df=4`/`nknots=2`: `?splines::ns` says "". However, `nknots=2` seems to *break* `smooth.spline()`, which does some fancy internal calculations to compute the smoothing parameter (see `?smooth.spline` ...)
 - compute the negative log-likelihood for spline fits: these have to be adjusted (by adding $\sum 1/y$??) to allow for change of scale if we fit the splines on the log scale and compute the likelihood of the SIR model on the linear scale (which raises the question why we're doing that in the first place ...)
 
-```{r fitcomp,cache=TRUE}
+```{r fitcomp,cache=TRUE,echo=FALSE}
 bombay2 <- setNames(bombay,c("tvec","count"))
 f1 <- fitsir(bombay2,start=startfun(auto=TRUE,data=bombay2))
 fpred1 <- SIR.detsim(bombay2$tvec,unlist(trans.pars(coef(f1))))
-s1 <- lm(log(count)~ns(tvec,df=6),data=bombay2)
-s2 <- with(bombay2,smooth.spline(tvec,log(count),nknots=4))
-s3 <- lm(log(count)~ns(tvec,df=4),data=bombay2)
-try(with(bombay2,smooth.spline(tvec,log(count),nknots=2)))
-plot(count~tvec,data=bombay2,log="y")
-with(bombay2,lines(tvec,exp(predict(s1)),col=2))
-with(bombay2,lines(tvec,exp(fitted(s2)),col=4))
-with(bombay2,lines(tvec,exp(fitted(s3)),col=5))
-with(bombay2,lines(tvec,fpred1,col=1))
+res <- ldply(setNames(6:3,paste0("ns",6:3)),
+      function(x) {
+    m <- lm(log(count)~ns(tvec,df=x),data=bombay2)
+    data.frame(tvec=bombay2$tvec,var="log",pred=exp(predict(m)))
+    },.id="method")
+res2 <- ldply(setNames(6:3,paste0("ns",6:3)),
+      function(x) {
+    m <- glm(count~ns(tvec,df=x),
+             family=gaussian(link="log"),data=bombay2)
+    data.frame(tvec=bombay2$tvec,var="lin",pred=exp(predict(m)))
+    },.id="method")
+## ss$fit$nk ## number of knots
+res3 <- rbind(data.frame(method="fitsir",
+                         var="lin",tvec=bombay2$tvec,pred=fpred1),
+             res,res2)
+ggspline <- ggplot(res3,aes(tvec,pred))+
+    geom_line(aes(colour=method,lty=var))+
+    geom_point(data=bombay2,aes(y=count))
+grid.arrange(ggspline,ggspline+scale_y_log10(),nrow=1)
 ```
+
+
 
 ## stoch sim batch results
 
-```{r ss2,echo=FALSE}
+```{r ss2,echo=FALSE,eval=FALSE}
+## OBSOLETE
 load("stochsim_4.rda")  ## main results
 cat("total number run:",tail(which(!is.na(res[,1])),1),"\n")  ## 85
 res <- na.omit(res)
@@ -220,3 +247,45 @@ ggplot(res2,aes(log10(value),fill=method,colour=method))+
     scale_colour_brewer(palette="Set1")+
     scale_fill_brewer(palette="Set1")
 ```
+
+```{r loadnewres,echo=FALSE}
+load("stochsim_5.rda")  ## main results
+res2 <- res %>% data.frame(as.is=TRUE) %>% select(contains("mse")) %>% na.omit()
+```
+
+Order of columns in sim output is:
+
+- 1,2: fitsir with "auto" and "true" start
+- 3: smooth spline with 6 coefficients (minimum practical)
+- 4,5: `ns()` with 4 coefficients, lin/log scale criterion
+- 6,7: `ns()` with 6 coeff, ditto
+
+It turns out the fits with the linear-scale criterion have *terrible*
+MSEs, leaving these out for now.
+
+
+```{r relval,echo=FALSE}
+labs <- c("fitsir_auto","fitsir_true",
+          "smooth.spline","ns_4_lin","ns_4_log",
+          "ns_6_lin","ns_6_log")
+res3 <- setNames(res2,labs) %>% select(-contains("_lin"))
+res3_diff <- as.data.frame(t(apply(res3,1,function(x) x/min(x))))
+```
+
+```{r plotspline,fig.width=10,fig.height=5,echo=FALSE}
+gghist <- ggplot(gather(res3,method,mse),aes(x=log10(mse),fill=method))+
+    geom_histogram(alpha=0.4,position="identity",bins=30)
+ggdens <- ggplot(gather(res3,method,mse),aes(x=log10(mse),fill=method))+
+    geom_density(alpha=0.4,position="identity")
+ggdensdiff <- ggdens %+% gather(res3_diff,method,mse)
+grid.arrange(ggdens,ggdensdiff,nrow=1)
+```
+
+(right-hand plot is proportional differences in MSE from best fit for any particular given run)
+
+Conclusions:
+
+- all splines - `smooth.spline` with 6 coefficients (= 4 knots), `ns()` with 4 or 6 coefficients (`spline.df` = 3 or 5) all give approximately equal MSEs (so no need to re-do anything?)
+- `fitsir` starting from true parameter values (best-case scenario?) does slightly better than the auto-start, but not huge differences
+- splines really do better than SIR at fitting!
+
