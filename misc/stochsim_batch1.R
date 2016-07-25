@@ -1,3 +1,5 @@
+if (file.exists("~/Rlibs")) .libPaths("~/Rlibs")
+
 library(fitsir)
 library(plyr)
 source("stochsim_funs.R")
