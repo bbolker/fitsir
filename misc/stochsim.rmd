@@ -19,6 +19,7 @@ library(tibble)
 library(tidyr)
 library(ggplot2); theme_set(theme_bw())
 library(gridExtra)
+library(ggstance) ## for horizontal violins
 ```
 
 ```{r stochsimfun}
@@ -256,22 +257,38 @@ labs <- c("fitsir_auto","fitsir_true",
           "ns_6_lin","ns_6_log")
 res3 <- setNames(res2,labs) %>% select(-contains("_lin"))
 res3_diff <- as.data.frame(t(apply(res3,1,function(x) x/min(x))))
+median_hilow_h <- function (x, ...)  {
+    result <- do.call(Hmisc::smedian.hilow, list(x = quote(x), ...))
+    plyr::rename(data.frame(t(result)), c(Median = "x", Mean = "x", 
+        Lower = "xmin", Upper = "xmax"), warn_missing = FALSE)
+}
+res3g <- gather(res3,method,mse)
+gsum <- res3g %>% group_by(method) %>%
+    mutate(lmse = log10(mse)) %>%
+    summarise(median=median(lmse),min=quantile(lmse,0.025),
+              max=quantile(lmse,0.975))
 ```
 
-```{r plotspline,fig.width=10,fig.height=5,echo=FALSE}
+```{r plotspline,fig.width=6,fig.height=4,echo=FALSE}
 gghist <- ggplot(gather(res3,method,mse),aes(x=log10(mse),fill=method))+
     geom_histogram(alpha=0.4,position="identity",bins=30)
 ggdens <- ggplot(gather(res3,method,mse),aes(x=log10(mse),fill=method))+
     geom_density(alpha=0.4,position="identity")
+ggviolin <- ggplot(res3g,aes(x=log10(mse),y=method,fill=method))+
+    geom_violinh()+
+    scale_fill_brewer(palette="Set1")+
+    theme(legend.position="none")+
+    geom_pointrangeh(data=gsum,aes(x=median,xmin=min,xmax=max))
 ggdensdiff <- ggdens %+% gather(res3_diff,method,mse)
-grid.arrange(ggdens,ggdensdiff,nrow=1)
+## grid.arrange(ggdens,ggdensdiff,nrow=1)
+print(ggviolin)
 ```
 
 (right-hand plot is proportional differences in MSE from best fit for any particular given run)
 
 Conclusions:
 
-- all splines - `smooth.spline` with 6 coefficients (= 4 knots), `ns()` with 4 or 6 coefficients (`spline.df` = 3 or 5) all give approximately equal MSEs (so no need to re-do anything?)
+- `smooth.spline` with 6 coefficients (= 4 knots), and `ns()` with 6 coefficients (`spline.df` = 5) give approximately equal MSE distributions, better than the rest (but have more parameters)
+- `ns()` with 4 coefficients (`spline.df`=3) does worse (median) than `fitsir`, but worst-case scenario is better ...
 - `fitsir` starting from true parameter values (best-case scenario?) does slightly better than the auto-start, but not huge differences
-- splines really do better than SIR at fitting!
 
