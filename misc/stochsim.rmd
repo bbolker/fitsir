@@ -238,6 +238,7 @@ grid.arrange(ggspline,ggspline+scale_y_log10(),nrow=1)
 ```{r loadnewres,echo=FALSE}
 load("stochsim_4.rda")  ## main results
 res2 <- res %>% data.frame(as.is=TRUE) %>% select(contains("mse")) %>% na.omit()
+nsims <- length(na.omit(res[,"fitsir.1_time"]))
 ```
 
 Order of columns in sim output is:
@@ -281,10 +282,10 @@ ggviolin <- ggplot(res3g,aes(x=log10(mse),y=method,fill=method))+
     geom_pointrangeh(data=gsum,aes(x=median,xmin=min,xmax=max))
 ggdensdiff <- ggdens %+% gather(res3_diff,method,mse)
 ## grid.arrange(ggdens,ggdensdiff,nrow=1)
-print(ggviolin)
+print(ggviolin+ggtitle(sprintf("stoch sim comparison (n=%d)",nsims)))
 ```
 
-(right-hand plot is proportional differences in MSE from best fit for any particular given run)
+(points/bars are median, 95% quantiles)
 
 Conclusions:
 
