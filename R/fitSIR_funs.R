@@ -238,7 +238,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
             t.interval <- diff(t)
         }
         
-        if(findSens){
+        if (findSens) {
             func <- SIR.grad.sens
             yini <- c(S = N*(1-i0), logI = log(N*i0),
                       nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1-i0,
@@ -257,15 +257,13 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                                     dllname = "fitsir",
                                     initfunc = "initmod"))
         
-        if(findSens){
+        if (findSens) {
             sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
-            
             logSens <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
-            
             odesol[,sensName] = sweep(odesol[,sensName], 2, rep(logSens,2), "*")
         }
         
-        if(reportAll){
+        if (reportAll){
             return(odesol)
         }
         
@@ -329,6 +327,7 @@ SIR.logLik <- function(incidence = FALSE){
 ##' @param debug print debugging output?
 ##' @export
 ##' @importFrom bbmle mle2
+##' @importFrom bbmle coef.mle2
 ##' @examples
 ##' library("bbmle") ## needed at present for coef()
 ##' bombay2 <- setNames(bombay,c("tvec","count"))
@@ -351,34 +350,37 @@ fitsir <- function(data,method="Nelder-Mead",
                    incidence = FALSE,
                    start=startfun(),debug=FALSE) {
     g <- SIR.logLik(incidence = incidence)
-    mle2(g,
+    m <- mle2(g,
          vecpar=TRUE,
          start=start,
          method=method,
          control=control,
          data=c(data,list(debug=debug)))
+    ## FIXME: extend S4 class?
+    ## class(m) <- c("fitsir","mle2")
+    return(m)
 }
 
 ## Introducing sensitivity equations
 
 ##' Calculate SSQ
 ##' 
-##' @param observed data and parameters for deterministic simulation
+##' @param data data for deterministic simulation (data frame with columns \code{tvec} and \code{count})
+##' @param params parameter vector
+##' @param incidence (logical) compute SSQ based on incidence?
+##' @param SSQonly (logical) return only the sum of squares? (alternatively, return derivatives of SSQ with respect to parameters)
 findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
     ssqL <- list()
     ssqL <- within(ssqL, {
-        t = data$tvec
+        t <- data$tvec
         sim <- SIR.detsim(t, trans.pars(params),
                           findSens = TRUE, incidence = incidence)
-        obs = data$count
-        pred = sim$I
-        SSQ = sum(c(pred - obs)^2)
+        obs <- data$count
+        pred <- sim$I
+        SSQ <- sum((pred - obs)^2)
     })
-    if(SSQonly){
-        return(ssqL$SSQ)
-    }else{
-        return(ssqL)
-    }
+    if (SSQonly) return(ssqL$SSQ)
+    return(ssqL)
 }
 
 ##' returns
@@ -405,11 +407,11 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
                         ))
     if (nll) {
         n <- length(ssqL$SSQ)
-        NLL <- n/2*log(sensivity["SSQ"]/n)
+        NLL <- n/2*log(sensitivity["SSQ"]/n)
         NLLsens <- sensitivity[-1]*n/(2*sensitivity["SSQ"])
-        sensitivity <- c(NLL=NLL,
+        sensitivity <- c(NLL=unname(NLL),
                          setNames(NLLsens,
-                                  paste0("SSQ",c("beta","gamma","N","I0"),
+                                  paste("SSQ",c("beta","gamma","N","I0"),
                                          sep="_")))
     }
     if(sensOnly){

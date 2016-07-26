@@ -6,15 +6,16 @@ test_that("bombay fits", {
     bombay2 <- setNames(bombay,c("tvec","count"))
     ss0 <- startfun(data=bombay2,auto=TRUE)
     expect_equal(summarize.pars(ss0),
-                 structure(c(2.65618522, 0.34685520, 4.77486057, 
-                             0.00368742173477816, 5.02922941, 1363.88777),
-                           .Names = c("R0", "r", "infper", "i0", "I0", "N")),
+                 structure(c(2.91753342360012, 0.346814013295034, 5.5289963787273, 
+                             0.00388686417468641, 5.02922941484824, 1288.874850795, 1293.90408020985
+                             ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N")),
+
                  tolerance=1e-6)
     f1 <- fitsir(bombay2,start=ss0)
-    expect_equal(summarize.pars(bbmle::coef(f1)),
-                 structure(c(1.1951349233, 0.394289728, 0.494902375,
-                             6.47960233e-05, 4.013979769, 61947.9338), 
-                           .Names = c("R0", "r", "infper", "i0", "I0", "N")),
+    expect_equal(summarize.pars(coef(f1)),
+                 structure(c(1.01448544704402, 0.390081804833677, 0.0371343827487676, 
+4.44877097202117e-07, 3.7043246924268, 8326621.14492856, 8326624.84925325
+), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N")),
                  tolerance=1e-6)
 })
     
