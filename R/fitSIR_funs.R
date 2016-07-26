@@ -117,7 +117,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
 ##' @param log (logical) return log-likelihood?
 ##' @return likelihood or log-likelihood vector
 dnorm2 <- function(x,mean,log=FALSE) {
-    rmse <- sqrt(sum((x-mean))^2/(length(x)-1))
+    rmse <- sqrt(sum((x-mean)^2)/(length(x)-1))
     return(dnorm(x,mean,sd=rmse,log=log))
 }
 
@@ -229,7 +229,7 @@ summarize.pars <- function(params) {
 ##' ss <- SIR.detsim(tvec,pars)
 ##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
 SIR.detsim <- function(t, params, findSens = FALSE,
-                       incidence = FALSE, reportAll = FALSE){
+                       incidence = FALSE, reportAll = FALSE, ...){
     with(as.list(params),{
         if(incidence){
             l <- length(t)
@@ -255,7 +255,8 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                                     func=func,
                                     parms=params,
                                     dllname = "fitsir",
-                                    initfunc = "initmod"))
+                                    initfunc = "initmod",
+                                    ...))
         
         if (findSens) {
             sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
@@ -389,6 +390,7 @@ findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
 ## NLL = C + n/2*log(SSQ/n)
 ## d(NLL)/dQ = d(NLL)/d(SSQ)*d(SSQ)/dQ = n/2*(n/SSQ)*1/n * d(SSQ)/dQ =
 ##     n/(2*SSQ) * d(SSQ)/dQ
+## what is C?
 findSens <- function(data, params, plot.it = FALSE, log = "xy",
                      incidence = FALSE, sensOnly = FALSE,
                      nll = FALSE) {
