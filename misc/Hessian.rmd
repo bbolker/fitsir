@@ -64,6 +64,8 @@ I think I know how it works now...
 library(bbmle)
 library(fitsir)
 library(deSolve)
+library(numDeriv)
+library(emdbook)
 ## source("../R/fitSIR_funs.R")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
@@ -345,5 +347,4 @@ fpars2 <- fitsir.optim(bombay2, start = startfun())
 
 eigen(hess.alg2)
 ##Another local minima?
-
 ```
