@@ -3,85 +3,20 @@ title: "Hessian"
 output: html_document
 ---
 
-I want to get used to using `numDeriv` first... Here's an arbitrary function:
-
-```{r fun1}
-f <- function(par){
-    with(as.list(par),{
-        x^2 * y + 2 * x * y^3 - x 
-    })
-}
-```
-
-Its gradient function:
-
-```{r grad1}
-f.g <- function(par){
-    with(as.list(par),{
-        dfx <- 2 * x * y + 2 * y^3 - 1
-        dfy <- x^2 + 6 * x * y^2
-        return(c(dfx, dfy))
-    })
-}
-```
-
-Example:
-
-```{r jac1}
-library("numDeriv")
-pars <- c(x = 2, y =1)
-jacobian(f, pars)
-f.g(pars)
-```
-
-Hessian function:
-
-```{r hess1}
-f.g2 <- function(par){
-    with(as.list(pars),{
-        dfxx <- 2 * y
-        dfxy <- 2 * x + 6 * y^2
-        dfyx <- 2 * x + 6 * y^2
-        dfyy <- 12 * x * y
-        return(c(dfxx, dfxy, dfyx, dfyy))
-    })
-}
-```
-
-Does this work well?
-
-```{r hessjac2}
-hessian(f, pars)
-jacobian(f.g, pars)
-f.g2(pars)
-```
-
-I think I know how it works now...
-
 ## SIR
 
 ```{r load, error = FALSE, message = FALSE, warning=FALSE}
+library(numDeriv)
 library(bbmle)
 library(fitsir)
 library(deSolve)
-## source("../R/fitSIR_funs.R")
+source("../R/fitSIR_funs.R")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
-jacobian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)
-findSens(bombay2, fpars, sensOnly = TRUE)
+
 ```
 
-Jacobian seems to work fairly well. Can we find the Hessian?
-
-```{r}
-(hess.m <- hessian(findSSQ, fpars, data = bombay2, SSQonly = TRUE))
-(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
-
-eigen(hess.m)
-eigen(hess.grad)
-```
-
-OK... These should give us the same values but they're not... I'm assuming that `hess.grad` should be more accurate so if that is correct, we do have a local mimimum... It would be still nice to know if we can calculate the hessian algebraically... Here's the model:
+Here's the model:
 
 $$
 \begin{aligned}
@@ -240,8 +175,8 @@ pars <- c(
 
 pars2 <- c(
     beta = 0.5,
-    gamma = 0.1,
-    N = 3,
+    gamma = 0.100001,
+    N = 2,
     i0 = 0.01
 )
 
@@ -255,20 +190,11 @@ plot((r2$S-r1$S)/1, type = "l")
 lines(r1$nu_S_N, col = 2)
 lines(r2$nu_S_N, col = 3)
 
-nu_I_bg = (r2$nu_S_N-r1$nu_S_N)/1
+nu_I_bg = (r2$nu_I_b-r1$nu_I_b)/0.000001
 
 plot(nu_I_bg, type = "l")
-lines(r1$nu_S_NN, col = 2)
-lines(r2$nu_S_NN, col = 3)
-
-##Things that work
-
-##b, bb, bg, bN, bi
-##g, gg, gN, gi
-##N, __ ,Ni 
-##i, ii
-
-##Not sure if NN is not working or if it's just a numerical error...
+lines(r1$nu_I_bg, col = 2)
+lines(r2$nu_I_bg, col = 3)
 
 ```
 
@@ -323,27 +249,51 @@ findHess <- function(data, params){
     
 }
 
-(hess.alg <- findHess(bombay2, fpars))
+##(hess.alg <- findHess(bombay2, fpars))
 
-(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
+##(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
 
-all.equal(hess.alg, hess.grad)
+##all.equal(hess.alg, hess.grad)
 ```
 
-I got the hessians to work.
+I want to do this with negative log likelihood
 
 ```{r}
 
-eigen(hess.alg)
-##Positive definite.
+grad(SIR.logLik(), fpars, count = bombay2$count)
+findSens(bombay2, fpars, nll = TRUE, sensOnly = TRUE)
+```
 
-fpars2 <- fitsir.optim(bombay2, start = startfun())
+These should be identical... I'm guessing that we're not using the correct method for some reason...
 
-(hess.alg2 <- findHess(bombay2, fpars2))
-(hess.m2 <- hessian(findSSQ, fpars2, data = bombay2, SSQonly = TRUE))
-(hess.grad2 <- jacobian(findSens, fpars2, data = bombay2, sensOnly = TRUE))
+$$
+-l(x; \mu, \sigma^2) = \frac{1}{2} \log(\sigma^2) + \frac{(x-\mu)^2}{2\sigma^2} + C
+$$
 
-eigen(hess.alg2)
-##Another local minima?
+Substitute $x = I$, $\mu = \hat{I}$, and $\sigma^2 = \sum_i \frac{(I_i - \hat{I}_i)^2}{n-1}$, and perform chain rule:
+
+$$
+\begin{aligned}
+\frac{d(nll)}{d\hat{I}_i} &= \frac{\partial (nll)}{\partial \mu} \frac{\partial \mu}{\partial \hat{I}_i} + \frac{\partial (nll)}{\partial \sigma^2} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+&= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
+(\frac{1}{2\sigma^2} - \frac{(x-\mu)^2}{2 \sigma^4}) \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+&= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
+\frac{
+\sigma^2 - (x-\mu)^2}{2 \sigma^4} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+\end{aligned}
+$$
+
+```{r}
+
+nllSens <- function(data, params){
+    t <- data$tvec
+    tpars <- trans.pars(params)
+    r <- SIR.detsim.hessian(t, tpars)
+    
+    
+}
+
 
 ```
+
+

@@ -55,104 +55,16 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 </div>
 
 
-<p>I want to get used to using <code>numDeriv</code> first… Here’s an arbitrary function:</p>
-<pre class="r"><code>f &lt;- function(par){
-    with(as.list(par),{
-        x^2 * y + 2 * x * y^3 - x 
-    })
-}</code></pre>
-<p>It’s gradient function:</p>
-<pre class="r"><code>f.g &lt;- function(par){
-    with(as.list(par),{
-        dfx &lt;- 2 * x * y + 2 * y^3 - 1
-        dfy &lt;- x^2 + 6 * x * y^2
-        return(c(dfx, dfy))
-    })
-}</code></pre>
-<p>Example:</p>
-<pre class="r"><code>library(&quot;numDeriv&quot;)
-pars &lt;- c(x = 2, y =1)
-
-jacobian(f, pars)</code></pre>
-<pre><code>##      [,1] [,2]
-## [1,]    5   16</code></pre>
-<pre class="r"><code>f.g(pars)</code></pre>
-<pre><code>## [1]  5 16</code></pre>
-<p>Hessian function:</p>
-<pre class="r"><code>f.g2 &lt;- function(par){
-    with(as.list(pars),{
-        dfxx &lt;- 2 * y
-        dfxy &lt;- 2 * x + 6 * y^2
-        dfyx &lt;- 2 * x + 6 * y^2
-        dfyy &lt;- 12 * x * y
-        return(c(dfxx, dfxy, dfyx, dfyy))
-    })
-}</code></pre>
-<p>Does this work well?</p>
-<pre class="r"><code>hessian(f, pars)</code></pre>
-<pre><code>##      [,1] [,2]
-## [1,]    2   10
-## [2,]   10   24</code></pre>
-<pre class="r"><code>jacobian(f.g, pars)</code></pre>
-<pre><code>##      [,1] [,2]
-## [1,]    2   10
-## [2,]   10   24</code></pre>
-<pre class="r"><code>f.g2(pars)</code></pre>
-<pre><code>## [1]  2 10 10 24</code></pre>
-<p>I think I know how it works now…</p>
 <div id="sir" class="section level2">
 <h2>SIR</h2>
-<pre class="r"><code>library(bbmle)</code></pre>
-<pre><code>## Warning: package 'bbmle' was built under R version 3.2.5</code></pre>
-<pre class="r"><code>library(fitsir)
-library(&quot;deSolve&quot;)</code></pre>
-<pre><code>## Warning: package 'deSolve' was built under R version 3.2.5</code></pre>
-<pre class="r"><code>source(&quot;../R/fitSIR_funs.R&quot;)
-
+<pre class="r"><code>library(numDeriv)
+library(bbmle)
+library(fitsir)
+library(deSolve)
+source(&quot;../R/fitSIR_funs.R&quot;)
 bombay2 &lt;- setNames(bombay, c(&quot;tvec&quot;, &quot;count&quot;))
-
-fpars &lt;- coef(fitsir(bombay2, start = startfun()))
-
-jacobian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)</code></pre>
-<pre><code>##          [,1]    [,2]      [,3]     [,4]
-## [1,] -7781501 8113911 -304929.8 3931.248</code></pre>
-<pre class="r"><code>findSens(bombay2, fpars, sensOnly = TRUE)</code></pre>
-<pre><code>##     SSQ_beta    SSQ_gamma        SSQ_N       SSQ_I0 
-## -7781533.641  8113944.791  -304929.696     3931.051</code></pre>
-<p>Jacobian seems to work fairly well. Can we find the Hessian?</p>
-<pre class="r"><code>(hess.m &lt;- hessian(findSSQ, fpars, data = bombay2, SSQonly = TRUE))</code></pre>
-<pre><code>##              [,1]         [,2]          [,3]         [,4]
-## [1,]  37506926842 -37108119438  635939521.71  73600727.98
-## [2,] -37108119438  36859798860 -586340459.42 -91475996.37
-## [3,]    635939522   -586340459    9747170.90     35817.61
-## [4,]     73600728    -91475996      35817.61   1959952.15</code></pre>
-<pre class="r"><code>(hess.grad &lt;- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))</code></pre>
-<pre><code>##              [,1]         [,2]          [,3]          [,4]
-## [1,]  61872817616 -59982180046  411595930.20  283684615.23
-## [2,] -59982191659  58192908194 -416275013.94 -270081452.44
-## [3,]    411596719   -416275815    9747192.21      35797.94
-## [4,]    283683371   -270080169      35796.36    1959950.52</code></pre>
-<pre class="r"><code>eigen(hess.m)</code></pre>
-<pre><code>## $values
-## [1] 74303134007.5    87201344.8      699723.3   -12602250.3
-## 
-## $vectors
-##              [,1]       [,2]       [,3]       [,4]
-## [1,]  0.710137095 -0.6524416 0.03151454  0.2627396
-## [2,] -0.703965538 -0.6633674 0.03865162  0.2507633
-## [3,]  0.011634518 -0.3350230 0.28598042 -0.8976856
-## [4,]  0.001570136  0.1484023 0.95693683  0.2494919</code></pre>
-<pre class="r"><code>eigen(hess.grad)</code></pre>
-<pre><code>## $values
-## [1] 1.200474e+11 2.979012e+07 2.244464e+05 2.438032e+04
-## 
-## $vectors
-##              [,1]       [,2]      [,3]       [,4]
-## [1,] -0.717852432 -0.6055936 0.1900519  0.2860420
-## [2,]  0.696170575 -0.6217631 0.2039519  0.2952219
-## [3,] -0.004875677  0.4769602 0.6985266  0.5334094
-## [4,] -0.003262638 -0.1384777 0.6590482 -0.7392553</code></pre>
-<p>OK… These should give us the same values but they’re not… I’m assuming that <code>hess.grad</code> should be more accurate so if that is correct, we do have a local mimimum… It would be still nice to know if we can calculate the hessian algebraically… Here’s the model:</p>
+fpars &lt;- coef(f1 &lt;- fitsir(bombay2, start = startfun()))</code></pre>
+<p>Here’s the model:</p>
 <p><span class="math">\[
 \begin{aligned}
 &amp;\frac{dSSQ}{d\log \theta}\\
@@ -327,14 +239,6 @@ plot(nu_I_bg, type = &quot;l&quot;)
 lines(r1$nu_S_NN, col = 2)
 lines(r2$nu_S_NN, col = 3)</code></pre>
 <p><img src="data:image/png;base64,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" title alt width="672" /></p>
-<pre class="r"><code>##Things that work
-
-##b, bb, bg, bN, bi
-##g, gg, gN, gi
-##N, __ ,Ni 
-##i, ii
-
-##Not sure if NN is not working or if it's just a numerical error...</code></pre>
 <p>True hessian function:</p>
 <pre class="r"><code>findHess &lt;- function(data, params){
     t &lt;- data$tvec
@@ -383,64 +287,32 @@ lines(r2$nu_S_NN, col = 3)</code></pre>
     
 }
 
-(hess.alg &lt;- findHess(bombay2, fpars))</code></pre>
-<pre><code>##              [,1]         [,2]          [,3]          [,4]
-## [1,]  61872915020 -59982281413  411595830.86  283684707.74
-## [2,] -59982281413  58193001691 -416274916.53 -270081537.62
-## [3,]    411595831   -416274917    9747192.14      35797.11
-## [4,]    283684708   -270081538      35797.11    1959951.80</code></pre>
-<pre class="r"><code>(hess.grad &lt;- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))</code></pre>
-<pre><code>##              [,1]         [,2]          [,3]          [,4]
-## [1,]  61872817616 -59982180046  411595930.20  283684615.23
-## [2,] -59982191659  58192908194 -416275013.94 -270081452.44
-## [3,]    411596719   -416275815    9747192.21      35797.94
-## [4,]    283683371   -270080169      35796.36    1959950.52</code></pre>
-<pre class="r"><code>all.equal(hess.alg, hess.grad)</code></pre>
-<pre><code>## [1] &quot;Mean relative difference: 1.593426e-06&quot;</code></pre>
-<p>I got the hessians to work.</p>
-<pre class="r"><code>eigen(hess.alg)</code></pre>
-<pre><code>## $values
-## [1] 1.200476e+11 2.979000e+07 2.244406e+05 2.438137e+04
-## 
-## $vectors
-##              [,1]       [,2]      [,3]       [,4]
-## [1,]  0.717852460 -0.6055935 0.1900552 -0.2860478
-## [2,] -0.696170546 -0.6217630 0.2039552 -0.2952280
-## [3,]  0.004875659  0.4769604 0.6985290 -0.5334251
-## [4,]  0.003262649 -0.1384774 0.6590437  0.7392393</code></pre>
-<pre class="r"><code>##Positive definite.
+##(hess.alg &lt;- findHess(bombay2, fpars))
 
-fpars2 &lt;- fitsir.optim(bombay2, start = startfun())
+##(hess.grad &lt;- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
 
-(hess.alg2 &lt;- findHess(bombay2, fpars2))</code></pre>
-<pre><code>##             [,1]        [,2]          [,3]         [,4]
-## [1,]  8462260499 -7763250739  154626335.97 107161889.45
-## [2,] -7763250739  7165282090 -160044883.44 -93453752.52
-## [3,]   154626336  -160044883   10595382.74     14137.02
-## [4,]   107161889   -93453753      14137.02   2003212.54</code></pre>
-<pre class="r"><code>(hess.m2 &lt;- hessian(findSSQ, fpars2, data = bombay2, SSQonly = TRUE))</code></pre>
-<pre><code>##             [,1]        [,2]          [,3]         [,4]
-## [1,]  8416636564 -7735505105  153510909.21 104882763.69
-## [2,] -7735505105  7158238768 -158606432.01 -93186536.09
-## [3,]   153510909  -158606432   10595384.29     14155.61
-## [4,]   104882764   -93186536      14155.61   2003211.30</code></pre>
-<pre class="r"><code>(hess.grad2 &lt;- jacobian(findSens, fpars2, data = bombay2, sensOnly = TRUE))</code></pre>
-<pre><code>##             [,1]        [,2]          [,3]         [,4]
-## [1,]  8462276677 -7763265210  154626455.94 107162109.62
-## [2,] -7763265259  7165295080 -160044993.90 -93453951.89
-## [3,]   154626399  -160044936   10595382.55     14139.37
-## [4,]   107162037   -93453879      14135.63   2003215.18</code></pre>
-<pre class="r"><code>eigen(hess.alg2)</code></pre>
-<pre><code>## $values
-## [1] 1.560852e+10 3.141223e+07 1.961378e+05 1.412378e+04
-## 
-## $vectors
-##              [,1]       [,2]      [,3]       [,4]
-## [1,]  0.735837730 -0.5893486 0.1516937 -0.2969851
-## [2,] -0.676946911 -0.6323027 0.1881579 -0.3263936
-## [3,]  0.014240480  0.4835530 0.6392342 -0.5977904
-## [4,]  0.009106273 -0.1379784 0.7300447  0.6692636</code></pre>
-<pre class="r"><code>##Another local minima?</code></pre>
+##all.equal(hess.alg, hess.grad)</code></pre>
+<p>I want to do this with negative log likelihood</p>
+<pre class="r"><code>grad(SIR.logLik(), fpars, count = bombay2$count)</code></pre>
+<pre><code>## [1] -51.2062363  67.1385173  -8.2404127   0.9608513</code></pre>
+<pre class="r"><code>findSens(bombay2, fpars, nll = TRUE, sensOnly = TRUE)</code></pre>
+<pre><code>##     SSQ_beta    SSQ_gamma        SSQ_N       SSQ_I0 
+## -39.29145898  40.96990948  -1.53968783   0.01984914</code></pre>
+<p>These should be identical… I’m guessing that we’re not using the correct method for some reason…</p>
+<p><span class="math">\[
+-l(x; \mu, \sigma^2) = \frac{1}{2} \log(\sigma^2) + \frac{(x-\mu)^2}{2\sigma^2} + C
+\]</span></p>
+<p>Substitute <span class="math">\(x = I\)</span>, <span class="math">\(\mu = \hat{I}\)</span>, and <span class="math">\(\sigma^2 = \sum_i \frac{(I_i - \hat{I}_i)^2}{n-1}\)</span>, and perform chain rule:</p>
+<p><span class="math">\[
+\begin{aligned}
+\frac{d(nll)}{d\hat{I}_i} &amp;= \frac{\partial (nll)}{\partial \mu} \frac{\partial \mu}{\partial \hat{I}_i} + \frac{\partial (nll)}{\partial \sigma^2} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+&amp;= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
+(\frac{1}{2\sigma^2} - \frac{(x-\mu)^2}{2 \sigma^4}) \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+&amp;= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
+\frac{
+\sigma^2 - (x-\mu)^2}{2 \sigma^4} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+\end{aligned}
+\]</span></p>
 </div>
 
 
