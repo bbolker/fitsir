@@ -10,7 +10,13 @@ library(numDeriv)
 library(bbmle)
 library(fitsir)
 library(deSolve)
+<<<<<<< HEAD
 source("../R/fitSIR_funs.R")
+=======
+library(numDeriv)
+library(emdbook)
+## source("../R/fitSIR_funs.R")
+>>>>>>> upstream/master
 bombay2 <- setNames(bombay, c("tvec", "count"))
 fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
 
