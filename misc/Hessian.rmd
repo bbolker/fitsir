@@ -10,13 +10,10 @@ library(numDeriv)
 library(bbmle)
 library(fitsir)
 library(deSolve)
-<<<<<<< HEAD
-source("../R/fitSIR_funs.R")
-=======
-library(numDeriv)
 library(emdbook)
 ## source("../R/fitSIR_funs.R")
->>>>>>> upstream/master
+library("devtools")
+load_all("..")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
 
@@ -255,11 +252,13 @@ findHess <- function(data, params){
     
 }
 
-##(hess.alg <- findHess(bombay2, fpars))
+(hess.alg <- findHess(bombay2, fpars))
 
-##(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
+(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
 
-##all.equal(hess.alg, hess.grad)
+all.equal(hess.alg, hess.grad)
+
+eigen(hess.alg)
 ```
 
 I want to do this with negative log likelihood
@@ -298,7 +297,6 @@ nllSens <- function(data, params){
     
     
 }
-
 
 ```
 
