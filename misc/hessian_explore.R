@@ -106,7 +106,63 @@ ggplot(cc.cur.df,aes(log.R0,q,z=nll))+
 
 summary(subset(cc.cur.df,nll<min(nll)+1.92))
 
+fn2 <- "hessian_explore2.rda"
 
+if (file.exists(fn2)) {
+    load(fn2)
+} else {
+    fit2 <- fitsir(bombay2,start=startfun())
+    fpars2 <- coef(fit2)
+    
+    ## 1% slice 
+    cc2a <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.99,1.01),
+                    ylim=fpars2["log.gamma"]*c(0.99,1.01),
+                    n=c(61,61))
+    
+    save("fit2","fpars2","cc2a",file=fn2)
+}
 
+all(eigen(findHess(bombay2,fpars2))$values>0)
 
+with(cc2a,image(x,y,log10(z-min(z)),xlab="log.beta",ylab="log.gamma"))
+abline(a=0,b=1)
+text(3.65,3.65,expression(R[0]==1))
+## with(cc1a,persp3d(x,y,z,col="gray"))
+xmins2a <- apply(cc2a$z,1,min)
+plot(cc2a$x,xmins1a,type="b")
 
+ymins2a <- apply(cc2a$z,1,min)
+plot(cc2a$y,ymins1a,type="b")
+
+## transform to R0/r space, plot ...
+library(reshape2)
+
+cc.cur2 <- cc2a
+dimnames(cc.cur2$z) <- list(log.beta=cc.cur2$x,log.gamma=cc.cur2$y)
+cc.cur.df2 <- melt(cc.cur2$z) %>%
+    transmute(nll=value,log.R0=log.beta-log.gamma,
+              q=log.beta+log.gamma)
+
+## "q" doesn't really have an obvious epidemiological meaning
+## (log(beta*gamma)) - it just happens to be orthogonal to log(R0)
+
+(gg2 <- ggplot(cc.cur.df2,aes(log.R0,q,colour=nll))+
+     geom_point(size=2)+
+     scale_color_viridis())
+
+R0lims2 <- c(0.02,0.04)
+qlims2 <- c(5,5.02)
+
+gg2 %+% subset(cc.cur.df2,betw(log.R0,R0lims2) & betw(q,qlims2)) +
+    geom_point(size=15,alpha=0.4)+
+    annotate(x=fpars2["log.beta"]-fpars2["log.gamma"],
+             y=fpars2["log.beta"]+fpars2["log.gamma"],
+             colour="red",pch=1,size=18,
+             geom="point")+
+    stat_summary_2d(geom="contour",aes(z=nll))
+
+ggplot(cc.cur.df2,aes(log.R0,q,z=nll))+
+    stat_summary_2d()+scale_fill_viridis()
+
+###Another parameter
