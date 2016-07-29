@@ -1,64 +1,4 @@
----
-title: "Hessian"
-output: html_document
----
-
-## SIR
-
-```{r load, error = FALSE, message = FALSE, warning=FALSE}
-library(numDeriv)
-library(bbmle)
-library(fitsir)
-## these aren't exported, probably should be
-findSSQ <- fitsir:::findSSQ
-findSens <- fitsir:::findSens
-fitsir.optim <- fitsir:::fitsir.optim
-library(deSolve)
-library(emdbook)
-## source("../R/fitSIR_funs.R")
-library("devtools")
-load_all("..")
-bombay2 <- setNames(bombay, c("tvec", "count"))
-fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
-<<<<<<< HEAD
-=======
-jacobian(fitsir:::findSSQ, fpars, data = bombay2, SSQonly = TRUE)
-findSens(bombay2, fpars, sensOnly = TRUE)
-```
-
-Jacobian seems to work fairly well. Can we find the Hessian?
-
-```{r}
-## fully finite-difference (Richardson)
-(hess.m <- hessian(fitsir:::findSSQ, fpars, data = bombay2, SSQonly = TRUE))
-## finite difference of symbolic gradient
-(hess.grad <- jacobian(fitsir:::findSens, fpars, data = bombay2, sensOnly = TRUE))
->>>>>>> upstream/master
-
-```
-
-Here's the model:
-
-$$
-\begin{aligned}
-&\frac{dSSQ}{d\log \theta}\\
-&= \frac{dSSQ}{d\theta} \frac{d\theta}{d\log \theta}\\
-&= \frac{dSSQ}{dI} \frac{dI}{d\theta} \frac{d\theta}{d\log\theta}\\
-&= 2(I-\hat{I}) \frac{dI}{d\theta} \theta
-\end{aligned}
-$$
-
-Second derivative:
-
-$$
-\begin{aligned}
-&\frac{d(dSSQ/d\log\theta_1)}{d\log\theta_2}\\
-&= \frac{d(dSSQ/d\log\theta_1)}{d\theta_2} \theta_2\\
-&= (2\frac{dI}{d\theta_2} \frac{dI}{d\theta_1} \theta_1 + 2(I-\hat{I}) \frac{d^2I}{d\theta_1\theta_2}\theta_1 + 2(I-\hat{I})\frac{dI}{d\theta_1} \frac{d\theta_1}{d\theta_2} ) \theta_2\\
-\end{aligned}
-$$
-
-```{r}
+## second derivs of gradient wrt parameters
 SIR.grad.hessian <- function(t, x, params) {
     g <- with(as.list(c(x,params)),
     {
@@ -165,6 +105,10 @@ SIR.grad.hessian <- function(t, x, params) {
     })
 }
 
+##' integrate sensitivities
+##' @param t time vector
+##' @param params parameter vector
+##' @export
 SIR.detsim.hessian <- function(t, params){
     with(as.list(c(params)),{
         yini <- c(S = N*(1-i0), logI = log(N*i0),
@@ -185,44 +129,10 @@ SIR.detsim.hessian <- function(t, params){
     
 }
 
-tvec <- seq(1,30,0.1)
-
-pars <- c(
-    beta = 0.5,
-    gamma = 0.1,
-    N = 2,
-    i0 = 0.01
-)
-
-pars2 <- c(
-    beta = 0.5,
-    gamma = 0.100001,
-    N = 2,
-    i0 = 0.01
-)
-
-r1 <- SIR.detsim.hessian(tvec, pars)
-
-r2 <- SIR.detsim.hessian(tvec, pars2)
-
-matplot(cbind(r1$S, r2$S), type = "l")
-
-plot((r2$S-r1$S)/1, type = "l")
-lines(r1$nu_S_N, col = 2)
-lines(r2$nu_S_N, col = 3)
-
-nu_I_bg = (r2$nu_I_b-r1$nu_I_b)/0.000001
-
-plot(nu_I_bg, type = "l")
-lines(r1$nu_I_bg, col = 2)
-lines(r2$nu_I_bg, col = 3)
-
-```
-
-True hessian function:
-
-```{r}
-
+##' find Hessian of SSQ wrt parameters
+##' @param data data frame with tvec/count
+##' @param params parameter vector
+##' @export
 findHess <- function(data, params){
     t <- data$tvec
     tpars <- trans.pars(params)
@@ -269,54 +179,3 @@ findHess <- function(data, params){
     })
     
 }
-
-(hess.alg <- findHess(bombay2, fpars))
-
-(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
-
-all.equal(hess.alg, hess.grad)
-
-eigen(hess.alg)
-```
-
-I want to do this with negative log likelihood
-
-```{r}
-
-grad(SIR.logLik(), fpars, count = bombay2$count)
-findSens(bombay2, fpars, nll = TRUE, sensOnly = TRUE)
-
-```
-
-These should be identical... I'm guessing that we're not using the correct method for some reason...
-
-$$
--l(x; \mu, \sigma^2) = \frac{1}{2} \log(\sigma^2) + \frac{(x-\mu)^2}{2\sigma^2} + C
-$$
-
-Substitute $x = I$, $\mu = \hat{I}$, and $\sigma^2 = \sum_i \frac{(I_i - \hat{I}_i)^2}{n-1}$, and perform chain rule:
-
-$$
-\begin{aligned}
-\frac{d(nll)}{d\hat{I}_i} &= \frac{\partial (nll)}{\partial \mu} \frac{\partial \mu}{\partial \hat{I}_i} + \frac{\partial (nll)}{\partial \sigma^2} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
-&= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
-(\frac{1}{2\sigma^2} - \frac{(x-\mu)^2}{2 \sigma^4}) \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
-&= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
-\frac{
-\sigma^2 - (x-\mu)^2}{2 \sigma^4} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
-\end{aligned}
-$$
-
-```{r}
-
-nllSens <- function(data, params){
-    t <- data$tvec
-    tpars <- trans.pars(params)
-    r <- SIR.detsim.hessian(t, tpars)
-    
-    with(as.list())
-}
-
-```
-
-

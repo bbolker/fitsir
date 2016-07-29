@@ -328,7 +328,6 @@ SIR.logLik <- function(incidence = FALSE, ...){
 ##' @param debug print debugging output?
 ##' @export
 ##' @importFrom bbmle mle2
-##' @importFrom bbmle coef.mle2
 ##' @examples
 ##' library("bbmle") ## needed at present for coef()
 ##' bombay2 <- setNames(bombay,c("tvec","count"))

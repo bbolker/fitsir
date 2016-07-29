@@ -265,7 +265,7 @@ median_hilow_h <- function (x, ...)  {
 }
 res3g <- gather(res3,method,mse)
 gsum <- res3g %>% group_by(method) %>%
-    mutate(lmse = log10(mse)) %>%
+    mutate(lmse = log10(sqrt(mse))) %>%
     summarise(median=median(lmse),min=quantile(lmse,0.025),
               max=quantile(lmse,0.975))
 ```
@@ -275,7 +275,7 @@ gghist <- ggplot(gather(res3,method,mse),aes(x=log10(mse),fill=method))+
     geom_histogram(alpha=0.4,position="identity",bins=30)
 ggdens <- ggplot(gather(res3,method,mse),aes(x=log10(mse),fill=method))+
     geom_density(alpha=0.4,position="identity")
-ggviolin <- ggplot(res3g,aes(x=log10(mse),y=method,fill=method))+
+ggviolin <- ggplot(res3g,aes(x=log10(sqrt(mse)),y=method,fill=method))+
     geom_violinh()+
     scale_fill_brewer(palette="Set1")+
     theme(legend.position="none")+
@@ -283,6 +283,7 @@ ggviolin <- ggplot(res3g,aes(x=log10(mse),y=method,fill=method))+
 ggdensdiff <- ggdens %+% gather(res3_diff,method,mse)
 ## grid.arrange(ggdens,ggdensdiff,nrow=1)
 print(ggviolin+ggtitle(sprintf("stoch sim comparison (n=%d)",nsims)))
+
 ```
 
 (points/bars are median, 95% quantiles)
@@ -293,3 +294,15 @@ Conclusions:
 - `ns()` with 4 coefficients (`spline.df`=3) does worse (median) than `fitsir`, but worst-case scenario is better ...
 - `fitsir` starting from true parameter values (best-case scenario?) does slightly better than the auto-start, but not huge differences
 
+```{r subplot}
+res3g2 <- res3g %>% filter(method %in% c("fitsir_auto","ns_4_log"))
+gsum2 <- res3g2 %>% group_by(method) %>%
+    mutate(lmse = log10(sqrt(mse))) %>%
+    summarise(median=median(lmse),min=quantile(lmse,0.025),
+              max=quantile(lmse,0.975))
+ggviolin2 <- ggplot(res3g2,aes(x=log10(sqrt(mse)),y=method,fill=method))+
+    geom_violinh()+
+    scale_fill_brewer(palette="Set1")+
+    theme(legend.position="none")+
+    geom_pointrangeh(data=gsum2,aes(x=median,xmin=min,xmax=max))
+ggsave(ggviolin2,file="ggviolin2.png")
