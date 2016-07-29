@@ -134,12 +134,18 @@ if (file.exists(fn2)) {
                     ylim=fpars2["log.gamma"]*c(0.99,1.01),
                     n=c(61,61))
     
-    save("fit2","fpars2","cc2a", "cc2b", "cc2c",file=fn2)
+    ## 1% slice with more points
+    cc2d <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.99,1.01),
+                    ylim=fpars2["log.gamma"]*c(0.99,1.01),
+                    n=c(81,81))
+    
+    save("fit2","fpars2","cc2a", "cc2b", "cc2c", "cc2d",file=fn2)
 }
 
 all(eigen(findHess(bombay2,fpars2))$values>0)
 
-with(cc2a,image(x,y,log10(z-min(z)),xlab="log.beta",ylab="log.gamma"))
+with(cc2c,image(x,y,log10(z-min(z)),xlab="log.beta",ylab="log.gamma"))
 abline(a=0,b=1)
 ## with(cc2a,persp3d(x,y,z,col="gray"))
 ymins2a <- apply(cc2a$z,1,min)
@@ -148,32 +154,19 @@ ymins2c <- apply(cc2c$z,1,min)
 
 plot(cc2a$y,ymins2a, type = "b")
 lines(cc2b$y, ymins2b, col = 2, type = "b")
-lines(cc2c$y, ymins2b, col = 3, type = "b")
+lines(cc2c$y, ymins2c, type = "b")
 
-abline(v = 2.43)
-## cc2a$y[17]
-## cc2b$y[8]
-(m1 <- min(cc2a$z[,17]))
-(m2 <- min(cc2b$z[,8]))
-which(cc2a$z == m1, arr.ind = TRUE) ## 18, 17
-which(cc2b$z == m2, arr.ind = TRUE) ## 9, 8
+which(cc2b$y == cc2c$y[4]) ##22
 
-(p1 <- c(cc2a$x[18], cc2a$y[17]))
-(p2 <- c(cc2b$x[9], cc2b$y[8]))
+plot(cc2c$y, cc2c$z[,4])
+lines(cc2b$y, cc2b$z[,22], lty = 2)
 
-tmpf(p1[1], p1[2], fpars2, useSSQ = TRUE)
-tmpf(p2[1], p2[2], fpars2, useSSQ = TRUE)
+##We can actually miss some points... 
 
-pars1 <- pars2 <- fpars2
+ymins2d <- apply(cc2d$z,1,min)
+plot(cc2c$y, ymins2c, type = "b")
+lines(cc2d$y, ymins2d)
 
-pars1[c("log.beta","log.gamma")] <- p1
-pars2[c("log.beta","log.gamma")] <- p2
+plot(cc2c$y, cc2c$z[,4])
+lines(cc2d$y, cc2d$z[,4])
 
-t <- bombay2$tvec
-
-I1 <- SIR.detsim(t, trans.pars(pars1))
-I2 <- SIR.detsim(t, trans.pars(pars2))
-
-plot(bombay2)
-lines(I1, col = 2)
-lines(I2, col = 3)
