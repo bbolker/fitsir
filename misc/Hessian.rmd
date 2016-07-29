@@ -63,21 +63,27 @@ I think I know how it works now...
 ```{r load, error = FALSE, message = FALSE, warning=FALSE}
 library(bbmle)
 library(fitsir)
+## these aren't exported, probably should be
+findSSQ <- fitsir:::findSSQ
+findSens <- fitsir:::findSens
+fitsir.optim <- fitsir:::fitsir.optim
 library(deSolve)
 library(numDeriv)
 library(emdbook)
 ## source("../R/fitSIR_funs.R")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
-jacobian(findSSQ, fpars, data = bombay2, SSQonly = TRUE)
+jacobian(fitsir:::findSSQ, fpars, data = bombay2, SSQonly = TRUE)
 findSens(bombay2, fpars, sensOnly = TRUE)
 ```
 
 Jacobian seems to work fairly well. Can we find the Hessian?
 
 ```{r}
-(hess.m <- hessian(findSSQ, fpars, data = bombay2, SSQonly = TRUE))
-(hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
+## fully finite-difference (Richardson)
+(hess.m <- hessian(fitsir:::findSSQ, fpars, data = bombay2, SSQonly = TRUE))
+## finite difference of symbolic gradient
+(hess.grad <- jacobian(fitsir:::findSens, fpars, data = bombay2, sensOnly = TRUE))
 
 eigen(hess.m)
 eigen(hess.grad)

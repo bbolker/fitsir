@@ -1,8 +1,12 @@
 library(fitsir)
 library(emdbook)
+
 findSSQ <- fitsir:::findSSQ
 findSens <- fitsir:::findSens
 fitsir.optim <- fitsir:::fitsir.optim
+
+bombay2 <- setNames(bombay,c("tvec","count"))
+fpars1 <- fitsir(bombay2,start=startfun(auto=TRUE,data=bombay2))
 fpars <- structure(c(2.51906962912771, 2.48802919650103, 14.4215000824118, 
 -12.8987594479826), .Names = c("log.beta", "log.gamma", "log.N", 
 "logit.i"))
@@ -10,7 +14,7 @@ fpars2 <- structure(c(1.40166238626354, 1.30139297147845, 12.1152292130852,
 -10.6845856323438), .Names = c("log.beta", "log.gamma", "log.N", 
 "logit.i"))
 
-bombay2 <- setNames(bombay,c("tvec","count"))
+
 
 g <- fitsir:::SIR.logLik(incidence = FALSE)
 tmpf <- function(log.beta,log.gamma,basepars=fpars,data=bombay2,

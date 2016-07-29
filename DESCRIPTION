@@ -2,11 +2,13 @@ Package: fitsir
 Version: 0.1.0
 Title: SIR fitting tools
 Maintainer: Ben Bolker <bolker@mcmaster.ca>
-Author: Ben Bolker [aut, cre], David Earn [ctb], Jonathan Dushoff [ctb], Irena Papst [ctb], Dora Rosati [ctb], Sang Woo Park [ctb]
+Author: Ben Bolker [aut, cre], David Earn [ctb], Jonathan Dushoff [ctb], Irena
+    Papst [ctb], Dora Rosati [ctb], Sang Woo Park [ctb]
 Description: Fits dynamical models to epidemic data.
 VignetteBuilder: knitr
 LazyData: yes
-Depends: bbmle
+Depends:
+    bbmle
 Imports:
     deSolve
 Suggests:
@@ -18,3 +20,4 @@ Suggests:
     microbenchmark
 License: GPL (>=2)
 BuildVignettes: yes
+RoxygenNote: 5.0.1
