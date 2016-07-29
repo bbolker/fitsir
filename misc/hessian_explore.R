@@ -5,6 +5,8 @@ library(ggplot2); theme_set(theme_bw())
 library(reshape2)
 library(dplyr)
 library(viridis)
+library(devtools)
+load_all("..")
 
 findSSQ <- fitsir:::findSSQ
 findSens <- fitsir:::findSens
@@ -114,55 +116,64 @@ if (file.exists(fn2)) {
     fit2 <- fitsir(bombay2,start=startfun())
     fpars2 <- coef(fit2)
     
-    ## 1% slice 
+    ## 5% slice 
     cc2a <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.95,1.05),
+                    ylim=fpars2["log.gamma"]*c(0.95,1.05),
+                    n=c(61,61))
+    
+    ## 3% slice 
+    cc2b <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.97,1.03),
+                    ylim=fpars2["log.gamma"]*c(0.97,1.03),
+                    n=c(61,61))
+    
+    ## 1% slice 
+    cc2c <- curve3d(tmpf(x,y,basepars=fpars2),
                     xlim=fpars2["log.beta"]*c(0.99,1.01),
                     ylim=fpars2["log.gamma"]*c(0.99,1.01),
                     n=c(61,61))
     
-    save("fit2","fpars2","cc2a",file=fn2)
+    save("fit2","fpars2","cc2a", "cc2b", "cc2c",file=fn2)
 }
 
 all(eigen(findHess(bombay2,fpars2))$values>0)
 
 with(cc2a,image(x,y,log10(z-min(z)),xlab="log.beta",ylab="log.gamma"))
 abline(a=0,b=1)
-text(3.65,3.65,expression(R[0]==1))
-## with(cc1a,persp3d(x,y,z,col="gray"))
-xmins2a <- apply(cc2a$z,1,min)
-plot(cc2a$x,xmins1a,type="b")
-
+## with(cc2a,persp3d(x,y,z,col="gray"))
 ymins2a <- apply(cc2a$z,1,min)
-plot(cc2a$y,ymins1a,type="b")
+ymins2b <- apply(cc2b$z,1,min)
+ymins2c <- apply(cc2c$z,1,min)
 
-## transform to R0/r space, plot ...
-library(reshape2)
+plot(cc2a$y,ymins2a, type = "b")
+lines(cc2b$y, ymins2b, col = 2, type = "b")
+lines(cc2c$y, ymins2b, col = 3, type = "b")
 
-cc.cur2 <- cc2a
-dimnames(cc.cur2$z) <- list(log.beta=cc.cur2$x,log.gamma=cc.cur2$y)
-cc.cur.df2 <- melt(cc.cur2$z) %>%
-    transmute(nll=value,log.R0=log.beta-log.gamma,
-              q=log.beta+log.gamma)
+abline(v = 2.43)
+## cc2a$y[17]
+## cc2b$y[8]
+(m1 <- min(cc2a$z[,17]))
+(m2 <- min(cc2b$z[,8]))
+which(cc2a$z == m1, arr.ind = TRUE) ## 18, 17
+which(cc2b$z == m2, arr.ind = TRUE) ## 9, 8
 
-## "q" doesn't really have an obvious epidemiological meaning
-## (log(beta*gamma)) - it just happens to be orthogonal to log(R0)
+(p1 <- c(cc2a$x[18], cc2a$y[17]))
+(p2 <- c(cc2b$x[9], cc2b$y[8]))
 
-(gg2 <- ggplot(cc.cur.df2,aes(log.R0,q,colour=nll))+
-     geom_point(size=2)+
-     scale_color_viridis())
+tmpf(p1[1], p1[2], fpars2, useSSQ = TRUE)
+tmpf(p2[1], p2[2], fpars2, useSSQ = TRUE)
 
-R0lims2 <- c(0.02,0.04)
-qlims2 <- c(5,5.02)
+pars1 <- pars2 <- fpars2
 
-gg2 %+% subset(cc.cur.df2,betw(log.R0,R0lims2) & betw(q,qlims2)) +
-    geom_point(size=15,alpha=0.4)+
-    annotate(x=fpars2["log.beta"]-fpars2["log.gamma"],
-             y=fpars2["log.beta"]+fpars2["log.gamma"],
-             colour="red",pch=1,size=18,
-             geom="point")+
-    stat_summary_2d(geom="contour",aes(z=nll))
+pars1[c("log.beta","log.gamma")] <- p1
+pars2[c("log.beta","log.gamma")] <- p2
 
-ggplot(cc.cur.df2,aes(log.R0,q,z=nll))+
-    stat_summary_2d()+scale_fill_viridis()
+t <- bombay2$tvec
 
-###Another parameter
+I1 <- SIR.detsim(t, trans.pars(pars1))
+I2 <- SIR.detsim(t, trans.pars(pars2))
+
+plot(bombay2)
+lines(I1, col = 2)
+lines(I2, col = 3)

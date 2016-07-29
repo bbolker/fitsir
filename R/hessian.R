@@ -121,10 +121,12 @@ SIR.detsim.hessian <- function(t, params){
                   nu_I_N = i0, nu_I_NN = 0, nu_I_Ni = 1,
                   nu_I_i = N, nu_I_ii = 0
                   )
-        odesol <- as.data.frame(rk(y=yini,
+        odesol <- as.data.frame(ode(y=yini,
                                     times=t,
                                     func=SIR.grad.hessian,
-                                    parms=params))
+                                    parms=params,
+                                    method = "rk4",
+                                    hini = 5e-2))
     })
     
 }
