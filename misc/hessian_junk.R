@@ -20,12 +20,17 @@ library(emdbook)
 
 fpars2
 
-cc <- curve3d(tmpf(x,y, basepars = fpars2),xlim=c(2.518,2.52),
-              ylim=c(2.487,2.489),n=c(20,20))
+cc <- curve3d(tmpf(x,y, basepars = fpars2),xlim=c(2.518,2.53),
+              ylim=c(2.487,2.49),n=c(30,30))
+
+yminvals <- apply(cc$z,1,function(x) cc$y[which.min(x)])
+xminvals <- apply(cc$z,1,function(x) cc$x[which.min(x)])
+
+plot(xminvals,yminvals)
 
 library(rgl)
 open3d()
-with(cc,persp3d(x,y,log10(z-min(z,na.rm=TRUE)+0.01),col="blue"))
+with(cc,persp3d(x,y,log10(z-min(z,na.rm=TRUE)+0.001),col="blue"))
 
 min(cc$z)
 
@@ -50,7 +55,7 @@ with(cc.zoom,image(x,y,log10(z-min(z,na.rm=TRUE)),
 cc2 <- cc
 cc2$z[cc2$z > 167.9] <- NA
 
-with(cc2,image(x,y,log10(z-min(z,na.rm=TRUE)+1e-5),
+with(cc,image(x,y,log10(z-min(z,na.rm=TRUE)+1e-5),
                    xlab="beta",ylab="gamma"))
 
 

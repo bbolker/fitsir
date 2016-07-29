@@ -267,6 +267,7 @@ I want to do this with negative log likelihood
 
 grad(SIR.logLik(), fpars, count = bombay2$count)
 findSens(bombay2, fpars, nll = TRUE, sensOnly = TRUE)
+
 ```
 
 These should be identical... I'm guessing that we're not using the correct method for some reason...
@@ -295,7 +296,7 @@ nllSens <- function(data, params){
     tpars <- trans.pars(params)
     r <- SIR.detsim.hessian(t, tpars)
     
-    
+    with(as.list())
 }
 
 ```
