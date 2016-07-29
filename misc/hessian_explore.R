@@ -166,7 +166,3 @@ lines(cc2b$y, cc2b$z[,22], lty = 2)
 ymins2d <- apply(cc2d$z,1,min)
 plot(cc2c$y, ymins2c, type = "b")
 lines(cc2d$y, ymins2d)
-
-plot(cc2c$y, cc2c$z[,4])
-lines(cc2d$y, cc2d$z[,4])
-
