@@ -20,8 +20,7 @@ library("devtools")
 load_all("..")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 fpars <- coef(f1 <- fitsir(bombay2, start = startfun()))
-<<<<<<< HEAD
-=======
+
 jacobian(fitsir:::findSSQ, fpars, data = bombay2, SSQonly = TRUE)
 findSens(bombay2, fpars, sensOnly = TRUE)
 ```
@@ -33,8 +32,6 @@ Jacobian seems to work fairly well. Can we find the Hessian?
 (hess.m <- hessian(fitsir:::findSSQ, fpars, data = bombay2, SSQonly = TRUE))
 ## finite difference of symbolic gradient
 (hess.grad <- jacobian(fitsir:::findSens, fpars, data = bombay2, sensOnly = TRUE))
->>>>>>> upstream/master
-
 ```
 
 Here's the model:
@@ -59,132 +56,6 @@ $$
 $$
 
 ```{r}
-SIR.grad.hessian <- function(t, x, params) {
-    g <- with(as.list(c(x,params)),
-    {
-        I <- exp(logI)
-        dS <- -beta*S*I/N
-        dlogI <- beta*S/N-gamma
-        
-        grad_SS <- - beta * I/N
-        grad_SI <- - beta * S/N
-        grad_IS <- beta*I/N
-        grad_II <- beta*S/N-gamma
-    
-        ##Sens for beta 
-        dnu_S_b <- grad_SS * nu_S_b + grad_SI * nu_I_b - S*I/N
-        ##Need 4 more equations
-        dnu_S_bb <- (- I/N - beta/N * nu_I_b) * nu_S_b + grad_SS * nu_S_bb +  (- S/N - beta/N * nu_S_b) * nu_I_b + grad_SI * nu_I_bb - 
-            I/N * nu_S_b - S/N * nu_I_b
-        
-        dnu_S_bg <- (-beta/N * nu_I_g) * nu_S_b + grad_SS * nu_S_bg + (-beta/N * nu_S_g) * nu_I_b + grad_SI * nu_I_bg -
-            I/N * nu_S_g - S/N * nu_I_g
-        
-        dnu_S_bN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_b + grad_SS * nu_S_bN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_b + grad_SI * nu_I_bN +
-            S * I/N^2 - I/N * nu_S_N - S/N * nu_I_N
-        
-        dnu_S_bi <- (-beta/N * nu_I_i) * nu_S_b + grad_SS * nu_S_bi + (-beta/N * nu_S_i) * nu_I_b + grad_SI * nu_I_bi -
-            I/N * nu_S_i - S/N * nu_I_i
-        
-        ##Sens for gamma
-        dnu_S_g <- grad_SS * nu_S_g + grad_SI * nu_I_g
-        ##Need 3 more equations
-        dnu_S_gg <- (-beta/N * nu_I_g) * nu_S_g + grad_SS * nu_S_gg + (-beta/N * nu_S_g) * nu_I_g + grad_SI * nu_I_gg
-        
-        dnu_S_gN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_g + grad_SS * nu_S_gN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_g + grad_SI * nu_I_gN
-        
-        dnu_S_gi <- (-beta/N * nu_I_i) * nu_S_g + grad_SS * nu_S_gi + (-beta/N * nu_S_i) * nu_I_g + grad_SI * nu_I_gi
-        
-        ##Sens for N
-        dnu_S_N <- grad_SS * nu_S_N + grad_SI * nu_I_N + beta*S*I/N^2
-        ##Need 2 more equations
-        ##dnu_S_NN <- (beta*I/N^2 - beta/N * nu_I_N) * nu_S_N + grad_SS * nu_S_NN + (beta*S/N^2 - beta/N * nu_S_N) * nu_I_N + grad_SI * nu_I_NN -
-        ##    2*beta*S*I/N^3 + beta*S/N^2 * nu_I_N + beta*I/N^2 * nu_S_N
-        dnu_S_NN <- 0
-        
-        dnu_S_Ni <- (-beta/N * nu_I_i) * nu_S_N + grad_SS * nu_S_Ni + (-beta/N * nu_S_i) * nu_I_N + grad_SI * nu_I_Ni +
-            beta*S/N^2 * nu_I_i + beta*I/N^2 * nu_S_i
-        
-        ##Sens for i0
-        dnu_S_i <- grad_SS * nu_S_i + grad_SI * nu_I_i
-        ##Need 1 more equaion
-        dnu_S_ii <- (-beta/N * nu_I_i) * nu_S_i + grad_SS * nu_S_ii + (-beta/N * nu_S_i) * nu_I_i + grad_SI * nu_I_ii
-        
-        ##Sens for beta
-        dnu_I_b <- grad_IS * nu_S_b + grad_II * nu_I_b + S*I/N
-        ##Need 4 more equations
-        dnu_I_bb <- (I/N + beta/N * nu_I_b) * nu_S_b + grad_IS * nu_S_bb + (S/N + beta/N * nu_S_b) * nu_I_b + grad_II * nu_I_bb +
-            I/N * nu_S_b + S/N * nu_I_b
-        
-        dnu_I_bg <- (beta/N * nu_I_g) * nu_S_b + grad_IS * nu_S_bg + (-1 + beta/N * nu_S_g) * nu_I_b + grad_II * nu_I_bg + 
-            I/N * nu_S_g + S/N * nu_I_g
-        
-        dnu_I_bN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_b + grad_IS * nu_S_bN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_b + grad_II * nu_I_bN -
-            S * I/N^2 + I/N * nu_S_N + S/N * nu_I_N
-        
-        dnu_I_bi <- (beta/N * nu_I_i) * nu_S_b + grad_IS * nu_S_bi + (beta/N * nu_S_i) * nu_I_b + grad_II * nu_I_bi +
-            I/N * nu_S_i + S/N * nu_I_i
-        
-        ##Sens for gamma
-        dnu_I_g <- grad_IS * nu_S_g + grad_II * nu_I_g - I
-        ##Need 3 more equations
-        dnu_I_gg <- (beta/N * nu_I_g) * nu_S_g + grad_IS * nu_S_gg + (-1 + beta/N * nu_S_g) * nu_I_g + grad_II * nu_I_gg -
-            nu_I_g
-        
-        dnu_I_gN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_g + grad_IS * nu_S_gN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_g + grad_II * nu_I_gN -
-            nu_I_N
-        
-        dnu_I_gi <- (beta/N * nu_I_i) * nu_S_g + grad_IS * nu_S_gi + (beta/N * nu_S_i) * nu_I_g + grad_II * nu_I_gi -
-            nu_I_i
-        
-        ##Sens for N
-        dnu_I_N <- grad_IS * nu_S_N + grad_II * nu_I_N - beta*S*I/N^2
-        ##Need 2 more equations
-        ##dnu_I_NN <- (-beta*I/N^2 + beta/N * nu_I_N) * nu_S_N + grad_IS * nu_S_NN + (-beta*S/N^2 + beta/N * nu_S_N) * nu_I_N + grad_II * nu_I_NN +
-        ##    2*beta*S*I/N^3 - beta*S/N^2 * nu_I_N - beta*I/N^2 * nu_S_N
-        dnu_I_NN <- 0
-        
-        dnu_I_Ni <- (beta/N * nu_I_i) * nu_S_N + grad_IS * nu_S_Ni + (beta/N * nu_S_i) * nu_I_N + grad_II * nu_I_Ni -
-            beta*S/N^2 * nu_I_i - beta*I/N^2 * nu_S_i
-        
-        ##Sens for i0
-        dnu_I_i <- grad_IS * nu_S_i + grad_II * nu_I_i
-        ##Need 1 more equaion
-        dnu_I_ii <- (beta/N * nu_I_i) * nu_S_i + grad_IS * nu_S_ii + (beta/N * nu_S_i) * nu_I_i + grad_II * nu_I_ii
-           
-	
-        list(c(dS, dlogI,
-               dnu_S_b, dnu_S_bb, dnu_S_bg, dnu_S_bN, dnu_S_bi,
-               dnu_S_g, dnu_S_gg, dnu_S_gN, dnu_S_gi,
-               dnu_S_N, dnu_S_NN, dnu_S_Ni,
-               dnu_S_i, dnu_S_ii,
-               dnu_I_b, dnu_I_bb, dnu_I_bg, dnu_I_bN, dnu_I_bi,
-               dnu_I_g, dnu_I_gg, dnu_I_gN, dnu_I_gi,
-               dnu_I_N, dnu_I_NN, dnu_I_Ni,
-               dnu_I_i, dnu_I_ii), I = I)
-    })
-}
-
-SIR.detsim.hessian <- function(t, params){
-    with(as.list(c(params)),{
-        yini <- c(S = N*(1-i0), logI = log(N*i0),
-                  nu_S_b = 0, nu_S_bb = 0, nu_S_bg = 0, nu_S_bN = 0, nu_S_bi = 0,
-                  nu_S_g = 0, nu_S_gg = 0, nu_S_gN = 0, nu_S_gi = 0,
-                  nu_S_N = 1-i0, nu_S_NN = 0, nu_S_Ni = -1,
-                  nu_S_i = -N, nu_S_ii = 0,
-                  nu_I_b = 0, nu_I_bb = 0, nu_I_bg = 0, nu_I_bN = 0, nu_I_bi = 0,
-                  nu_I_g = 0, nu_I_gg = 0, nu_I_gN = 0, nu_I_gi = 0,
-                  nu_I_N = i0, nu_I_NN = 0, nu_I_Ni = 1,
-                  nu_I_i = N, nu_I_ii = 0
-                  )
-        odesol <- as.data.frame(rk(y=yini,
-                                    times=t,
-                                    func=SIR.grad.hessian,
-                                    parms=params))
-    })
-    
-}
-
 tvec <- seq(1,30,0.1)
 
 pars <- c(
@@ -223,53 +94,6 @@ True hessian function:
 
 ```{r}
 
-findHess <- function(data, params){
-    t <- data$tvec
-    tpars <- trans.pars(params)
-    r <- SIR.detsim.hessian(t, tpars)
-    
-    with(as.list(c(tpars, r)),{
-        
-        parVec <- c(beta, gamma, N, i0)
-        
-        sensVec <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
-        
-        sensVec2 <- c(1, 1, 1, 2*i0*exp(-qlogis(i0)) - i0^2 * exp(-qlogis(i0)) * 1/(i0-i0^2))
-        
-        derVec <- c("nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
-        
-        derMat <- matrix(c("nu_I_bb", "nu_I_bg", "nu_I_bN", "nu_I_bi",
-                           "nu_I_bg", "nu_I_gg", "nu_I_gN", "nu_I_gi",
-                           "nu_I_bN", "nu_I_gN", "nu_I_NN", "nu_I_Ni",
-                           "nu_I_bi", "nu_I_gi", "nu_I_Ni", "nu_I_ii"), 4, 4)
-        
-        findDeriv <- function(n1, n2){
-            d1 <- get(derVec[n1])
-            d2 <- get(derVec[n2])
-            db <- get(derMat[n1,n2])
-            
-            if(n1 == n2){
-                d12 <- sensVec2[n1]
-            }else{
-                d12 <- 0
-            }
-            deriv <- 2 * sum(d1 * d2 * sensVec[n1] + (I-data$count) * db * sensVec[n1] + (I-data$count) * d1 * d12) * sensVec[n2]
-            return(deriv)
-        }
-        
-        m <- matrix(NA, 4, 4)
-        
-        for(i in 1:4){
-            for(j in 1:4){
-                m[i,j] = findDeriv(i,j)
-            }
-        }
-        
-        return(m)
-    })
-    
-}
-
 (hess.alg <- findHess(bombay2, fpars))
 
 (hess.grad <- jacobian(findSens, fpars, data = bombay2, sensOnly = TRUE))
@@ -282,10 +106,8 @@ eigen(hess.alg)
 I want to do this with negative log likelihood
 
 ```{r}
-
 grad(SIR.logLik(), fpars, count = bombay2$count)
 findSens(bombay2, fpars, nll = TRUE, sensOnly = TRUE)
-
 ```
 
 These should be identical... I'm guessing that we're not using the correct method for some reason...
@@ -298,25 +120,139 @@ Substitute $x = I$, $\mu = \hat{I}$, and $\sigma^2 = \sum_i \frac{(I_i - \hat{I}
 
 $$
 \begin{aligned}
-\frac{d(nll)}{d\hat{I}_i} &= \frac{\partial (nll)}{\partial \mu} \frac{\partial \mu}{\partial \hat{I}_i} + \frac{\partial (nll)}{\partial \sigma^2} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
-&= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
-(\frac{1}{2\sigma^2} - \frac{(x-\mu)^2}{2 \sigma^4}) \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
-&= \frac{\mu-x}{\sigma^2} \frac{\partial \mu}{\partial \hat{I}_i} +
-\frac{
-\sigma^2 - (x-\mu)^2}{2 \sigma^4} \frac{\partial \sigma^2}{\partial \hat{I}_i}\\
+\frac{d(nll)}{d\theta} &= \sum_i \frac{d}{d\theta} (\frac{1}{2} \log(\sigma^2) + \frac{(x_i-\mu_i)^2}{2\sigma^2})\\
+&= \sum_i (\frac{\mu_i-x_i}{\sigma^2} \frac{\partial \mu_i}{\partial \theta} +
+(\frac{1}{2\sigma^2} - \frac{(x_i-\mu_i)^2}{2 \sigma^4}) \frac{\partial \sigma^2}{\partial \theta})\\
+&= \sum_i (\frac{\mu_i-x_i}{\sigma^2} \frac{\partial \hat{I}_i}{\partial \theta} +
+(\frac{1}{2\sigma^2} - \frac{(x_i-\mu_i)^2}{2 \sigma^4}) \sum_j \frac{\partial \sigma^2}{\partial \hat{I}_i} \frac{\partial \hat{I}_i}{\partial \theta})\\
 \end{aligned}
 $$
 
-```{r}
+```{r nllSens}
 
 nllSens <- function(data, params){
     t <- data$tvec
     tpars <- trans.pars(params)
     r <- SIR.detsim.hessian(t, tpars)
     
-    with(as.list())
+    with(as.list(c(r, tpars)),{
+        
+        n <- length(t)
+        count <- data$count
+        sigma2 <- sum((I-count)^2)/(n-1)
+        
+        sensVec <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
+        
+        derVec <- c("nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
+        
+        findDeriv <- function(i){
+            d1 <- get(derVec[i])
+            
+            deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1)) * sensVec[i]
+            return(deriv)
+        }
+        
+        sens <- c(1:4)
+        return(unlist(lapply(sens, findDeriv)))
+    })
+}
+```
+
+Does this work well?
+
+```{r}
+##They certainly look similar...
+grad(SIR.logLik(), fpars, count = bombay2$count)
+nllSens(bombay2, fpars)
+
+##Can I take a look at the hessian matrix?
+hessian(SIR.logLik(), fpars, count = bombay2$count)
+jacobian(nllSens, fpars, data = bombay2)
+
+fpars2 <- coef(f2 <- fitsir(bombay2, start = startfun(data = bombay2, auto = TRUE)))
+
+##These look different now...
+grad(SIR.logLik(), fpars2, count = bombay2$count)
+nllSens(bombay2, fpars2)
+
+```
+
+Can I find the hessian?
+
+```{r}
+
+nllHess <- function(data, params){
+    t <- data$tvec
+    tpars <- trans.pars(params)
+    r <- SIR.detsim.hessian(t, tpars)
+    
+    with(as.list(c(r, tpars)),{
+        
+        n <- length(t)
+        count <- data$count
+        sigma2 <- sum((I-count)^2)/(n-1)
+        
+        sensVec <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
+        
+        sensVec2 <- c(1, 1, 1, 2*i0*exp(-qlogis(i0)) - i0^2 * exp(-qlogis(i0)) * 1/(i0-i0^2))
+        
+        derVec <- c("nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
+        
+        derMat <- matrix(c("nu_I_bb", "nu_I_bg", "nu_I_bN", "nu_I_bi",
+                           "nu_I_bg", "nu_I_gg", "nu_I_gN", "nu_I_gi",
+                           "nu_I_bN", "nu_I_gN", "nu_I_NN", "nu_I_Ni",
+                           "nu_I_bi", "nu_I_gi", "nu_I_Ni", "nu_I_ii"), 4, 4)
+        
+        findDeriv <- function(i1, i2){
+            d1 <- get(derVec[i1])
+            d2 <- get(derVec[i2])
+            
+            db <- get(derMat[i1,i2])
+            
+            if(i1 == i2){
+                d12 <- sensVec2[i1]
+            }else{
+                d12 <- 0
+            }
+            
+            diff_I <- I - count
+            
+            dsigma_I <- 2 * diff_I/(n-1)
+            
+            dsigma_theta1 <- sum(dsigma_I * d1)
+            dsigma_theta2 <- sum(dsigma_I * d2)
+            
+            deriv <- sum((1/sigma2 * d2 - diff_I/sigma2^2 * dsigma_theta2) * d1 +
+                diff_I/sigma2 * db +
+                (-1/(2*sigma2^2) * dsigma_theta2 + (diff_I)^2/sigma2^3 * dsigma_theta2 - diff_I/(sigma2^2) * d2) * dsigma_theta1 +
+                (1/(2*sigma2^2) - diff_I^2/(2*sigma2^2)) * sum(2 * (d2 * d1 + diff_I * db))) * sensVec[i1] * sensVec[i2] +
+                sum(diff_I/sigma2 * d1 +
+                        (1/(2*sigma2) - (diff_I^2)/(2*sigma2^2)) * dsigma_theta1) * d12 * sensVec[i2]
+            
+            return(deriv)
+        }
+        m <- matrix(NA, 4, 4)
+        
+        for(i in 1:4){
+            for(j in 1:4){
+                m[i,j] = findDeriv(i,j)
+            }
+        }
+        
+        return(m)
+    })
 }
 
 ```
 
+Test:
 
+```{r}
+
+jacobian(nllSens, fpars, data = bombay2)
+nllHess(bombay2, fpars)
+
+hessian(SIR.logLik(), fpars2, count = bombay2$count)
+jacobian(nllSens, fpars2, data = bombay2)
+
+```
