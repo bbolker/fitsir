@@ -121,10 +121,12 @@ SIR.detsim.hessian <- function(t, params){
                   nu_I_N = i0, nu_I_NN = 0, nu_I_Ni = 1,
                   nu_I_i = N, nu_I_ii = 0
                   )
-        odesol <- as.data.frame(rk(y=yini,
+        odesol <- as.data.frame(ode(y=yini,
                                     times=t,
                                     func=SIR.grad.hessian,
-                                    parms=params))
+                                    parms=params,
+                                    method = "rk4",
+                                    hini = 5e-2))
     })
     
 }
@@ -153,17 +155,17 @@ findHess <- function(data, params){
                            "nu_I_bN", "nu_I_gN", "nu_I_NN", "nu_I_Ni",
                            "nu_I_bi", "nu_I_gi", "nu_I_Ni", "nu_I_ii"), 4, 4)
         
-        findDeriv <- function(n1, n2){
-            d1 <- get(derVec[n1])
-            d2 <- get(derVec[n2])
-            db <- get(derMat[n1,n2])
+        findDeriv <- function(i1, i2){
+            d1 <- get(derVec[i1])
+            d2 <- get(derVec[i2])
+            db <- get(derMat[i1,i2])
             
             if(n1 == n2){
-                d12 <- sensVec2[n1]
+                d12 <- sensVec2[i1]
             }else{
                 d12 <- 0
             }
-            deriv <- 2 * sum(d1 * d2 * sensVec[n1] + (I-data$count) * db * sensVec[n1] + (I-data$count) * d1 * d12) * sensVec[n2]
+            deriv <- 2 * sum(d1 * d2 * sensVec[i1] + (I-data$count) * db * sensVec[i1] + (I-data$count) * d1 * d12) * sensVec[i2]
             return(deriv)
         }
         

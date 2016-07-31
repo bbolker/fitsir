@@ -295,7 +295,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param tvec time vector
 ##' @param dist conditional distribution of reported data (IGNORED)
 ##' @param debug print debugging output?
-SIR.logLik <- function(incidence = FALSE){
+SIR.logLik <- function(incidence = FALSE, ...){
     g <- function(params, count, tvec=NULL,
                   dist=dnorm2,
                   debug=FALSE) {
@@ -307,7 +307,7 @@ SIR.logLik <- function(incidence = FALSE){
         if (is.null(tvec)) tvec <- seq(length(count))
         if (debug) cat(params)
         tpars <- trans.pars(params)
-        i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
+        i.hat <- SIR.detsim(tvec,tpars, incidence = incidence, ...)
         
         r <- -sum(dnorm2(count,i.hat,log=TRUE))
         if (debug) cat(" ",r,"\n")

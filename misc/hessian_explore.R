@@ -5,6 +5,8 @@ library(ggplot2); theme_set(theme_bw())
 library(reshape2)
 library(dplyr)
 library(viridis)
+library(devtools)
+load_all("..")
 
 findSSQ <- fitsir:::findSSQ
 findSens <- fitsir:::findSens
@@ -106,7 +108,61 @@ ggplot(cc.cur.df,aes(log.R0,q,z=nll))+
 
 summary(subset(cc.cur.df,nll<min(nll)+1.92))
 
+fn2 <- "hessian_explore2.rda"
 
+if (file.exists(fn2)) {
+    load(fn2)
+} else {
+    fit2 <- fitsir(bombay2,start=startfun())
+    fpars2 <- coef(fit2)
+    
+    ## 5% slice 
+    cc2a <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.95,1.05),
+                    ylim=fpars2["log.gamma"]*c(0.95,1.05),
+                    n=c(61,61))
+    
+    ## 3% slice 
+    cc2b <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.97,1.03),
+                    ylim=fpars2["log.gamma"]*c(0.97,1.03),
+                    n=c(61,61))
+    
+    ## 1% slice 
+    cc2c <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.99,1.01),
+                    ylim=fpars2["log.gamma"]*c(0.99,1.01),
+                    n=c(61,61))
+    
+    ## 1% slice with more points
+    cc2d <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.99,1.01),
+                    ylim=fpars2["log.gamma"]*c(0.99,1.01),
+                    n=c(81,81))
+    
+    save("fit2","fpars2","cc2a", "cc2b", "cc2c", "cc2d",file=fn2)
+}
 
+all(eigen(findHess(bombay2,fpars2))$values>0)
 
+with(cc2c,image(x,y,log10(z-min(z)),xlab="log.beta",ylab="log.gamma"))
+abline(a=0,b=1)
+## with(cc2a,persp3d(x,y,z,col="gray"))
+ymins2a <- apply(cc2a$z,1,min)
+ymins2b <- apply(cc2b$z,1,min)
+ymins2c <- apply(cc2c$z,1,min)
 
+plot(cc2a$y,ymins2a, type = "b")
+lines(cc2b$y, ymins2b, col = 2, type = "b")
+lines(cc2c$y, ymins2c, type = "b")
+
+which(cc2b$y == cc2c$y[4]) ##22
+
+plot(cc2c$y, cc2c$z[,4])
+lines(cc2b$y, cc2b$z[,22], lty = 2)
+
+##We can actually miss some points... 
+
+ymins2d <- apply(cc2d$z,1,min)
+plot(cc2c$y, ymins2c, type = "b")
+lines(cc2d$y, ymins2d)
