@@ -239,10 +239,12 @@ grad(SIR.logLik(), fpars2, count = bombay2$count)</code></pre>
 <pre><code>## [1] -16.997663  16.850727  -2.139553  -2.328676</code></pre>
 <pre class="r"><code>nllSens(bombay2, fpars2)</code></pre>
 <pre><code>## [1] -16.66075500  16.47157597   0.07089977   0.09965838</code></pre>
-<pre class="r"><code>fpars2[[&quot;log.N&quot;]] &lt;- 16.7406
+<pre class="r"><code>fpars3 &lt;- fpars2
 
-SIR.logLik()(fpars2, bombay2$count) - 167.6841</code></pre>
-<pre><code>## [1] 2.686728e-05</code></pre>
+fpars3[[&quot;log.N&quot;]] &lt;- fpars2[[&quot;log.N&quot;]] + 1e-10
+
+(SIR.logLik()(fpars3, bombay2$count)-SIR.logLik()(fpars2, bombay2$count))/1e-10</code></pre>
+<pre><code>## [1] -1.799378</code></pre>
 <p>Can I find the hessian?</p>
 <pre class="r"><code>nllHess &lt;- function(data, params){
     t &lt;- data$tvec
@@ -257,19 +259,79 @@ SIR.logLik()(fpars2, bombay2$count) - 167.6841</code></pre>
         
         sensVec &lt;- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
         
+        sensVec2 &lt;- c(1, 1, 1, 2*i0*exp(-qlogis(i0)) - i0^2 * exp(-qlogis(i0)) * 1/(i0-i0^2))
+        
         derVec &lt;- c(&quot;nu_I_b&quot;, &quot;nu_I_g&quot;, &quot;nu_I_N&quot;, &quot;nu_I_i&quot;)
         
+        derMat &lt;- matrix(c(&quot;nu_I_bb&quot;, &quot;nu_I_bg&quot;, &quot;nu_I_bN&quot;, &quot;nu_I_bi&quot;,
+                           &quot;nu_I_bg&quot;, &quot;nu_I_gg&quot;, &quot;nu_I_gN&quot;, &quot;nu_I_gi&quot;,
+                           &quot;nu_I_bN&quot;, &quot;nu_I_gN&quot;, &quot;nu_I_NN&quot;, &quot;nu_I_Ni&quot;,
+                           &quot;nu_I_bi&quot;, &quot;nu_I_gi&quot;, &quot;nu_I_Ni&quot;, &quot;nu_I_ii&quot;), 4, 4)
+        
         findDeriv &lt;- function(i1, i2){
-            d1 &lt;- get(derVec[i])
+            d1 &lt;- get(derVec[i1])
+            d2 &lt;- get(derVec[i2])
             
-            deriv &lt;- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1)) * sensVec[i]
+            db &lt;- get(derMat[i1,i2])
+            
+            if(i1 == i2){
+                d12 &lt;- sensVec2[i1]
+            }else{
+                d12 &lt;- 0
+            }
+            
+            diff_I &lt;- I - count
+            
+            dsigma_I &lt;- 2 * diff_I/(n-1)
+            
+            dsigma_theta1 &lt;- sum(dsigma_I * d1)
+            dsigma_theta2 &lt;- sum(dsigma_I * d2)
+            
+            deriv &lt;- sum((1/sigma2 * d2 - diff_I/sigma2^2 * dsigma_theta2) * d1 +
+                diff_I/sigma2 * db +
+                (-1/(2*sigma2^2) * dsigma_theta2 + (diff_I)^2/sigma2^3 * dsigma_theta2 - diff_I/(sigma2^2) * d2) * dsigma_theta1 +
+                (1/(2*sigma2^2) - diff_I^2/(2*sigma2^2)) * sum(2 * (d2 * d1 + diff_I * db))) * sensVec[i1] * sensVec[i2] +
+                sum(diff_I/sigma2 * d1 +
+                        (1/(2*sigma2) - (diff_I^2)/(2*sigma2^2)) * dsigma_theta1) * d12 * sensVec[i2]
+            
             return(deriv)
         }
+        m &lt;- matrix(NA, 4, 4)
         
-        sens &lt;- c(1:4)
-        return(unlist(lapply(sens, findDeriv)))
+        for(i in 1:4){
+            for(j in 1:4){
+                m[i,j] = findDeriv(i,j)
+            }
+        }
+        
+        return(m)
     })
 }</code></pre>
+<p>Test:</p>
+<pre class="r"><code>jacobian(nllSens, fpars, data = bombay2)</code></pre>
+<pre><code>##              [,1]         [,2]         [,3]          [,4]
+## [1,]  13393401.82 -13041647.84  85683.57233  55600.632536
+## [2,] -13041647.84  12707148.26 -86592.41501 -53207.427997
+## [3,]     85683.57    -86592.41   1811.50799      6.269249
+## [4,]     55600.63    -53207.43      6.26925    358.022038</code></pre>
+<pre class="r"><code>nllHess(bombay2, fpars)</code></pre>
+<pre><code>##            [,1]       [,2]          [,3]          [,4]
+## [1,] -375755227  365884336 -2403574.1277 -1559978.1912
+## [2,]  365884336 -356497925  2429112.6388  1492818.1663
+## [3,]   -2403574    2429113   -50761.5441     -170.6226
+## [4,]   -1559978    1492818     -170.6226   -10080.0582</code></pre>
+<pre class="r"><code>hessian(SIR.logLik(), fpars2, count = bombay2$count)</code></pre>
+<pre><code>##              [,1]         [,2]      [,3]      [,4]
+## [1,]  128834.0246 -120782.8221 -2127.391 -681.6885
+## [2,] -120782.8221  129960.8246 -2952.685 -690.4969
+## [3,]   -2127.3913   -2952.6847  1111.549  -96.6230
+## [4,]    -681.6885    -690.4969   -96.623  344.6513</code></pre>
+<pre class="r"><code>jacobian(nllSens, fpars2, data = bombay2)</code></pre>
+<pre><code>##              [,1]         [,2]          [,3]          [,4]
+## [1,]  137775703.2 -136652523.7  2.812065e+05  1.794054e+05
+## [2,] -136652361.8  135546652.3 -2.821172e+05 -1.769629e+05
+## [3,]     281202.0    -282113.0  1.827696e+03  7.839773e+00
+## [4,]     179402.5    -176960.1  7.839772e+00  3.684964e+02</code></pre>
 </div>
 
 
