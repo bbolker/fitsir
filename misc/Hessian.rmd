@@ -148,7 +148,7 @@ nllSens <- function(data, params){
         findDeriv <- function(i){
             d1 <- get(derVec[i])
             
-            deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1)) * sensVec[i]
+            deriv <- sum((I-count)/sigma2 * d1 * sensVec[i] + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1 * sensVec[i]))
             return(deriv)
         }
         
@@ -156,6 +156,7 @@ nllSens <- function(data, params){
         return(unlist(lapply(sens, findDeriv)))
     })
 }
+
 ```
 
 Does this work well?
@@ -167,7 +168,7 @@ nllSens(bombay2, fpars)
 
 ##Can I take a look at the hessian matrix?
 hessian(SIR.logLik(), fpars, count = bombay2$count)
-jacobian(nllSens, fpars, data = bombay2)
+j <- jacobian(nllSens, fpars, data = bombay2)
 
 fpars2 <- coef(f2 <- fitsir(bombay2, start = startfun(data = bombay2, auto = TRUE)))
 
@@ -175,6 +176,11 @@ fpars2 <- coef(f2 <- fitsir(bombay2, start = startfun(data = bombay2, auto = TRU
 grad(SIR.logLik(), fpars2, count = bombay2$count)
 nllSens(bombay2, fpars2)
 
+fpars3 <- fpars2
+
+fpars3[["logit.i"]] <- fpars2[["logit.i"]] + 1e-8
+
+(SIR.logLik()(fpars3, bombay2$count)-SIR.logLik()(fpars2, bombay2$count))/1e-8
 ```
 
 Can I find the hessian?

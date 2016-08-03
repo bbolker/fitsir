@@ -160,7 +160,7 @@ findHess <- function(data, params){
             d2 <- get(derVec[i2])
             db <- get(derMat[i1,i2])
             
-            if(n1 == n2){
+            if(i1 == i2){
                 d12 <- sensVec2[i1]
             }else{
                 d12 <- 0

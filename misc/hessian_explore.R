@@ -140,7 +140,17 @@ if (file.exists(fn2)) {
                     ylim=fpars2["log.gamma"]*c(0.99,1.01),
                     n=c(81,81))
     
-    save("fit2","fpars2","cc2a", "cc2b", "cc2c", "cc2d",file=fn2)
+    cc2e <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.99,1.01),
+                    ylim=fpars2["log.gamma"]*c(0.99,1.01),
+                    n=c(121,121))
+    
+    cc2f <- curve3d(tmpf(x,y,basepars=fpars2),
+                    xlim=fpars2["log.beta"]*c(0.99,1.01),
+                    ylim=fpars2["log.gamma"]*c(0.99,1.01),
+                    n=c(241,241))
+    
+    save("fit2","fpars2","cc2a", "cc2b", "cc2c", "cc2d", "cc2e", "cc2f", file=fn2)
 }
 
 all(eigen(findHess(bombay2,fpars2))$values>0)
@@ -166,3 +176,33 @@ lines(cc2b$y, cc2b$z[,22], lty = 2)
 ymins2d <- apply(cc2d$z,1,min)
 plot(cc2c$y, ymins2c, type = "b")
 lines(cc2d$y, ymins2d)
+
+ymins2e <- apply(cc2e$z,1,min)
+lines(cc2e$y, ymins2e, col = 2)
+
+ymins2f <- apply(cc2f$z,1,min)
+plot(cc2f$y, ymins2f, col = 3)
+
+with(cc2f,image(x,y,log10(z-min(z)),xlab="log.beta",ylab="log.gamma"))
+
+
+##more code
+
+diff1 <- t(apply(cc2f$z, 1, diff))[-61,]
+diff2 <- apply(cc2f$z, 2, diff)[,-61]
+
+sq <- log10(diff1^2 + diff2^2)
+
+image(sq)
+
+library(rgl)
+persp3d(sq, col = "blue")
+
+persp(cc2c$z, col = "red")
+
+plot(sq[5,])
+
+image(diff1)
+
+
+fpars.e <- fitsir.optim(bombay2, start = fpars.e)
