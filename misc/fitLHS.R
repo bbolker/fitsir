@@ -1,7 +1,10 @@
 library("deSolve")
 library("fitsir")
 library("devtools")
-source("../R/fitSIR_funs.R")
+## this is for collywobbles to get away with the permission problem...
+source("fitSIR_funs.R")
+##
+## load_all("..")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 
 nsim <- 500
@@ -37,20 +40,39 @@ tmpf <- function(pars.vec){
     })
 }
 
-for(i in 1:nsim){
-    cat(i)
-    tmp.pars <- tmpf(lhs_df[i,])
-    p[i,] <- tmp.pars
-    ftmp <- try(fitsir(bombay2, start = tmp.pars))
-    if (!is(ftmp,"try-error")) {
-        fpars[i,] <- coef(ftmp)
+fn <- "fitLHS.rda"
+
+if(file.exists(fn)){
+    load(fn)
+}else{
+    for(i in 1:nsim){
+        cat(i)
+        tmp.pars <- tmpf(lhs_df[i,])
+        p[i,] <- tmp.pars
+        ftmp <- try(fitsir(bombay2, start = tmp.pars))
+        if (!is(ftmp,"try-error")) {
+            fpars[i,] <- coef(ftmp)
+        }
+        stmp <- try(fitsir.optim(bombay2, start = tmp.pars))
+        if (!is(stmp,"try-error")) {
+            spars[i,] <- stmp
+        }
     }
-    stmp <- try(fitsir.optim(bombay2, start = tmp.pars))
-    if (!is(stmp,"try-error")) {
-        spars[i,] <- stmp
-    }
+    
+    save("p", "fpars", "spars", file = fn)
 }
 
-save("p", "fpars", "spars", file = "fitLHS.rda")
+colnames(fpars) <- colnames(spars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
 
-load("fitLHS.rda")
+matplot(apply(fpars, 2, sort), type = "l")
+matplot(apply(spars, 2, sort), type = "l")
+
+##terrible fit
+findSens(bombay2, fpars[5,], plot.it = TRUE)
+findSens(bombay2, spars[5,], plot.it = TRUE)
+##running it once more brings it to a local minimum
+tmp.pars <- fitsir.optim(bombay2, start = spars[5,], plot.it = TRUE)
+
+
+
+
