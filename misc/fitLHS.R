@@ -1,4 +1,6 @@
 library("fitsir")
+library("devtools")
+source("../R/fitSIR_funs.R")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 
 nsim <- 100
@@ -35,6 +37,7 @@ tmpf <- function(pars.vec){
 }
 
 for(i in 1:nsim){
+    cat(i)
     tmp.pars <- tmpf(lhs_df[i,])
     p[i,] <- tmp.pars
     ftmp <- try(fitsir(bombay2, start = tmp.pars))
@@ -48,3 +51,5 @@ for(i in 1:nsim){
 }
 
 save("p", "fpars", "spars", file = "fitLHS.rda")
+
+load("fitLHS.rda")
