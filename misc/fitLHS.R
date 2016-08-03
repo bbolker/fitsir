@@ -1,9 +1,10 @@
+library("deSolve")
 library("fitsir")
 library("devtools")
 source("../R/fitSIR_funs.R")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 
-nsim <- 100
+nsim <- 500
 
 log10R0_range <- c(-3,1) ## log(R0-1)
 log10gamma_range <- c(-1,2)
