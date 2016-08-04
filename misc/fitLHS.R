@@ -25,8 +25,6 @@ for (i in 2:ncol(lhs_df)) {
     lhs_df[,i] <- sample(lhs_df[,i])
 }
 
-p <- fpars <- spars <-  matrix(NA, nsim, 4)
-
 tmpf <- function(pars.vec){
     with(as.list(c(pars.vec)),{
         tpars <- c(
@@ -42,6 +40,11 @@ tmpf <- function(pars.vec){
 
 fn <- "fitLHS.rda"
 
+p <- fpars <- spars <-  matrix(NA, nsim, 4)
+colnames(fpars) <- colnames(spars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+s.nll <- s.SSQ <- f.SSQ <- f.nll <- rep(NA, nsim)
+g <- SIR.logLik()
+
 if(file.exists(fn)){
     load(fn)
 }else{
@@ -52,27 +55,46 @@ if(file.exists(fn)){
         ftmp <- try(fitsir(bombay2, start = tmp.pars))
         if (!is(ftmp,"try-error")) {
             fpars[i,] <- coef(ftmp)
+            f.nll[i] <- g(fpars[i,], bombay2$count)
+            f.SSQ[i] <- findSSQ(bombay2, fpars[i,])$SSQ
         }
         stmp <- try(fitsir.optim(bombay2, start = tmp.pars))
         if (!is(stmp,"try-error")) {
             spars[i,] <- stmp
+            s.nll[i] <- g(spars[i,], bombay2$count)
+            s.SSQ[i] <- findSSQ(bombay2, spars[i,])$SSQ
         }
     }
     
-    save("p", "fpars", "spars", file = fn)
+    save("p", "fpars", "f.nll", "f.SSQ", "spars", "s.nll", "s.SSQ", file = fn)
 }
 
-colnames(fpars) <- colnames(spars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+## Another simulation
 
-matplot(apply(fpars, 2, sort), type = "l")
-matplot(apply(spars, 2, sort), type = "l")
+fn2 <- "fitLHS2.rda"
 
-##terrible fit
-findSens(bombay2, fpars[5,], plot.it = TRUE)
-findSens(bombay2, spars[5,], plot.it = TRUE)
-##running it once more brings it to a local minimum
-tmp.pars <- fitsir.optim(bombay2, start = spars[5,], plot.it = TRUE)
+fpars2 <- spars2 <-  matrix(NA, nsim, 4)
+colnames(fpars2) <- colnames(spars2) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+s.nll2 <- s.SSQ2 <- f.SSQ2 <- f.nll2 <- rep(NA, nsim)
 
-
-
-
+if(file.exists(fn2)){
+    load(fn2)
+}else{
+    for(i in 1:nsim){
+        cat(i)
+        ftmp <- try(fitsir(bombay2, start = fpars[i,]))
+        if (!is(ftmp,"try-error")) {
+            fpars2[i,] <- coef(ftmp)
+            f.nll2[i] <- g(fpars2[i,], bombay2$count)
+            f.SSQ2[i] <- findSSQ(bombay2, fpars2[i,])$SSQ
+        }
+        stmp <- try(fitsir.optim(bombay2, start = spars[i,]))
+        if (!is(stmp,"try-error")) {
+            spars2[i,] <- stmp
+            s.nll2[i] <- g(spars2[i,], bombay2$count)
+            s.SSQ2[i] <- findSSQ(bombay2, spars2[i,])$SSQ
+        }
+    }
+    
+    save("fpars2", "f.nll2", "f.SSQ2", "spars2", "s.nll2", "s.SSQ2", file = fn2)
+}

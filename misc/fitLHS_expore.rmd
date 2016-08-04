@@ -1,0 +1,87 @@
+---
+title: "Exploring fitLHS results"
+output: html_document
+---
+
+```{r load, echo = FALSE}
+fn <- "fitLHS.rda"
+fn2 <- "fitLHS2.rda"
+load(fn)
+load(fn2)
+```
+
+I performed 500 simulations based on these parameters:
+
+```{r pars}
+colnames(p) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(p))
+
+```
+
+Does `fitsir.optim` perform better than `fitsir`? I put the parameters in an increasing order to see if we get a stair-like shape:
+
+```{r performe1,echo = FALSE}
+par(mfrow = c(1,2))
+matplot(apply(fpars, 2, sort), type = "l", ylab = "param value", main = "fitsir")
+text(8,tail(fpars,1),colnames(fpars),col=1:4,adj=-1)
+matplot(apply(spars, 2, sort), type = "l", ylab = "param value", main = "fitsir.optim")
+text(8,tail(fpars,1),colnames(fpars),col=1:4,adj=-1)
+```
+
+Can we look at the histograms for negative log likelihood for both sims?
+
+```{r performace2, echo = FALSE}
+par(mfrow = c(1,2))
+hist(f.nll, main = "fitsir")
+hist(s.nll, main = "fitsir.optim")
+```
+
+It seems like `fitsir` performs better, although only half of them gives us good fits... Also, we do get a lot of errors with `fitsir.optim`:
+
+```{r error}
+sum(is.na(spars[,1]))
+```
+
+Let's just look at `fitsir` reults for now... I actually tried taking `fpars` parameters as a starting point and try running `fitsir` with them. Let's see how performance has improved:
+
+```{r hist, echo = FALSE}
+par(mfrow = c(1,2))
+hist(f.nll)
+hist(f.nll2)
+```
+
+We can also look at how negative log likelihood values have changed after the second fit.
+
+```{r fit.compare}
+nll.df <- data.frame(nll1 = f.nll, nll2 = f.nll2)
+nll.df <- nll.df[order(nll.df[,1]),]
+par(mfrow = c(1,1))
+plot(nll.df)
+abline(a=0,b=1)
+```
+
+Does this suggest that some starting values cannot be optimized? Let's look into the preliminary results more... I'm going to sort out the good fits:
+
+```{r goodfits}
+fpars.good <- fpars[(f.nll < 169),]
+f.nll.good <- f.nll[(f.nll < 169)]
+
+```
+
+This is quite interesting...
+
+```{r}
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good))
+```
+
+
+```{r eval = FALSE, echo = FALSE}
+
+##terrible fit
+findSens(bombay2, fpars[5,], plot.it = TRUE)
+findSens(bombay2, spars[5,], plot.it = TRUE)
+##running it once more brings it to a local minimum
+tmp.pars <- fitsir.optim(bombay2, start = spars[5,], plot.it = TRUE)
+tmp.pars2 <- fitsir(bombay2, start = fpars[5,])
+
+```
