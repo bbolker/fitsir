@@ -3,22 +3,46 @@ title: "Exploring fitLHS results"
 output: html_document
 ---
 
+```{r pkgs,echo=FALSE,message=FALSE}
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2); theme_set(theme_bw())
+```
 ```{r load, echo = FALSE}
 fn <- "fitLHS.rda"
 fn2 <- "fitLHS2.rda"
-load(fn)
-load(fn2)
+## BMB: what's the difference?
+L1 <- load(fn)
+L2 <- load(fn2)
 ```
 
 I performed 500 simulations based on these parameters:
 
 ```{r pars}
 colnames(p) <- c("log.beta", "log.gamma", "log.N", "logit.i")
-pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(p))
-
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(p),
+      gap=0,cex=0.5)
 ```
 
 Does `fitsir.optim` perform better than `fitsir`? I put the parameters in an increasing order to see if we get a stair-like shape:
+
+```{r plotranks,echo=FALSE}
+dd <- rbind(data.frame(method="fitsir",NLL1=f.nll,NLL2=f.nll2),
+      data.frame(method="fitsir.optim",NLL1=s.nll,NLL2=s.nll2)) %>%
+    gather(run,NLL,-method) %>%
+    group_by(method,run) %>%
+    mutate(r=rank(NLL))
+ggplot(dd,aes(r,NLL,colour=method,linetype=run))+geom_line()+
+    labs(x="rank",y="negative log-likelihood")+
+    scale_colour_brewer(palette="Set1")
+```
+
+How many NA values?
+
+```{r,natab}
+with(dd,table(is.na(NLL),run,method))
+```
 
 ```{r performe1,echo = FALSE}
 par(mfrow = c(1,2))
@@ -36,13 +60,13 @@ hist(f.nll, main = "fitsir")
 hist(s.nll, main = "fitsir.optim")
 ```
 
-It seems like `fitsir` performs better, although only half of them gives us good fits... Also, we do get a lot of errors with `fitsir.optim`:
+It seems like `fitsir` performs better, although only half of them give us good fits... Also, we do get a lot of errors with `fitsir.optim`:
 
 ```{r error}
 sum(is.na(spars[,1]))
 ```
 
-Let's just look at `fitsir` reults for now... I actually tried taking `fpars` parameters as a starting point and try running `fitsir` with them. Let's see how performance has improved:
+Let's just look at `fitsir` results for now... I actually tried taking `fpars` parameters as a starting point and try running `fitsir` with them. Let's see how performance has improved:
 
 ```{r hist, echo = FALSE}
 par(mfrow = c(1,2))
@@ -71,17 +95,17 @@ f.nll.good <- f.nll[(f.nll < 169)]
 This is quite interesting...
 
 ```{r}
-pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good))
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good),
+      gap=0,cex=0.5)
 ```
 
 
 ```{r eval = FALSE, echo = FALSE}
-
 ##terrible fit
 findSens(bombay2, fpars[5,], plot.it = TRUE)
 findSens(bombay2, spars[5,], plot.it = TRUE)
 ##running it once more brings it to a local minimum
 tmp.pars <- fitsir.optim(bombay2, start = spars[5,], plot.it = TRUE)
 tmp.pars2 <- fitsir(bombay2, start = fpars[5,])
-
 ```
+
