@@ -13,7 +13,7 @@ library(ggplot2); theme_set(theme_bw())
 fn <- "fitLHS.rda"
 fn2 <- "fitLHS2.rda"
 ## BMB: what's the difference?
-## SWP: L2 uses L1 as starting values to fit the curv
+## SWP: L2 uses L1 as starting values to fit the curve
 L1 <- load(fn)
 L2 <- load(fn2)
 ```
@@ -79,19 +79,7 @@ plot(nll.df)
 abline(a=0,b=1)
 ```
 
-Does this suggest that some starting values cannot be optimized? Let's look into the preliminary results more... I'm going to sort out the good fits:
-
-```{r goodfits}
-fpars.good <- fpars[(f.nll < 169),]
-f.nll.good <- f.nll[(f.nll < 169)]
-```
-
-This is quite interesting...
-
-```{r}
-pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good),
-      gap=0,cex=0.5)
-```
+Does this suggest that some starting values cannot be optimized? Let's look into the preliminary results more...
 
 Let's try Raue et al graph:
 
@@ -113,6 +101,44 @@ tmpfun(30, 1, 4)
 tmpfun(30, 2, 3) 
 tmpfun(30, 2, 4)
 tmpfun(30, 3, 4) 
+```
+
+I'm going to sort out the good fits:
+
+```{r goodfits}
+fpars.good <- fpars[(f.nll < 169),]
+f.nll.good <- f.nll[(f.nll < 169)]
+```
+
+This is quite interesting...
+
+```{r}
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good),
+      gap=0,cex=0.5)
+```
+
+Let's try plotting all of them:
+
+```{r good.fits2, error = FALSE, message=FALSE}
+library(fitsir)
+par(mfrow = c(1,1))
+hist(f.nll.good)
+
+bombay2 <- setNames(bombay, c("tvec", "count"))
+tmpfun2 <- function(i, pars){
+    I <- SIR.detsim(bombay2$tvec, trans.pars(pars[i,]))
+}
+library(reshape2)
+tmpfun3 <- function(n, pars){
+    good.sims <- list()
+    good.sims <- lapply(c(1:n),function(i){data.frame(tvec = bombay2$tvec, count = tmpfun2(i, pars))})
+    mL <- melt(good.sims, id.vars = "tvec")
+ggplot(bombay2, aes(tvec, count)) + geom_point() +
+    geom_line(data = mL, aes(tvec, value, group = L1), col = "Gray")
+}
+
+n <- nrow(fpars.good)
+tmpfun3(n, fpars.good)
 ```
 
 ```{r eval = FALSE, echo = FALSE}
