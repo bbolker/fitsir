@@ -141,6 +141,37 @@ n <- nrow(fpars.good)
 tmpfun3(n, fpars.good)
 ```
 
+Reparameterization:
+
+```{r reparm}
+
+fpars.good <- transform(fpars.good,
+          log.R0 = log(exp(log.beta)/exp(log.gamma)),
+          log.r = log(exp(log.beta)-exp(log.gamma)),
+          log.S0 = log(exp(log.N) * (1 - plogis(logit.i))),
+          log.I0 = log(exp(log.N) * plogis(logit.i)))
+
+library(GGally)
+ggpairs(fpars.good[,-(1:4)])
+
+fpars.good2 <- fpars.good[(f.nll.good < 167.7),]
+f.nll.good2 <- f.nll.good[(f.nll.good < 167.7)]
+
+hist(f.nll.good2)
+
+ggpairs(fpars.good2[,-(1:4)])
+
+```
+
+stuff
+
+```{r}
+which(fpars[,3] > 24 & f.nll <167.7)
+##I don't get convergence error
+fitsir(bombay2, start = p[67,])
+
+```
+
 ```{r eval = FALSE, echo = FALSE}
 ##terrible fit
 findSens(bombay2, fpars[5,], plot.it = TRUE)
