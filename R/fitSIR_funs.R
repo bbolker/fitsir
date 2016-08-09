@@ -255,7 +255,9 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                                     func=func,
                                     parms=params,
                                     dllname = "fitsir",
-                                    initfunc = "initmod"))
+                                    initfunc = "initmod",
+                                    method = "rk4",
+                                    hini = 0.25))
         
         if (findSens) {
             sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
@@ -474,7 +476,7 @@ fitsir.optim <- function(data,
     
     fit.p <- optim(fn = objfun,
                    par = start,
-                   method = "L-BFGS-B",
+                   method = "BFGS",
                    gr = gradfun)$par
     
     return(fit.p)
