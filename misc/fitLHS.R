@@ -21,7 +21,7 @@ lhs_df <- cbind(
     N=10^(seq(log10N_range[1],log10N_range[2],length.out=nsim)),
     I0=10^(seq(log10I0_range[1],log10I0_range[2],length.out=nsim)))
 set.seed(101)
-for (i in 2:ncol(lhs_df)) {
+for (i in 1:ncol(lhs_df)) {
     lhs_df[,i] <- sample(lhs_df[,i])
 }
 

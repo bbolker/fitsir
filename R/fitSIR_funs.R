@@ -229,7 +229,7 @@ summarize.pars <- function(params) {
 ##' ss <- SIR.detsim(tvec,pars)
 ##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
 SIR.detsim <- function(t, params, findSens = FALSE,
-                       incidence = FALSE, reportAll = FALSE, ...){
+                       incidence = FALSE, reportAll = FALSE){
     with(as.list(params),{
         if(incidence){
             l <- length(t)
@@ -256,7 +256,8 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                                     parms=params,
                                     dllname = "fitsir",
                                     initfunc = "initmod",
-                                    ...))
+                                    method = "rk4",
+                                    hini = 0.1))
         
         if (findSens) {
             sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
@@ -295,7 +296,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param tvec time vector
 ##' @param dist conditional distribution of reported data (IGNORED)
 ##' @param debug print debugging output?
-SIR.logLik <- function(incidence = FALSE, ...){
+SIR.logLik <- function(incidence = FALSE){
     g <- function(params, count, tvec=NULL,
                   dist=dnorm2,
                   debug=FALSE) {
@@ -307,7 +308,7 @@ SIR.logLik <- function(incidence = FALSE, ...){
         if (is.null(tvec)) tvec <- seq(length(count))
         if (debug) cat(params)
         tpars <- trans.pars(params)
-        i.hat <- SIR.detsim(tvec,tpars, incidence = incidence, ...)
+        i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
         
         r <- -sum(dnorm2(count,i.hat,log=TRUE))
         if (debug) cat(" ",r,"\n")
@@ -475,9 +476,7 @@ fitsir.optim <- function(data,
     
     fit.p <- optim(fn = objfun,
                    par = start,
-                   method = "L-BFGS-B",
-                   lower = -30,
-                   upper = 30,
+                   method = "BFGS",
                    gr = gradfun)$par
     
     return(fit.p)
