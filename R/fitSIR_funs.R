@@ -425,7 +425,8 @@ fitsir.optim <- function(data,
                          start = startfun(),
                          incidence = FALSE,
                          verbose = FALSE,
-                         plot.it = FALSE){
+                         plot.it = FALSE,
+                         debug = FALSE){
     
     if(plot.it){
         plot(data)
@@ -442,6 +443,7 @@ fitsir.optim <- function(data,
             if (verbose) cat("returning old version of SSQ\n")
             return(oldSSQ)
         }
+        if(debug) cat(par, "\n")
         if (verbose) cat("computing new version (SSQ)\n")
         
         v <- findSens(data, par, incidence = incidence)
@@ -474,6 +476,8 @@ fitsir.optim <- function(data,
     fit.p <- optim(fn = objfun,
                    par = start,
                    method = "L-BFGS-B",
+                   lower = -30,
+                   upper = 30,
                    gr = gradfun)$par
     
     return(fit.p)
