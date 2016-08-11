@@ -239,21 +239,21 @@ SIR.detsim <- function(t, params, findSens = FALSE,
         }
         
         if (findSens) {
-            func <- SIR.grad.sens
+            func <- "derivs_sens"
             yini <- c(S = N*(1-i0), logI = log(N*i0),
                       nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1-i0,
                       nu_I0_S = -N,
                       nu_beta_I = 0, nu_gamma_I = 0, nu_N_I = i0,
                       nu_I0_I = N)
         }else{
-            func <- SIR.grad
+            func <- "derivs"
             yini <- c(S=N*(1-i0),logI=log(N*i0))
         }
         
         odesol <- as.data.frame(ode(y=yini,
                                     times=t,
                                     func=func,
-                                    parms=params,
+                                    parms=params[1:3],
                                     dllname = "fitsir",
                                     initfunc = "initmod",
                                     method = "rk4",
