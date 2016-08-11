@@ -68,12 +68,11 @@ void derivs_sens (int *neq , double *t , double *vars , double *varsdot ,
     double grad_II = beta*S/N-gamma;
     
     dnu_beta_S = grad_SS * nu_beta_S + grad_SI * nu_beta_I - S*I/N;
-    dnu_N_S = grad_SS * nu_N_S + grad_SI * nu_N_I + beta*S*I/N^2;
+    dnu_N_S = grad_SS * nu_N_S + grad_SI * nu_N_I + beta*S*I/(N * N);
     dnu_gamma_S = grad_SS * nu_gamma_S + grad_SI * nu_gamma_I;
     dnu_I0_S = grad_SS * nu_I0_S + grad_SI * nu_I0_I;
     dnu_beta_I = grad_IS * nu_beta_S + grad_II * nu_beta_I + S*I/N;
-    dnu_N_I = grad_IS * nu_N_S + grad_II * nu_N_I - beta*S*I/N^2;
+    dnu_N_I = grad_IS * nu_N_S + grad_II * nu_N_I - beta*S*I/(N * N);
     dnu_gamma_I = grad_IS * nu_gamma_S +  grad_II * nu_gamma_I - I;
     dnu_I0_I = grad_IS * nu_I0_S + grad_II * nu_I0_I;
 }
-
