@@ -257,7 +257,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                                     dllname = "fitsir",
                                     initfunc = "initmod",
                                     method = "rk4",
-                                    hini = 0.25))
+                                    hini = 0.01))
         
         if (findSens) {
             sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
@@ -283,7 +283,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
         if(findSens){
             return(odesol)
         }else{
-            return(odesol[,"I"])
+            return(exp(odesol[,"logI"]))
         }
         
     })
@@ -377,7 +377,7 @@ findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
         sim <- SIR.detsim(t, trans.pars(params),
                           findSens = TRUE, incidence = incidence)
         obs <- data$count
-        pred <- sim$I
+        pred <- exp(sim$logI)
         SSQ <- sum((pred - obs)^2)
     })
     if (SSQonly) return(ssqL$SSQ)

@@ -45,7 +45,6 @@ void derivs (int *neq , double *t , double *vars , double *varsdot ,
 {
     double scaledincid = beta*S/N;
 
-    if (ip[0] <1) error ( "nout should be at least 1" ) ;
     Sgrad =  - scaledincid*exp(logI) ; // equation for S
     Igrad =    scaledincid - gamma ;  // equation for log (I)
 }
@@ -56,9 +55,7 @@ void derivs_sens (int *neq , double *t , double *vars , double *varsdot ,
 {
     double scaledincid = beta*S/N;
     double I = exp(logI);
-
-    if (ip[0] <1) error ( "nout should be at least 1" ) ;
-
+    
     Sgrad = -scaledincid*I;
     Igrad = scaledincid - gamma;
         
