@@ -1,10 +1,7 @@
 library("deSolve")
 library("fitsir")
 library("devtools")
-## this is for collywobbles to get away with the permission problem...
-source("fitSIR_funs.R")
-##
-## load_all("..")
+load_all("..")
 bombay2 <- setNames(bombay, c("tvec", "count"))
 
 nsim <- 500
@@ -54,7 +51,7 @@ if(file.exists(fn)){
         p[i,] <- tmp.pars
         ftmp <- try(fitsir(bombay2, start = tmp.pars))
         if (!is(ftmp,"try-error")) {
-            fpars[i,] <- coef(ftmp)
+            #fpars[i,] <- coef(ftmp)
             f.nll[i] <- g(fpars[i,], bombay2$count)
             f.SSQ[i] <- findSSQ(bombay2, fpars[i,])$SSQ
         }
@@ -97,4 +94,54 @@ if(file.exists(fn2)){
     }
     
     save("fpars2", "f.nll2", "f.SSQ2", "spars2", "s.nll2", "s.SSQ2", file = fn2)
+}
+
+## Sim with sens + nll
+
+fn3 <- "fitLHS3.rda"
+
+npars <-  matrix(NA, nsim, 4)
+colnames(npars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+n.nll <- n.SSQ <- rep(NA, nsim)
+
+if(file.exists(fn3)){
+    load(fn3)
+}else{
+    for(i in 1:nsim){
+        cat(i)
+        tmp.pars <- tmpf(lhs_df[i,])
+        p[i,] <- tmp.pars
+        stmp <- try(fitsir.optim(bombay2, start = tmp.pars, nll = TRUE))
+        if (!is(stmp,"try-error")) {
+            npars[i,] <- stmp
+            n.nll[i] <- g(npars[i,], bombay2$count)
+            n.SSQ[i] <- findSSQ(bombay2, npars[i,])$SSQ
+        }
+    }
+    
+    save("npars", "n.nll", "n.SSQ", file = fn3)
+}
+
+## Sim with sens + nll 2
+
+fn4 <- "fitLHS4.rda"
+
+npars2 <-  matrix(NA, nsim, 4)
+colnames(npars2) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+n.nll2 <- n.SSQ2 <- rep(NA, nsim)
+
+if(file.exists(fn4)){
+    load(fn4)
+}else{
+    for(i in 1:nsim){
+        cat(i)
+        stmp <- try(fitsir.optim(bombay2, start = npars[i,], nll = TRUE))
+        if (!is(stmp,"try-error")) {
+            npars2[i,] <- stmp
+            n.nll2[i] <- g(npars2[i,], bombay2$count)
+            n.SSQ2[i] <- findSSQ(bombay2, npars2[i,])$SSQ
+        }
+    }
+    
+    save("npars2", "n.nll2", "n.SSQ2", file = fn4)
 }
