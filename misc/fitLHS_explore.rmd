@@ -17,10 +17,10 @@ fn4 <- "fitLHS4.rda"
 ## L2 uses L1 as starting values to fit the curve
 ## L3 uses fitsir.optim based on nll sensitivity
 ## L4 is like L2 but it uses L3 as starting values
-L1 <- load(fn)
+L1 <- load(fn)  ## contains p (starting values), [fs]{pars,.nll,.SSQ}
 L2 <- load(fn2)
-L3 <- load(fn3)
-L4 <- load(fn4)
+L3 <- load(fn3) ## npars, n.nll, n.SSQ
+L4 <- load(fn4) ## npars2, n.nll2, n.SSQ2
 ```
 
 I performed 500 simulations based on these parameters:
@@ -40,9 +40,12 @@ dd <- rbind(data.frame(method="fitsir",NLL1=f.nll, NLL2 = f.nll2),
     gather(run,NLL,-method) %>%
     group_by(method,run) %>%
     mutate(r=rank(NLL))
+brks <- c(150,200,225,250)
 ggplot(dd,aes(r,NLL,colour=method,linetype=run))+geom_line()+
     labs(x="rank",y="negative log-likelihood")+
-    scale_colour_brewer(palette="Set1")
+    scale_colour_brewer(palette="Set1")+
+  geom_hline(data=data.frame(brks),aes(yintercept=brks),
+             linetype=2,col="gray")
 ```
 
 How many NA values?
@@ -62,8 +65,48 @@ matplot(apply(npars, 2, sort), type = "l", ylab = "param value", main = "fitsir.
 text(8,tail(fpars,1),colnames(fpars),col=1:4,adj=-1)
 ```
 
-Let's try Raue et al graph:
+Let's try the Raue et al graph:
 
+(experimental)
+
+which is which?
+
+```{r}
+tmpfun1 <- function(resList,pstart=p,
+                    xlims=c(-20,20),
+                    ylims=c(-15,25),
+                    cex=0.4,
+                    plot.start=TRUE,
+                    plot.end=TRUE,
+                    scol=adjustcolor("gray",alpha=0.2)) {
+  ##xlims <- range(c(p[,1],npars[,1]),na.rm=TRUE)
+  ## ylims <- range(c(p[,2],npars[,2]),na.rm=TRUE)
+  ## pref <- "f"; pstart <- get(paste0(pref,"pars"))
+  pend <- resList$pars
+  cc <- cut(resList$nll,brks)
+  cols <- adjustcolor(c("black","red","blue"),alpha=0.8)
+  if (plot.start) plot(pstart[,1],pstart[,2],
+       cex=cex,pch=1,xlim=xlims,ylim=ylims,
+       col=cols[cc]) else
+  plot(pend[,1],pend[,2],pch=2,cex=0.4,col=cols[cc],
+       xlim=xlims,ylim=ylims)
+  if (plot.start && plot.end) {
+     segments(pstart[,1],pstart[,2],pend[,1],pend[,2],
+           col=scol)
+     points(pend[,1],pend[,2],pch=2,cex=0.4,col=cols[cc])
+  }
+}
+fList <- list(pars=fpars,nll=f.nll)
+tmpfun1(fList,xlim=c(-5,8),ylim=c(-10,10),cex=0.7)
+tmpfun1(fList,xlim=c(-3,6),ylim=c(-5,8),cex=0.7,
+        plot.end=FALSE)
+tmpfun1(fList,xlims=c(-6,6),ylims=c(-8,8),cex=0.7,
+        plot.start=FALSE)
+
+pairs(fList$pars,col=cols[cc],gap=0,cex=0.5)
+pairs(p,col=cols[cc],gap=0,cex=0.5)
+
+```
 ```{r raue}
 tmpfun <- function(n.sample, i1, i2){
     set.seed(101)
@@ -90,7 +133,7 @@ f.nll.good <- f.nll[(f.nll < 169)]
 
 This is quite interesting...
 
-```{r}
+```{r pairs}
 pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good),
       gap=0,cex=0.5)
 ```
