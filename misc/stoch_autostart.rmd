@@ -29,7 +29,7 @@ load("stochsim_swp.rda")
 
 Histograms comparing nll of auto-start and true-start:
 
-```{r hist1, message = FALSE, fig.width = 15, fig.height = 5}
+```{r hist1, message = FALSE, fig.width = 8, fig.height = 4}
 resList <- list(res.fitsir, res.fitsir.optim, res.fitsir.optim.nll)
 resName <- c("fitsir", "fitsir.optim", "fitsir.optim.nll")
 par(mfrow = c(1,3))
@@ -48,9 +48,9 @@ OK, so they look similar but some of them don't overlap. Here are the ones that 
 (commonbad <- Reduce(intersect, badList))
 ```
 
-I got rid of the axis labels because it was getting too messy...
+I got rid of the axis labels because it was getting too messy... They're supposed to have different y axes.
 
-```{r plot_badfits, echo = FALSE, fig.width = 18, fig.height = 12}
+```{r plot_badfits, echo = FALSE, fig.width = 10}
 source("stochsim_funs.R")
 parnames <- names(startfun())
 trueparnames <- paste0("truefit_", parnames)
@@ -103,14 +103,26 @@ zero_x_margin <-
 no_axis <- theme(
     axis.ticks.x=element_blank(),
     axis.title.x=element_blank(),
-    axis.text.x=element_blank()
+    axis.text.x=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank()
 )
 
-ggplot(mL.fit) + geom_line(aes(t, value, col = L2, linetype = variable, group = interaction(L2,variable))) +
-    geom_line(data = mL.start, aes(t, value)) +
-    geom_point(data = mL.data, aes(t, value), size = 0.4, alpha = 0.4) + 
+ggplot(mL.fit) + geom_line(aes(t, value, col = L2, linetype = variable, group = interaction(L2,variable)), size = 1) +
+    geom_line(data = mL.start, aes(t, value), size = 1.1) +
+    geom_point(data = mL.data, aes(t, value), size = 0.6, alpha = 0.4) + 
     facet_wrap(~L1, nrow = 2, scale = "free") +
     no_axis +
-    zero_margin
-
+    zero_margin +
+    zero_x_margin
 ```
+
+Something else I want to try:
+
+```{r}
+which(res.fitsir[,"fit_nll"] - res.fitsir.optim[,"fit_nll"] < -1)
+which(res.fitsir[,"fit_nll"] - res.fitsir.optim.nll[,"fit_nll"] < -1)
+```
+
+This looks similar to `badList`
