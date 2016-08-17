@@ -70,7 +70,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
         ## curvature of spline at max
         
         if (incidence) {
-            N = cumsum(count)[length(tvec)]
+            N <- cumsum(count)[length(tvec)]
             t.diff <- diff(tvec)
             t.diff <- c(t.diff[1], t.diff)
             
@@ -97,7 +97,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
             i0 <- iniI/N
         }
         
-        x <- list(
+        x <- c(
             log.beta = log(beta),
             log.gamma = log(gamma),
             log.N = log(N),
@@ -107,7 +107,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
         return(x)
     } ## if (auto)
     
-    list(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
+    c(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
          logit.i=logit.i)
 }
 
@@ -278,6 +278,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                 odesol <- -odesol
                 names(odesol) <- c("NA.t","I","NA.p")
             }
+            odesol[,"logI"] <- log(odesol[,"I"])
         }
         
         if(findSens){
