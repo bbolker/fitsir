@@ -1,0 +1,116 @@
+---
+title: "Testing auto-start"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r pkgs, message=FALSE}
+library(fitsir)
+library(bbmle) ## needed for coef() ...
+library(splines) ## for ns()
+library(plyr)  ## for raply()
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(ggplot2); theme_set(theme_bw())
+library(gridExtra)
+library(ggstance) ## for horizontal violins
+library(reshape2)
+library(devtools)
+load_all("..")
+```
+
+```{r load, echo = FALSE}
+load("stochsim_swp.rda")
+```
+
+Histograms comparing nll of auto-start and true-start:
+
+```{r hist1, message = FALSE, fig.width = 15, fig.height = 5}
+resList <- list(res.fitsir, res.fitsir.optim, res.fitsir.optim.nll)
+resName <- c("fitsir", "fitsir.optim", "fitsir.optim.nll")
+par(mfrow = c(1,3))
+hist1 <- lapply(c(1:3), function(i) with(resList[[i]], hist(fit_nll - truefit_nll, main = resName[i])))
+```
+
+It seems like `fitsir.optim` and `fitsir.optim.nll` does get stuck sometimes when we're using auto-start values. Can we look at some of them?
+
+```{r badfits}
+(badList <- lapply(c(2:3), function(i) with(resList[[i]], which(fit_nll - truefit_nll > 1))))
+```
+
+OK, so they look similar but some of them don't overlap. Here are the ones that are common:
+
+```{r bad_common}
+(commonbad <- Reduce(intersect, badList))
+```
+
+I got rid of the axis labels because it was getting too messy...
+
+```{r plot_badfits, echo = FALSE, fig.width = 18, fig.height = 12}
+source("stochsim_funs.R")
+parnames <- names(startfun())
+trueparnames <- paste0("truefit_", parnames)
+fitparnames <- paste0("fit_start_", parnames)
+
+badfitList <- badData <- badStart <- list()
+
+for(k in 1:length(commonbad)){
+    i <- commonbad[k] 
+    p <- lhs_df[i,]
+    p2 <- c(beta=unname(p["R0"]*p["gamma"]),
+            p[2:3],
+            i0=unname(p["I0"]/p["N"]))
+    true.pars <- with(as.list(p2),
+               c(log.beta=log(beta),log.gamma=log(gamma),
+                 log.N=log(N),logit.i=qlogis(i0)))
+    d <- simfun(pars=p2,tmax=100,dt=1,rpars=list(size=3),seed=101)
+    
+    autopars <- startfun(data = d, auto = TRUE)
+    t <- d$tvec
+    auto.I <- SIR.detsim(t, trans.pars(autopars))
+    
+    tmplist <- list()
+    
+    for(j in 1:3){
+        data <- resList[[j]]
+        fpars <- data[i,trueparnames]
+        names(fpars) <- parnames
+        truefit.I <- SIR.detsim(t, unlist(trans.pars(fpars)))
+        fpars2 <- data[i,fitparnames]
+        names(fpars2) <- parnames
+        autofit.I <- SIR.detsim(t, unlist(trans.pars(fpars2)))
+        tmplist[[resName[j]]] <- data.frame(t, truefit.I, autofit.I)
+    }
+    
+    badData[[k]] <- data.frame(t, points = d$count)
+    badStart[[k]] <- data.frame(t, auto.I)
+    
+    badfitList[[k]] <- tmplist
+}
+
+mL.fit <- melt(badfitList, id.vars = "t")
+mL.data <- melt(badData, id.vars = "t")
+mL.start <- melt(badStart, id.vars = "t")
+
+zero_margin <- theme(panel.margin=grid::unit(0,"lines"))
+zero_x_margin <-
+    theme(panel.margin.x=grid::unit(0, "lines"))
+
+no_axis <- theme(
+    axis.ticks.x=element_blank(),
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank()
+)
+
+ggplot(mL.fit) + geom_line(aes(t, value, col = L2, linetype = variable, group = interaction(L2,variable))) +
+    geom_line(data = mL.start, aes(t, value)) +
+    geom_point(data = mL.data, aes(t, value), size = 0.4, alpha = 0.4) + 
+    facet_wrap(~L1, nrow = 2, scale = "free") +
+    no_axis +
+    zero_margin
+
+```

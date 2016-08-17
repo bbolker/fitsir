@@ -92,3 +92,5 @@ for(i in 1:nsim){
     }
     save("res.fitsir", "res.fitsir.optim", "res.fitsir.optim.nll",file=fn)
 }
+
+save("res.fitsir", "res.fitsir.optim", "res.fitsir.optim.nll", "lhs_df",file=fn)
