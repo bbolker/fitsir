@@ -106,6 +106,9 @@ tmpfun1(fList,xlims=c(-6,6),ylims=c(-8,8),cex=0.7,
 pairs(fList$pars,col=cols[cc],gap=0,cex=0.5)
 pairs(p,col=cols[cc],gap=0,cex=0.5)
 
+library(rgl)
+plot3d(fpars[,1], fpars[,3], fpars[,4], col = cols[cc], radius = 0.1, type = "s")
+
 ```
 ```{r raue}
 tmpfun <- function(n.sample, i1, i2){
