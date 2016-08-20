@@ -394,7 +394,7 @@ findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
 ## what is C?
 findSens <- function(data, params, plot.it = FALSE, log = "xy",
                      incidence = FALSE, sensOnly = FALSE,
-                     nll = FALSE) {
+                     nll = FALSE, poisson = FALSE) {
     t <- data$tvec
     tpars <- trans.pars(params)
     r <- SIR.detsim(t, tpars, findSens = TRUE, incidence = incidence)
@@ -416,6 +416,8 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
             
             if(nll){
                 deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1))  
+            }else if(poisson){
+                deriv <- sum((1 - count/I) * d1)
             }else{
                 deriv <- sum(2 * (I - count) * d1)
             }
@@ -426,6 +428,8 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
         if(nll){
             g <- SIR.logLik(incidence = incidence)
             val <- g(params, count)
+        }else if(poisson){
+            val <- sum(I - count * log(I))
         }else{
             val <- sum((count - I)^2)
         }
@@ -446,7 +450,8 @@ fitsir.optim <- function(data,
                          verbose = FALSE,
                          plot.it = FALSE,
                          debug = FALSE,
-                         nll = FALSE){
+                         nll = FALSE,
+                         poisson = FALSE){
     
     if(plot.it){
         plot(data)
@@ -466,7 +471,7 @@ fitsir.optim <- function(data,
         if(debug) cat(par, "\n")
         if (verbose) cat("computing new version (val)\n")
         
-        v <- findSens(data, par, incidence = incidence, nll = nll)
+        v <- findSens(data, par, incidence = incidence, nll = nll, poisson = poisson)
         oldval <<- v["val"]
         oldgrad <<- v[-1]
         oldpar <<- par
@@ -485,7 +490,7 @@ fitsir.optim <- function(data,
             return(oldgrad)
         }
         if (verbose) cat("computing new version (grad)\n")
-        v <- findSens(data, trans.pars(par), incidence = incidence, nll = nll)
+        v <- findSens(data, trans.pars(par), incidence = incidence, nll = nll, poisson = poisson)
         oldval <<- v["val"]
         oldgrad <<- v[-1]
         oldpar <<- par
