@@ -1,0 +1,62 @@
+---
+title: "Optimization method"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pkgs}
+library(optimx)
+library(devtools)
+load_all("..")
+```
+
+```{r}
+bombay2 <- setNames(bombay, c("tvec", "count"))
+inip <- startfun(data = bombay2, auto = TRUE)
+
+optimfun <- function(data, start,
+                     incidence = FALSE,
+                     nll = FALSE){
+    
+    fnfun <- function(params){
+        return(findSens(data, params, incidence = incidence, nll = nll)[1])
+    }
+    
+    grfun <- function(params){
+        return(findSens(data, params, incidence = incidence, nll = nll)[-1])
+    }
+    
+    fit <- optimx(start, fnfun, gr = grfun,
+                  control = list(all.methods = TRUE, trace = 2))
+    return(fit)
+}
+
+fn <- "optimx.rda"
+
+if(file.exists(fn)){
+    load(fn)
+}else{
+    fit <- optimfun(bombay2, inip)
+    fit.incidence <- optimfun(bombay2, inip, incidence = TRUE)
+    
+    save("fit", "fit.incidence", file = fn)
+}
+```
+
+Which fit gives us the lowest SSQ?
+
+```{r min}
+(goodfit <- which(fit$value < 1e5))
+which.min(fit$value) 
+```
+
+ucminf gives us the lowest SSQ
+
+```{r minpar}
+fit[8,1:4]  
+```
+
+It also gives us a really bad parameter set...

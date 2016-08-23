@@ -6,7 +6,8 @@ output: html_document
 ```{r pkgs, message = FALSE}
 library("deSolve")
 library("bbmle")
-source("../R/fitSIR_funs.R")
+library("devtools")
+load_all("..")
 ```
 
 I'm going to show how to use the sensitivity functions...
@@ -34,23 +35,23 @@ pars <- c(log.beta = -0.7,
 
 pars2 <- c(log.beta = -0.7,
 	log.gamma = -2.3,
-	log.N= 6.22,
-	logit.i = -4.6)
+	log.N= 6.21,
+	logit.i = -4.5999)
 
 a = SIR.detsim(tvec, trans.pars(pars), findSens = TRUE)
 
 a2 = SIR.detsim(tvec, trans.pars(pars2), findSens = TRUE)
 
-z = (a2$I-a$I)/0.01
+z = (exp(a2$logI)-exp(a$logI))/0.0001
 
-plot(a$I, type = "l")
-lines(a2$I, col = "2")
+plot(exp(a$logI), type = "l")
+lines(exp(a2$logI), col = "2")
 
 plot(z, type = "l")
 
-lines(a$nu_N_I, col = 2)
+lines(a$nu_I0_I, col = 2)
 
-lines(a2$nu_N_I, col = 3)
+lines(a2$nu_I0_I, col = 3)
 
 ```
 
