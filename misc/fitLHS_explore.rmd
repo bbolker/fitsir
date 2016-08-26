@@ -8,6 +8,8 @@ library(plyr)
 library(dplyr)
 library(tidyr)
 library(ggplot2); theme_set(theme_bw())
+library(devtools)
+load_all("..")
 ```
 ```{r load, echo = FALSE}
 fn <- "fitLHS.rda"
@@ -31,7 +33,7 @@ pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(p),
       gap=0,cex=0.5)
 ```
 
-Does `fitsir.optim` perform better than `fitsir`? I put the parameters in an increasing order to see if we get a stair-like shape:
+Negative log-likelihood values:
 
 ```{r plotranks,echo=FALSE, warning=FALSE}
 dd <- rbind(data.frame(method="fitsir",NLL1=f.nll, NLL2 = f.nll2),
@@ -96,21 +98,22 @@ tmpfun1 <- function(resList,pstart=p,
      points(pend[,1],pend[,2],pch=2,cex=0.4,col=cols[cc])
   }
 }
-fList <- list(pars=fpars,nll=f.nll)
+par(mfrow = c(1,1))
+fList <- list(pars=spars,nll=s.nll)
 tmpfun1(fList,xlim=c(-5,8),ylim=c(-10,10),cex=0.7)
 tmpfun1(fList,xlim=c(-3,6),ylim=c(-5,8),cex=0.7,
         plot.end=FALSE)
 tmpfun1(fList,xlims=c(-6,6),ylims=c(-8,8),cex=0.7,
         plot.start=FALSE)
 
-pairs(fList$pars,col=cols[cc],gap=0,cex=0.5)
-pairs(p,col=cols[cc],gap=0,cex=0.5)
+#pairs(fList$pars,col=cols[cc],gap=0,cex=0.5)
+#pairs(p,col=cols[cc],gap=0,cex=0.5)
 
-library(rgl)
-plot3d(fpars[,1], fpars[,3], fpars[,4], col = cols[cc], radius = 0.1, type = "s")
+#library(rgl)
+#plot3d(fpars[,1], fpars[,3], fpars[,4], col = cols[cc], radius = 0.1, type = "s")
 
 ```
-```{r raue}
+```{r raue, eval = FALSE, echo = FALSE}
 tmpfun <- function(n.sample, i1, i2){
     set.seed(101)
     na.vec <- which(is.na(fpars[,1]))
@@ -127,26 +130,25 @@ par(mfrow = c(1,1))
 tmpfun(50, 1, 2) 
 ```
 
-I'm going to sort out the good fits:
+Let's look at `fitsir.optim` only. I'm going to sort out the good fits:
 
 ```{r goodfits}
-fpars.good <- fpars[(f.nll < 169),]
-f.nll.good <- f.nll[(f.nll < 169)]
+spars.good <- spars[(s.nll < 169),]
+s.nll.good <- s.nll[(s.nll < 169)]
 ```
 
 This is quite interesting...
 
 ```{r pairs}
-pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(fpars.good),
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(spars.good),
       gap=0,cex=0.5)
 ```
 
 Let's try plotting all of them:
 
 ```{r good.fits2, error = FALSE, message=FALSE}
-library(fitsir)
-par(mfrow = c(1,1))
-hist(f.nll.good)
+par(mrow = c(1,1))
+hist(s.nll.good)
 
 bombay2 <- setNames(bombay, c("tvec", "count"))
 tmpfun2 <- function(i, pars){
@@ -161,27 +163,79 @@ ggplot(bombay2, aes(tvec, count)) + geom_point() +
     geom_line(data = mL, aes(tvec, value, group = L1), col = "Gray")
 }
 
-n <- nrow(fpars.good)
-tmpfun3(n, fpars.good)
+n <- nrow(spars.good)
+tmpfun3(n, spars.good)
+```
+
+Really good fits:
+
+```{r}
+min(s.nll, na.rm = TRUE)
+spars.good2 <- spars[(s.nll < 167.7),]
+s.nll.good2 <- s.nll[(s.nll < 167.7)]
+hist(s.nll.good2)
+pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(spars.good2),
+      gap=0,cex=0.5)
 ```
 
 Reparameterization:
 
 ```{r reparm, warning = FALSE}
 
-fpars.good <- transform(fpars.good,
+spars.good2 <- transform(spars.good2,
           log.R0 = log(exp(log.beta)/exp(log.gamma)),
           log.r = log(exp(log.beta)-exp(log.gamma)),
           log.S0 = log(exp(log.N) * (1 - plogis(logit.i))),
           log.I0 = log(exp(log.N) * plogis(logit.i)))
 
 library(GGally)
+ggpairs(spars.good2[,-(1:4)])
+
+```
+
+Looks really different from the fits using `fitsir`
+
+```{r reparam2}
+
+fpars.good <- fpars[(f.nll < 167.7),]
+f.nll.good <- f.nll[(f.nll < 167.7)]
+fpars.good <- transform(fpars.good,
+          log.R0 = log(exp(log.beta)/exp(log.gamma)),
+          log.r = log(exp(log.beta)-exp(log.gamma)),
+          log.S0 = log(exp(log.N) * (1 - plogis(logit.i))),
+          log.I0 = log(exp(log.N) * plogis(logit.i)))
+
 ggpairs(fpars.good[,-(1:4)])
 
-fpars.good2 <- fpars.good[(f.nll.good < 167.7),]
-f.nll.good2 <- f.nll.good[(f.nll.good < 167.7)]
-
-hist(f.nll.good2)
-
-ggpairs(fpars.good2[,-(1:4)])
 ```
+
+Look at the hessians:
+
+```{r hess}
+
+tmphess <- function(pars){
+    eigen <- try(eigen(findHess(bombay2, pars)))
+    if(!is(eigen,"try-error")){
+        return(all(eigen$values>0))
+    }else{
+        return(NA)
+    }
+}
+
+(hesst <- apply(spars.good2, 1, function(x) tmphess(x[1:4])))
+cols <- adjustcolor(c("black","red","blue"),alpha=0.8)
+cc <- sapply(hesst, FUN = function(x){
+    if(is.na(x)){
+        return(3)
+    }else if(x){
+        return(1)
+    }else{
+        return(2)
+    }
+})
+
+pairs(spars.good2[,1:4], col = cols[cc],gap=0,cex=0.9)
+
+```
+
+I don't think this plot helps...

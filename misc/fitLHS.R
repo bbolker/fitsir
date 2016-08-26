@@ -51,7 +51,7 @@ if(file.exists(fn)){
         p[i,] <- tmp.pars
         ftmp <- try(fitsir(bombay2, start = tmp.pars))
         if (!is(ftmp,"try-error")) {
-            #fpars[i,] <- coef(ftmp)
+            fpars[i,] <- coef(ftmp)
             f.nll[i] <- g(fpars[i,], bombay2$count)
             f.SSQ[i] <- findSSQ(bombay2, fpars[i,])$SSQ
         }
