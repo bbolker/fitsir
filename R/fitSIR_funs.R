@@ -464,6 +464,7 @@ fitsir.optim <- function(data,
     assign("oldgrad",NULL,f.env)
     assign("data", data, f.env)
     objfun <- function(par) {
+        names(par) <- c("log.beta", "log.gamma", "log.N", "logit.i")
         if (identical(par,oldpar)) {
             if (verbose) cat("returning old version of value\n")
             return(oldval)
@@ -485,12 +486,13 @@ fitsir.optim <- function(data,
     }
     environment(objfun) <- f.env
     gradfun <- function(par) {
+        names(par) <- c("log.beta", "log.gamma", "log.N", "logit.i")
         if (identical(par,oldpar)) {
             if (verbose) cat("returning old version of grad\n")
             return(oldgrad)
         }
         if (verbose) cat("computing new version (grad)\n")
-        v <- findSens(data, trans.pars(par), incidence = incidence, nll = nll, poisson = poisson)
+        v <- findSens(data, par, incidence = incidence, nll = nll, poisson = poisson)
         oldval <<- v["val"]
         oldgrad <<- v[-1]
         oldpar <<- par
@@ -501,7 +503,8 @@ fitsir.optim <- function(data,
     fit.p <- optim(fn = objfun,
                    par = start,
                    method = "BFGS",
-                   gr = gradfun)$par
+                   gr = gradfun,
+                   control = list(maxit = 1e4))$par
     
     return(fit.p)
 }
