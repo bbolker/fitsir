@@ -64,7 +64,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
         ## find a point halfway between initial and max
         ##  scaling could be adjustable?
         ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
-        m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<ss.thalf))
+        m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.thalf))
         r <- as.numeric(coef(m1)[2]) ##beta - gamma
         iniI <- ss.data$count[1] ## N * i0
         ## curvature of spline at max
