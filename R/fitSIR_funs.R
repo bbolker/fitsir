@@ -450,6 +450,7 @@ fitsir.optim <- function(data,
                          verbose = FALSE,
                          plot.it = FALSE,
                          debug = FALSE,
+                         optimx = FALSE,
                          control=list(maxit=1e5),
                          nll = FALSE,
                          poisson = FALSE){
@@ -501,13 +502,18 @@ fitsir.optim <- function(data,
     }
     environment(gradfun) <- f.env
     
-    m <- mle2(objfun,
+    if(!optimx){
+        m <- mle2(objfun,
                   vecpar=TRUE,
                   start=start,
                   method="BFGS",
                   control=control,
                   gr = gradfun,
                   data=c(data,list(debug=debug)))
+    }else{
+        m <- optimx(start, objfun, gr = gradfun,
+                    control = list(all.methods = TRUE, trace = 2))
+    }
     
     return(m)
 }

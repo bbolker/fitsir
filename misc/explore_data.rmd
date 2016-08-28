@@ -1,0 +1,78 @@
+---
+title: "Data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r pkgs}
+library(devtools)
+load_all("..")
+```
+
+## Ebola
+
+I got the data from here: https://github.com/cmrivers/ebola
+
+```{r}
+eboladf <- read.csv("country_timeseries.csv")
+```
+
+I was going to write a document about examples and fits but I ran into so many problems so I decided to write about errors instead. I'm going to look at Liberia case to demonstrate the problems...
+
+```{r getLiberia}
+tmpdf <- eboladf[,c(2,4)]
+head(tmpdf)
+```
+
+First, I need to reverse the data to put the days in an increasing order:
+
+```{r reverse}
+tmpdf <- tmpdf[nrow(tmpdf):1,]
+rownames(tmpdf) <- NULL
+head(tmpdf)
+```
+
+This is probably not a good idea but I'm going to get rid of NA values:
+
+```{r removeNA}
+tmpdf <- tmpdf[!is.na(tmpdf[,2]),]
+```
+
+This is cumulative incidence data but let's just consider this as prevalence data because working with incidence gives us a lot more problems... 
+
+```{r converting}
+df <- setNames(tmpdf, c("tvec", "count"))
+t <- df$tvec
+```
+
+How well does auto start work?
+
+```{r fitsir}
+plot(df)
+auto.start <- startfun(auto = TRUE, data = df)
+lines(t, SIR.detsim(t, trans.pars(auto.start)))
+f1 <- fitsir(df, start = auto.start)
+lines(t, SIR.detsim(t, trans.pars(coef(f1))), col = 2)
+```
+
+It seems like it's working well.. However, here's a problem with sensitivity fit using nll:
+
+```{r fitsiroptim}
+f.ssq <- fitsir.optim(df, start = auto.start)
+f.nll <- fitsir.optim(df, start = auto.start, nll = TRUE)
+
+plot(df)
+lines(t, SIR.detsim(t, trans.pars(coef(f.ssq))))
+lines(t, SIR.detsim(t, trans.pars(coef(f.nll))), col = 2)
+```
+
+Is there something wrong with the sensitivity equations? Or with BFGS? Numerical error? We should look at this with optimx:
+
+```{r optimx}
+library(optimx)
+try(fitsir.optim(df, start = auto.start, nll = TRUE, optimx = TRUE))
+```
+
+This is weird... It seemed to work perfectly fine with bombay data...
