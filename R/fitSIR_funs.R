@@ -450,6 +450,7 @@ fitsir.optim <- function(data,
                          verbose = FALSE,
                          plot.it = FALSE,
                          debug = FALSE,
+                         control=list(maxit=1e5),
                          nll = FALSE,
                          poisson = FALSE){
     
@@ -464,7 +465,6 @@ fitsir.optim <- function(data,
     assign("oldgrad",NULL,f.env)
     assign("data", data, f.env)
     objfun <- function(par) {
-        names(par) <- c("log.beta", "log.gamma", "log.N", "logit.i")
         if (identical(par,oldpar)) {
             if (verbose) cat("returning old version of value\n")
             return(oldval)
@@ -482,11 +482,12 @@ fitsir.optim <- function(data,
                   SIR.detsim(data$tvec, trans.pars(par),
                              incidence = incidence))
         }
+        if(debug) cat(" ",oldval,"\n")
         return(oldval)
     }
+    attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
     environment(objfun) <- f.env
     gradfun <- function(par) {
-        names(par) <- c("log.beta", "log.gamma", "log.N", "logit.i")
         if (identical(par,oldpar)) {
             if (verbose) cat("returning old version of grad\n")
             return(oldgrad)
@@ -500,11 +501,13 @@ fitsir.optim <- function(data,
     }
     environment(gradfun) <- f.env
     
-    fit.p <- optim(fn = objfun,
-                   par = start,
-                   method = "BFGS",
-                   gr = gradfun,
-                   control = list(maxit = 1e4))$par
+    m <- mle2(objfun,
+                  vecpar=TRUE,
+                  start=start,
+                  method="BFGS",
+                  control=control,
+                  gr = gradfun,
+                  data=c(data,list(debug=debug)))
     
-    return(fit.p)
+    return(m)
 }
