@@ -13,7 +13,7 @@ load_all("..")
 
 ## Ebola
 
-I got the data from here: https://github.com/cmrivers/ebola
+I got the data from [here](https://github.com/cmrivers/ebola). [Here](http://currents.plos.org/outbreaks/article/obk-14-0036-early-epidemic-dynamics-of-the-west-african-2014-ebola-outbreak-estimates-derived-with-a-simple-two-parameter-model/)'s a paper that fitted IDEA model to the data.
 
 ```{r}
 eboladf <- read.csv("country_timeseries.csv")
@@ -61,18 +61,63 @@ It seems like it's working well.. However, here's a problem with sensitivity fit
 
 ```{r fitsiroptim}
 f.ssq <- fitsir.optim(df, start = auto.start)
-f.nll <- fitsir.optim(df, start = auto.start, nll = TRUE)
+f.nll <- fitsir.optim(df, start = coef(f.ssq), nll = TRUE)
 
 plot(df)
-lines(t, SIR.detsim(t, trans.pars(coef(f.ssq))))
-lines(t, SIR.detsim(t, trans.pars(coef(f.nll))), col = 2)
+I.ssq <- SIR.detsim(t, trans.pars(coef(f.ssq)))
+I.nll <- SIR.detsim(t, trans.pars(coef(f.nll)))
+lines(t, I.ssq)
+lines(t, I.nll, col = 2)
 ```
 
-Is there something wrong with the sensitivity equations? Or with BFGS? Numerical error? We should look at this with optimx:
+OK so I fixed this. Now, let's look at the inicidence. We're given cumulative incidence data so we need to convert it.
 
-```{r optimx}
-library(optimx)
-try(fitsir.optim(df, start = auto.start, nll = TRUE, optimx = TRUE))
+```{r convert}
+tmp.i <- diff(df[,2])
+tmp.t <- df[-1,1]
+df2 <- data.frame(tvec = tmp.t, count = tmp.i)
+plot(df2)
 ```
 
-This is weird... It seemed to work perfectly fine with bombay data...
+We get negative values as well because some people are removed from the counts after going through some tests.
+
+```{r incidence}
+(f.i1 <- fitsir(df2, incidence = TRUE))
+plot(df2)
+tpars <- trans.pars(coef(f.i1))
+inc <- SIR.detsim(tmp.t, tpars, incidence = TRUE)
+lines(tmp.t, inc)
+```
+
+I thought this was bad but now that I think about it, it might not be a problem...?
+
+```{r cuminc}
+plot(tmp.t, cumsum(df2$count))
+lines(tmp.t, cumsum(inc))
+```
+
+```{r}
+summarize.pars(coef(f.i1))
+```
+
+We know this is a bad parameter...
+
+## Flu (2009) in WSU
+
+I got the data from [here](https://www.researchgate.net/profile/Elissa_Schwartz/publication/266951690_Pandemic_2009_H1N1_influenza_in_two_settings_in_a_small_community_The_workplace_and_the_university_campus/links/55382bfc0cf226723ab616e6.pdf). They use daily reports in other papers but they don't provide it so I'm going to try with weekly reports...
+
+```{r fludata}
+df.flu <- data.frame(
+    tvec = c(1:16),
+    count = c(73, 524, 569, 357, 149, 92, 53, 95, 56, 61, 94, 81, 41, 16, 12, 3))
+plot(df.flu)
+(fit1 <- fitsir(df.flu, incidence = TRUE))
+(fit2 <- fitsir.optim(df.flu, incidence = TRUE, nll = TRUE))
+lines(SIR.detsim(df.flu$tvec, trans.pars(coef(fit1)), incidence = TRUE))
+lines(SIR.detsim(df.flu$tvec, trans.pars(coef(fit2)), incidence = TRUE), col = 2)
+
+summarize.pars(coef(fit1))
+summarize.pars(coef(fit2))
+```
+
+Data source says that $N$ is 18234. We don't get any values that are close...

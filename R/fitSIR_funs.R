@@ -415,7 +415,7 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
             d1 <- get(derVec[i])
             
             if(nll){
-                deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1))  
+                deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1))
             }else if(poisson){
                 deriv <- sum((1 - count/I) * d1)
             }else{
@@ -426,8 +426,7 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
         }
         
         if(nll){
-            g <- SIR.logLik(incidence = incidence)
-            val <- g(params, count)
+            val <- -sum(dnorm2(count,I,log=TRUE))
         }else if(poisson){
             val <- sum(I - count * log(I))
         }else{
@@ -450,7 +449,6 @@ fitsir.optim <- function(data,
                          verbose = FALSE,
                          plot.it = FALSE,
                          debug = FALSE,
-                         optimx = FALSE,
                          control=list(maxit=1e5),
                          nll = FALSE,
                          poisson = FALSE){
@@ -502,18 +500,14 @@ fitsir.optim <- function(data,
     }
     environment(gradfun) <- f.env
     
-    if(!optimx){
-        m <- mle2(objfun,
-                  vecpar=TRUE,
-                  start=start,
-                  method="BFGS",
-                  control=control,
-                  gr = gradfun,
-                  data=c(data,list(debug=debug)))
-    }else{
-        m <- optimx(start, objfun, gr = gradfun,
-                    control = list(all.methods = TRUE, trace = 2))
-    }
+    
+    m <- mle2(objfun,
+              vecpar=TRUE,
+              start=start,
+              method="BFGS",
+              control=control,
+              gr = gradfun,
+              data=c(data,list(debug=debug)))
     
     return(m)
 }
