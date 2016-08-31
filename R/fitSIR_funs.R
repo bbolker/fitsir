@@ -64,7 +64,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
         ## find a point halfway between initial and max
         ##  scaling could be adjustable?
         ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
-        m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<ss.thalf))
+        m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.thalf))
         r <- as.numeric(coef(m1)[2]) ##beta - gamma
         iniI <- ss.data$count[1] ## N * i0
         ## curvature of spline at max
@@ -415,7 +415,7 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
             d1 <- get(derVec[i])
             
             if(nll){
-                deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1))  
+                deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1))
             }else if(poisson){
                 deriv <- sum((1 - count/I) * d1)
             }else{
@@ -426,8 +426,7 @@ findSens <- function(data, params, plot.it = FALSE, log = "xy",
         }
         
         if(nll){
-            g <- SIR.logLik(incidence = incidence)
-            val <- g(params, count)
+            val <- -sum(dnorm2(count,I,log=TRUE))
         }else if(poisson){
             val <- sum(I - count * log(I))
         }else{
@@ -501,13 +500,14 @@ fitsir.optim <- function(data,
     }
     environment(gradfun) <- f.env
     
+    
     m <- mle2(objfun,
-                  vecpar=TRUE,
-                  start=start,
-                  method="BFGS",
-                  control=control,
-                  gr = gradfun,
-                  data=c(data,list(debug=debug)))
+              vecpar=TRUE,
+              start=start,
+              method="BFGS",
+              control=control,
+              gr = gradfun,
+              data=c(data,list(debug=debug)))
     
     return(m)
 }
