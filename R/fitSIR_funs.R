@@ -233,8 +233,8 @@ SIR.detsim <- function(t, params, findSens = FALSE,
     with(as.list(params),{
         if(incidence){
             l <- length(t)
-            t.d <- diff(t[(l-1):l])
-            t <- c(t, t[l]+t.d)
+            t.d <- diff(t[1:2])
+            t <- c(t[1] - t.d, t)
             t.interval <- diff(t)
         }
         

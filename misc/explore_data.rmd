@@ -19,88 +19,49 @@ I got the data from [here](https://github.com/cmrivers/ebola). [Here](http://cur
 eboladf <- read.csv("country_timeseries.csv")
 ```
 
-I was going to write a document about examples and fits but I ran into so many problems so I decided to write about errors instead. I'm going to look at Liberia case to demonstrate the problems...
+I'm going to try to fit curves to ebola epidemic data
 
 ```{r getLiberia}
-tmpdf <- eboladf[,c(2,4)]
-head(tmpdf)
+tmpfun <- function(data = "Liberia",
+                   fitfun = fitsir,
+                   auto = FALSE,
+                   plot.it = FALSE,
+                   start.pars = NA){
+    case <- paste0("Cases_", data)
+    cumInc <- eboladf[,c("Day", case)]
+    cumInc <- cumInc[!is.na(cumInc[,2]),]
+    cumInc <- cumInc[nrow(cumInc):1,]
+    tmp.t <- cumInc[-1,1]
+    tmp.I <- diff(cumInc[,2])
+    df <- data.frame(tvec = tmp.t, count = tmp.I)
+    if(auto){
+        start <- startfun(data = df, auto = TRUE, incidence = TRUE)
+    }else{
+        start <- startfun()
+    }
+    if(!is.na(start.pars)){
+        start <- start.pars
+    }
+    f.i <- fitfun(df, incidence = TRUE, start = start)
+    pars <- coef(f.i)
+    print(summarize.pars(pars))
+    if(plot.it){
+        par(mfrow = c(1,2))
+        plot(df, main = "Incidence")
+        tpars <- trans.pars(pars)
+        inc <- SIR.detsim(tmp.t, tpars, incidence = TRUE)
+        lines(tmp.t, inc)
+        plot(tmp.t, cumsum(df[,2]), main = "Cumulative incidence", ylab = "count")
+        lines(tmp.t, cumsum(inc))
+        par(mfrow = c(1,1))
+    }
+    return(f.i)
+}
+
+tmpfun(auto = TRUE, plot.it = TRUE)
+tmpfun(data = "Guinea", auto = TRUE, plot.it = TRUE)
+tmpfun(data = "SierraLeone", plot.it = TRUE) ##unable to fit...
 ```
-
-First, I need to reverse the data to put the days in an increasing order:
-
-```{r reverse}
-tmpdf <- tmpdf[nrow(tmpdf):1,]
-rownames(tmpdf) <- NULL
-head(tmpdf)
-```
-
-This is probably not a good idea but I'm going to get rid of NA values:
-
-```{r removeNA}
-tmpdf <- tmpdf[!is.na(tmpdf[,2]),]
-```
-
-This is cumulative incidence data but let's just consider this as prevalence data because working with incidence gives us a lot more problems... 
-
-```{r converting}
-df <- setNames(tmpdf, c("tvec", "count"))
-t <- df$tvec
-```
-
-How well does auto start work?
-
-```{r fitsir}
-plot(df)
-auto.start <- startfun(auto = TRUE, data = df)
-lines(t, SIR.detsim(t, trans.pars(auto.start)))
-f1 <- fitsir(df, start = auto.start)
-lines(t, SIR.detsim(t, trans.pars(coef(f1))), col = 2)
-```
-
-It seems like it's working well.. However, here's a problem with sensitivity fit using nll:
-
-```{r fitsiroptim}
-f.ssq <- fitsir.optim(df, start = auto.start)
-f.nll <- fitsir.optim(df, start = coef(f.ssq), nll = TRUE)
-
-plot(df)
-I.ssq <- SIR.detsim(t, trans.pars(coef(f.ssq)))
-I.nll <- SIR.detsim(t, trans.pars(coef(f.nll)))
-lines(t, I.ssq)
-lines(t, I.nll, col = 2)
-```
-
-OK so I fixed this. Now, let's look at the inicidence. We're given cumulative incidence data so we need to convert it.
-
-```{r convert}
-tmp.i <- diff(df[,2])
-tmp.t <- df[-1,1]
-df2 <- data.frame(tvec = tmp.t, count = tmp.i)
-plot(df2)
-```
-
-We get negative values as well because some people are removed from the counts after going through some tests.
-
-```{r incidence}
-(f.i1 <- fitsir(df2, incidence = TRUE))
-plot(df2)
-tpars <- trans.pars(coef(f.i1))
-inc <- SIR.detsim(tmp.t, tpars, incidence = TRUE)
-lines(tmp.t, inc)
-```
-
-I thought this was bad but now that I think about it, it might not be a problem...?
-
-```{r cuminc}
-plot(tmp.t, cumsum(df2$count))
-lines(tmp.t, cumsum(inc))
-```
-
-```{r}
-summarize.pars(coef(f.i1))
-```
-
-We know this is a bad parameter...
 
 ## Flu (2009) in WSU
 
@@ -139,3 +100,9 @@ findSens(df.1918, coef(fit.germ2),plot.it = TRUE, incidence = TRUE, log = "y", n
 
 * This fit doesn't look very good along the tail
 * Population size seems pretty bad too
+
+```{r}
+inc <- SIR.detsim(t.germ, trans.pars(coef(fit.germ2)), incidence = TRUE)
+plot(cumsum(g.inc))
+lines(cumsum(inc))
+```
