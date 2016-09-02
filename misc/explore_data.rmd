@@ -39,7 +39,7 @@ tmpfun <- function(data = "Liberia",
     }else{
         start <- startfun()
     }
-    if(!is.na(start.pars)){
+    if(!is.na(start.pars[1])){
         start <- start.pars
     }
     f.i <- fitfun(df, incidence = TRUE, start = start)
@@ -61,7 +61,38 @@ tmpfun <- function(data = "Liberia",
 tmpfun(auto = TRUE, plot.it = TRUE)
 tmpfun(data = "Guinea", auto = TRUE, plot.it = TRUE)
 tmpfun(data = "SierraLeone", plot.it = TRUE) ##unable to fit...
+
 ```
+
+I found this parameter manually:
+
+```{r SierraLeone}
+pars.S <- c(log.beta = 0.52, log.gamma = 0.505, log.N = 13, logit.i = -14)
+data = "SierraLeone"
+case <- paste0("Cases_", data)
+cumInc <- eboladf[,c("Day", case)]
+cumInc <- cumInc[!is.na(cumInc[,2]),]
+cumInc <- cumInc[nrow(cumInc):1,]
+tmp.t <- cumInc[-1,1]
+tmp.I <- diff(cumInc[,2])
+df <- data.frame(tvec = tmp.t, count = tmp.I)
+par(mfrow = c(1,2))
+plot(df, main = "Incidence")
+tpars <- trans.pars(pars.S)
+inc <- SIR.detsim(tmp.t, tpars, incidence = TRUE)
+lines(tmp.t, inc)
+plot(tmp.t, cumsum(df[,2]), main = "Cumulative incidence", ylab = "count")
+lines(tmp.t, cumsum(inc))
+par(mfrow = c(1,1))
+```
+
+Cumulative incidence certainly looks great... What happens if we use these to for fitting?
+
+```{r sfit}
+tmpfun(data = "SierraLeone", start.pars = pars.S, plot.it = TRUE)
+```
+
+This works. I guess we needed a good starting parameter.
 
 ## Flu (2009) in WSU
 
