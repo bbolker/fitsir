@@ -147,7 +147,7 @@ pairs(~log.beta+log.gamma+log.N+logit.i, data = as.data.frame(spars.good),
 Let's try plotting all of them:
 
 ```{r good.fits2, error = FALSE, message=FALSE}
-par(mrow = c(1,1))
+par(mfrow = c(1,1))
 hist(s.nll.good)
 
 bombay2 <- setNames(bombay, c("tvec", "count"))
@@ -238,4 +238,62 @@ pairs(spars.good2[,1:4], col = cols[cc],gap=0,cex=0.9)
 
 ```
 
-I don't think this plot helps...
+I don't think this plot helps... Trying some nwe things...
+
+```{r}
+s.nll.good2 <- s.nll.good2[!is.na(s.nll.good2)]
+spars.good2 <- spars.good2[!is.na(s.nll.good2),]
+
+min.ind <- which.min(s.nll.good2)
+min.pars <- as.numeric(spars.good2[min.ind,][1:4])
+names(min.pars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+
+g <- SIR.logLik(incidence = FALSE)
+tmpf <- function(log.beta,log.gamma,basepars=fpars,data=bombay2,
+                 useSSQ=FALSE) {
+    pars <- basepars
+    pars[c("log.beta","log.gamma")] <- c(log.beta,log.gamma)
+    if (useSSQ) return(findSSQ(data,pars)$SSQ)
+    return(g(pars,data$count))
+}
+
+tmpf2 <- function(log.beta,log.gamma,basepars=fpars,data=bombay2,
+                 useSSQ=FALSE) {
+    pars <- basepars
+    pars[c("log.beta","log.gamma")] <- c(log.beta,log.gamma)
+    fit <- fitsir.optim(bombay2, start = pars)
+    return(coef(fit))
+}
+
+library(emdbook)
+fn <- "fitLHS_explore.rda"
+if (file.exists(fn)) {
+    load(fn)
+} else {
+    ## 10% slice 
+    cc1a <- curve3d(tmpf(x,y,basepars=min.pars),
+                  xlim=min.pars["log.beta"]*c(0.9,1.1),
+                  ylim=min.pars["log.gamma"]*c(0.9,1.1),
+                  n=c(241,241))
+    ## 5% slice
+    cc2a <- curve3d(tmpf(x,y,basepars=min.pars),
+                  xlim=min.pars["log.beta"]*c(0.95,1.05),
+                  ylim=min.pars["log.gamma"]*c(0.95,1.05),
+                  n=c(121,121))
+    
+    ## 1% slice
+    cc3a <- curve3d(tmpf(x,y,basepars=min.pars),
+                  xlim=min.pars["log.beta"]*c(0.99,1.01),
+                  ylim=min.pars["log.gamma"]*c(0.99,1.01),
+                  n=c(121,121))
+    
+    
+    save("cc1a", "cc2a", "cc3a", file=fn)
+}
+
+image(cc1a$z)
+
+image(cc2a$z)
+
+```
+
