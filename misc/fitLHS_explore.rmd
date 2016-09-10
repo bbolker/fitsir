@@ -272,8 +272,8 @@ if (file.exists(fn)) {
 } else {
     ## 10% slice 
     cc1a <- curve3d(tmpf(x,y,basepars=min.pars),
-                  xlim=min.pars["log.beta"]*c(0.9,1.1),
-                  ylim=min.pars["log.gamma"]*c(0.9,1.1),
+                  xlim=min.pars["log.beta"]*c(0.8,1.2),
+                  ylim=min.pars["log.gamma"]*c(0.8,1.2),
                   n=c(241,241))
     ## 5% slice
     cc2a <- curve3d(tmpf(x,y,basepars=min.pars),
@@ -292,8 +292,27 @@ if (file.exists(fn)) {
 }
 
 image(cc1a$z)
-
+plot(cc1a$z[34,])
 image(cc2a$z)
 
+library(rgl)
+with(cc2a, {
+    image(x, y, z, xlab = "log.beta")
+    #persp3d(x, y, z, col = "blue")
+})
+
+tmpf3 <- function(log.beta,log.gamma,basepars=fpars,data=bombay2,
+                 useSSQ=FALSE) {
+    pars <- basepars
+    pars[c("log.beta","log.gamma")] <- c(log.beta,log.gamma)
+    tpars <- trans.pars(pars)
+    I <- SIR.detsim(bombay2$tvec, tpars)
+    plot(bombay2)
+    lines(I)
+}
+
+tmpf3(4.099, 3.95, basepars = min.pars)
+abline(h = 3.95)
+abline(v = 4.099)
 ```
 

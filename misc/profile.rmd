@@ -1,0 +1,130 @@
+---
+title: "Profiling"
+output: html_document
+---
+
+```{r pkgs,echo=FALSE,message=FALSE}
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2); theme_set(theme_bw())
+library(devtools)
+load_all("..")
+```
+```{r load, echo = FALSE}
+fn <- "fitLHS.rda"
+fn2 <- "fitLHS2.rda"
+fn3 <- "fitLHS3.rda"
+fn4 <- "fitLHS4.rda"
+## L2 uses L1 as starting values to fit the curve
+## L3 uses fitsir.optim based on nll sensitivity
+## L4 is like L2 but it uses L3 as starting values
+L1 <- load(fn)  ## contains p (starting values), [fs]{pars,.nll,.SSQ}
+L2 <- load(fn2)
+L3 <- load(fn3) ## npars, n.nll, n.SSQ
+L4 <- load(fn4) ## npars2, n.nll2, n.SSQ2
+```
+
+We're going to use `fitsir.optim` for now. Let's sort out the good parameters first:
+
+```{r}
+bombay2 <- setNames(bombay, c("tvec", "count"))
+spars.good2 <- spars[(s.nll < 167.7),]
+s.nll.good2 <- s.nll[(s.nll < 167.7)]
+s.nll.good2 <- s.nll.good2[!is.na(s.nll.good2)]
+spars.good2 <- spars.good2[!is.na(s.nll.good2),]
+
+min.ind <- which.min(s.nll.good2)
+min.pars <- as.numeric(spars.good2[min.ind,])
+names(min.pars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+```
+
+Here's a function for 2 parameter optimization:
+
+```{r}
+fitsir.optim2 <- function(data,
+                         start = startfun(),
+                         control=list(maxit=1e5)){
+    
+    fix <- start[3:4]
+    start.par <- start[1:2]
+    
+    f.env <- new.env()
+    ## set initial values
+    assign("oldval",NULL,f.env)
+    assign("oldpar",NULL,f.env)
+    assign("oldgrad",NULL,f.env)
+    assign("data", data, f.env)
+    objfun <- function(par) {
+        if (identical(par,oldpar)) {
+            return(oldval)
+        }
+        
+        test.pars <- c(par, fix)
+        
+        v <- findSens(data, test.pars, nll = TRUE)
+        oldval <<- v["val"]
+        oldgrad <<- v[2:3]
+        oldpar <<- par
+        
+        return(oldval)
+    }
+    attr(objfun, "parnames") <- c("log.beta","log.gamma")
+    environment(objfun) <- f.env
+    gradfun <- function(par) {
+        if (identical(par,oldpar)) {
+            return(oldgrad)
+        }
+        
+        test.pars <- c(par, fix)
+        
+        v <- findSens(data, test.pars, nll = TRUE)
+        oldval <<- v["val"]
+        oldgrad <<- v[2:3]
+        oldpar <<- par
+        return(oldgrad)
+    }
+    environment(gradfun) <- f.env
+    
+    
+    m <- mle2(objfun,
+              vecpar=TRUE,
+              start=start.par,
+              method="BFGS",
+              control=control,
+              gr = gradfun,
+              data=c(data,list(debug=debug)))
+    
+    return(m)
+}
+```
+
+Trying...:
+
+```{r }
+library(emdbook)
+
+tmpfun <- function(x, y, basepars = min.pars){
+    pars <- basepars
+    pars[c("log.N", "logit.i")] <- c(x, y)
+    
+    m <- fitsir.optim2(bombay2, start = pars)
+    return(c(logLik(m)))
+}
+
+
+fn <- "profile.rda"
+if (file.exists(fn)) {
+    load(fn)
+} else {
+    a <- curve3d(tmpfun(x, y),
+            xlim = min.pars["log.N"]* c(0.95, 1.05),
+            ylim = min.pars["logit.i"] * c(1.05, 0.95),
+            n = c(31,31))
+    save("a", file=fn)
+}
+with(a,{
+    image(x, y, z)
+})
+
+```
