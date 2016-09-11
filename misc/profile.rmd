@@ -25,7 +25,7 @@ L3 <- load(fn3) ## npars, n.nll, n.SSQ
 L4 <- load(fn4) ## npars2, n.nll2, n.SSQ2
 ```
 
-We're going to use `fitsir.optim` for now. Let's sort out the good parameters first:
+We're going to use `fitsir.optim(nll = TRUE)` for now. Let's sort out the good parameters first:
 
 ```{r}
 bombay2 <- setNames(bombay, c("tvec", "count"))
@@ -44,10 +44,16 @@ Here's a function for 2 parameter optimization:
 ```{r}
 fitsir.optim2 <- function(data,
                          start = startfun(),
-                         control=list(maxit=1e5)){
+                         control=list(maxit=1e5),
+                         fix.name = c("log.N", "logit.i")){
     
-    fix <- start[3:4]
-    start.par <- start[1:2]
+    name <- c("log.beta", "log.gamma", "log.N", "logit.i")
+    
+    target.name <- name[which(!(name %in% fix.name))]
+    
+    fix <- start[fix.name]
+    
+    start.par <- start[target.name]
     
     f.env <- new.env()
     ## set initial values
@@ -60,7 +66,9 @@ fitsir.optim2 <- function(data,
             return(oldval)
         }
         
-        test.pars <- c(par, fix)
+        test.pars <- setNames(rep(NA,4), name)
+        test.pars[fix.name] <- fix
+        test.pars[target.name] <- par
         
         v <- findSens(data, test.pars, nll = TRUE)
         oldval <<- v["val"]
@@ -69,14 +77,16 @@ fitsir.optim2 <- function(data,
         
         return(oldval)
     }
-    attr(objfun, "parnames") <- c("log.beta","log.gamma")
+    attr(objfun, "parnames") <- target.name
     environment(objfun) <- f.env
     gradfun <- function(par) {
         if (identical(par,oldpar)) {
             return(oldgrad)
         }
         
-        test.pars <- c(par, fix)
+        test.pars <- setNames(rep(NA,4), name)
+        test.pars[fix.name] <- fix
+        test.pars[target.name] <- par
         
         v <- findSens(data, test.pars, nll = TRUE)
         oldval <<- v["val"]
@@ -104,11 +114,12 @@ Trying...:
 ```{r }
 library(emdbook)
 
-tmpfun <- function(x, y, basepars = min.pars){
+tmpfun <- function(x, y, basepars = min.pars,
+                   fix.name = c("log.N", "logit.i")){
     pars <- basepars
-    pars[c("log.N", "logit.i")] <- c(x, y)
+    pars[fix.name] <- c(x, y)
     
-    m <- fitsir.optim2(bombay2, start = pars)
+    m <- fitsir.optim2(bombay2, start = pars, fix.name = fix.name)
     return(c(logLik(m)))
 }
 
@@ -117,14 +128,53 @@ fn <- "profile.rda"
 if (file.exists(fn)) {
     load(fn)
 } else {
-    a <- curve3d(tmpfun(x, y),
-            xlim = min.pars["log.N"]* c(0.95, 1.05),
-            ylim = min.pars["logit.i"] * c(1.05, 0.95),
+    beta.gamma <- curve3d(tmpfun(x, y, fix.name = c("log.beta", "log.gamma")),
+            xlim = min.pars["log.beta"]* c(0.8, 1.2),
+            ylim = min.pars["log.gamma"] * c(0.8, 1.2),
             n = c(31,31))
-    save("a", file=fn)
+    
+    beta.N <- curve3d(tmpfun(x, y, fix.name = c("log.beta", "log.N")),
+            xlim = min.pars["log.beta"]* c(0.8, 1.2),
+            ylim = min.pars["log.N"] * c(0.8, 1.2),
+            n = c(31,31))
+    
+    beta.i <- curve3d(tmpfun(x, y, fix.name = c("log.beta", "logit.i")),
+            xlim = min.pars["log.beta"]* c(0.8, 1.2),
+            ylim = min.pars["logit.i"] * c(1.2, 0.8),
+            n = c(31,31))
+    
+    gamma.N <- curve3d(tmpfun(x, y, fix.name = c("log.gamma", "log.N")),
+            xlim = min.pars["log.gamma"]* c(0.8, 1.2),
+            ylim = min.pars["log.N"] * c(0.8, 1.2),
+            n = c(31,31))
+    
+    gamma.i <- curve3d(tmpfun(x, y, fix.name = c("log.gamma", "logit.i")),
+            xlim = min.pars["log.gamma"]* c(0.8, 1.2),
+            ylim = min.pars["logit.i"] * c(1.2, 0.8),
+            n = c(31,31))
+    
+    N.i <- curve3d(tmpfun(x, y, fix.name = c("log.N", "logit.i")),
+            xlim = min.pars["log.N"]* c(0.80, 1.2),
+            ylim = min.pars["logit.i"] * c(1.2, 0.8),
+            n = c(31,31))
+    
+    save("beta.gamma", "beta.N", "beta.i", "gamma.N", "gamma.i", "N.i", file=fn)
 }
-with(a,{
-    image(x, y, z)
+
+resList <- list(beta.gamma, beta.N, beta.i, gamma.N, gamma.i, N.i)
+resName <- c("beta.gamma", "beta.N", "beta.i", "gamma.N", "gamma.i", "N.i")
+resList <- setNames(resList, resName)
+
+
+l <- lapply(resName, FUN = function(name){
+    
+    L <- resList[[name]]
+    
+    n <- strsplit(name, split = "[.]")[[1]]
+    
+    with(L,{
+        image(x,y,z, xlab = n[1], ylab = n[2])
+    })
 })
 
 ```
