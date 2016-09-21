@@ -30,3 +30,12 @@ List sirgrad(double t, NumericVector y, NumericVector pars) {
 
 }
 
+// initializer (verbatim from sirgrad.c)
+// how do I make this look like an Rcpp function?
+
+static double parms[3];
+void initmod ( void (*odeparms)(int *, double *) )
+{
+    int num=3;
+    odeparms (&num, parms) ;
+}
