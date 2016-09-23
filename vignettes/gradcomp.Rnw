@@ -22,7 +22,7 @@
 
 <<opts,message=FALSE,echo=FALSE>>=
 library("knitr")
-opts_chunk$set(fig.width=4,fig.height=4)
+opts_chunk$set(fig.width=4,fig.height=4,error=FALSE)
 knit_hooks$set(basefig=function(before, options, envir) {
                    if (before) {
                        ## tweak graphical settings for base figures
@@ -31,12 +31,17 @@ knit_hooks$set(basefig=function(before, options, envir) {
                })
 @
 
+Load packages:
+
 <<pkgs,message=FALSE>>=
-library("fitsir")
-library("deSolve")
-library("Rcpp")
-library("ggplot2"); theme_set(theme_bw())
-library("microbenchmark")
+library(fitsir)
+library(deSolve)
+if (packageVersion("odeintr")<"1.5")
+    stop("need devel version: try devtools::github_install('thk686/odeintr')")
+library(odeintr)
+library(Rcpp)
+library(ggplot2); theme_set(theme_bw())
+library(microbenchmark)
 @
 
 The built-in gradient function is \code{SIR.grad}:
@@ -64,14 +69,29 @@ jacfunc <- function(t, y, params) {
 
 Rcpp version:
 <<compCpp>>=
-sourceCpp("sirgrad.cpp")
+s <- sourceCpp("sirgrad.cpp")
+@
+
+<<compCpp_dig>>=
+dllfn <- list.files(file.path(s$buildDirectory),pattern="\\.so$")
+ss <- system(sprintf("nm -g %s",file.path(s$buildDirectory,dllfn)),
+             intern=TRUE)
+rcppgradfn <- tail(strsplit(grep("sirgrad$",ss,value=TRUE)," ")[[1]],1)
+rcppinitfn <- tail(strsplit(grep("initmod",ss,value=TRUE)," ")[[1]],1)
+## sourceCpp_1_sirgrad
+## already loaded ...
+## dyn.load(file.path(s$buildDirectory,"sourceCpp_2.so"))
+## test:
+start <- c(S=0.99,logI=log(0.01))
+pars <- c(beta=2,gamma=1,N=1)
+.Call(rcppgradfn,0,start,pars)
 @
 
 C version:
 <<compC>>=
 system("R CMD SHLIB sirgrad.c")
 dyn.load(paste0("sirgrad",.Platform$dynlib.ext))
-## avoid redefining grade vector every time:
+## avoid redefining grad vector every time:
 ## should be a little more careful and define
 ## a function closure/ put grad in the environment
 ## of SIR.grad3
@@ -137,17 +157,35 @@ More specifically, should look at \cite{raue_lessons_2013}.
 \end{itemize}
 The last is possibly most interesting but most difficult.
 
+We can also use the \href{https://github.com/thk686/odeintr}{odeintr} package.
+
+<<odeintr_setup>>=
+sir1_string = '
+// variable N conflicts with a built-in ... so use NN
+double foi = beta*x[0]/NN;
+dxdt[0]=-foi*exp(x[1]);
+dxdt[1]=foi-gamma;
+'
+## cat(JacobianCpp(sir))
+## n.b. Jacobian doesn't work if we use intermediate foi variable
+compile_sys("odeintr_sirgrad",sir1_string,pars=c("beta","gamma","NN"))
+@ 
+
 <<runode>>=
 pars3 <- c(pars,i0=0.01)
 tvec <- seq(0,20,by=0.01)
-runODE.C <- function(t, params) {
+runODE.C <- function(t, params, method=c("C","Rcpp")) {
+    method <- match.arg(method)
     odesol <- with(as.list(params),
                    ode(y=c(S=N,logI=log(N*i0)),
                        times=t,
-                       func="derivs",
+                       func=switch(method,C="derivs",
+                                   Rcpp=rcppgradfn),
                        parms=params[1:3],
-                       dllname = "sirgrad",
-                       initfunc = "initmod",
+                       dllname = switch(method,C="sirgrad",
+                           Rcpp=file.path(s$buildDirectory,"sourceCpp_2.so")),
+                       initfunc = switch(method,C="initmod",
+                                         Rcpp=rcppinitfn),
                        nout = 1, outnames = character(0)))
     return(odesol[,"logI"])
 }
@@ -159,16 +197,32 @@ runODE.R <- function(t, params, func=SIR.grad) {
                        parms=params[1:3]))
     return(odesol[,"logI"])
 }
-stopifnot(all.equal(runODE.R(tvec,pars3),runODE.C(tvec,pars3)))
+runODE.odeintr <- function(t, params) {
+    ## isn't there a better way??
+    do.call(environment(odeintr_sirgrad)$odeintr_sirgrad_set_params,
+            unname(as.list(params[1:3])))
+    ## unname to avoid having to do N -> NN switch
+    res <- odeintr_sirgrad(init=with(as.list(params),c(N,log(N*i0))),
+                    duration=diff(range(t)),
+                    step_size=diff(t[1:2]),
+                    start=t[1])
+    return(res[,3])
+}
+    
+stopifnot(all.equal(r1 <- runODE.R(tvec,pars3),runODE.C(tvec,pars3)))
+r3 <- runODE.odeintr(tvec,pars3)
+stopifnot(all.equal(r1,r3,tolerance=1e-6))
 @
 
 <<odebench,cache=TRUE>>=
 m2 <- microbenchmark(runODE.R(tvec,pars3),
                      runODE.R(tvec,pars3,func=sirgrad),
-                     runODE.C(tvec,pars3))
+                     runODE.C(tvec,pars3),
+                     runODE.odeintr(tvec,pars3))
 levels(m2$expr) <- c("R",
                      "R/Rcpp",
-                     "C")
+                     "deSolve/C",
+                     "odeintr")
 m2$expr <- reorder(m2$expr,m2$time)
 @
 
@@ -180,10 +234,12 @@ the :
 b1plot %+% m2
 @
 
-Is there a way to compile \code{Rcpp} to a DLL so it can
-be used via the wrapper?
-
-It would be worth checking out [Tim Keitt's new ODE-in-C++ package](https://github.com/thk686/odeintr) too.
+\begin{itemize}
+\item So far I haven't been able to figure out a way to compile Rcpp
+so that it can be used by \code{odesolve} directly, in the
+efficient way ... this won't matter so much if the gradient function
+is complex, or if we can use \code{odeintr} instead
+\item I haven't explored \code{odeintr} much.
 
 \bibliography{fitsir}
 

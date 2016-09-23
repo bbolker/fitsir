@@ -21,7 +21,7 @@ inip <- startfun(data = bombay2, auto = TRUE)
 
 optimfun <- function(data, start,
                      incidence = FALSE,
-                     nll = FALSE){
+                     nll = FALSE, ...) {
     
     fnfun <- function(params){
         return(findSens(data, params, incidence = incidence, nll = nll)[1])
@@ -32,7 +32,8 @@ optimfun <- function(data, start,
     }
     
     fit <- optimx(start, fnfun, gr = grfun,
-                  control = list(all.methods = TRUE, trace = 2))
+                  control = list(all.methods = TRUE, trace = 2, ...
+                                 ))
     return(fit)
 }
 
@@ -41,7 +42,7 @@ fn <- "optimx.rda"
 if(file.exists(fn)){
     load(fn)
 }else{
-    fit <- optimfun(bombay2, inip)
+    fit <- optimfun(bombay2, inip, maxit=1e5)
     fit.incidence <- optimfun(bombay2, inip, incidence = TRUE)
     
     save("fit", "fit.incidence", file = fn)
