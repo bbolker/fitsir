@@ -15,7 +15,41 @@ into any one area (likelihood theory, optimization, ...), we aim to
 provide a primer and pitfall-avoidance guide for fits of simple ODE
 models (focusing particularly on SIR models) to epidemic data.
 
-## Potential topics:
+- model fitting and inference on stochastic dynamical systems is a surprisingly difficult topic, drawing on areas from nonlinear optimization to maximum likelihood estimation. We will touch on a broad
+
+- treat the problem as though all parameters are unknown. Maybe unrealistic: cf. 
+
+## Methods
+
+- ODE implementation
+   - R vs C
+   - integrators (RK4 vs LSODA)
+- starting conditions
+   - auto-start
+   - LHS
+- optimization
+   - different optimizers?
+   - finite-diff vs sensitivity equations
+   - restarting from best fit
+
+## Results
+
+- second figure from `fitLHS_explore` (what are the differences among the models?)
+- geometry of likelihood surface
+
+
+## Results
+
+- Two scales of local minima: large and small
+- Large:
+   - interesting (we know there are lots of problems with local minima in nonlinear fits: cf Ripley, Roodman, Etienne et al, Bolker 2008, Raue et al)
+   - possibly practical, e.g. if knowing very little about the system/not eyeballing
+- Small:
+   - is it real or is it numerics? How do we tell?
+   - does it matter - are there many minima but all are within any reasonable confidence region
+   - parameter range can be very wide, but is this just an indication of how unstable/unidentifiable the problem is when we try to estimate everything at once?
+
+## Potential topics (mostly for discussion)
 
 - **trajectory-matching vs. gradient-matching**; what's the difference? when does it matter? (this paper will focus on trajectory matching) [@ellner_fitting_2002;@bolker_ecological_2008]
 - **early-epidemic vs whole-epidemic**: lots of work on fitting early epidemics, e.g. @chowell_comparative_2007, @ma_estimating_2014 ; that's not what we're doing here ... also, we're only going to discuss general principles here, focus on simple SIR (maybe comment on SEIR), but not worry about extensions (waning immunity, Ebola/funeral-transmission ... etc.)

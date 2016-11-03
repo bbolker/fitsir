@@ -228,7 +228,9 @@ m2$expr <- reorder(m2$expr,m2$time)
 
 Results replicate Irena Papst's, confirming that the performance
 issue (at least for this simple a gradient function) is
-the :
+the cost of R function calls (which in turn might
+call compiled C code), not the computation time for the 
+gradient function itself:
 
 <<benchplot2,echo=FALSE>>=
 b1plot %+% m2
@@ -239,7 +241,8 @@ b1plot %+% m2
 so that it can be used by \code{odesolve} directly, in the
 efficient way ... this won't matter so much if the gradient function
 is complex, or if we can use \code{odeintr} instead
-\item I haven't explored \code{odeintr} much.
+\item I haven't explored \code{odeintr} much. Looks like at present it only allows evenly spaced time points, but that may not be much of a limitation \ldots also, it doesn't actually buy us much speed, at least in the simple SIR case
+\end{itemize}
 
 \bibliography{fitsir}
 
