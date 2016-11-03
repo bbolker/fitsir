@@ -1,0 +1,204 @@
+---
+title: "Finding initial values"
+output: html_document
+---
+
+Here's an another attempt to find the initial values (improve `startfun`).
+
+```{r load, include = FALSE}
+library(devtools)
+load_all("..")
+bombay2 <- setNames(bombay, c("tvec", "count"))
+```
+
+Given the following data, we have some information about the peak.
+
+```{r bombay1}
+plot(log(count)~tvec, data = bombay2)
+```
+
+We're particularly interested in the following:
+
+$$
+S_\textrm{peak} = \gamma N/\beta
+$$
+
+We want to approximate this value using the following method. Assume that $I(t)$ continues to grow exponentially:
+
+$$
+I(t) \approx I(0) \exp(rt)
+$$
+
+Based on this assumption, we can do the following:
+
+$$
+\begin{aligned}
+\frac{dR}{dt} &\approx \gamma I(0) \exp(rt)\\
+R(t) &\approx \frac{\gamma}{r} I(0) \{\exp(rt) - 1\}
+\end{aligned}
+$$
+
+Then, we have 
+
+$$
+\begin{aligned}
+S_\textrm{peak} &= N - I_\textrm{peak} - R_\textrm{peak}\\
+\gamma N/\beta &= N - I_\textrm{peak} - \frac{\gamma}{r} I(0) \{\exp(rt_\textrm{peak}) - 1\}
+\end{aligned}
+$$
+
+Finally, we combine this with remaining equations:
+
+$$
+\begin{cases}
+I(0) = N i_0\\
+r = \beta - \gamma\\
+-Q/I_\textrm{peak} = \beta \gamma/N\\
+\gamma N/\beta = N - I_\textrm{peak} - \frac{\gamma}{r} I(0) \{\exp(rt_\textrm{peak}) - 1\}
+\end{cases}
+$$
+
+Let's solve this. For now we're going to denote $d_0 = I(0) (\exp(r' t_\textrm{peak}) -1)/r'$ so that it's easier to read. Then, we have
+
+$$
+\begin{cases}
+a_0 = N i_0\\
+b_0 = \beta - \gamma\\
+c_0 = \beta \gamma/N\\
+\gamma N/\beta = N - I_\textrm{peak} - d_0 \gamma
+\end{cases}
+$$
+
+Solving this equation, we actually get a really nice solution:
+
+$$
+\begin{cases}
+\gamma = \frac{c_0 I_{peak}}{b_0 - c_0 d_0}\\
+\beta = b_0 + \gamma\\
+N = \beta \gamma/c_0\\
+i_0 = a_0/N
+\end{cases}
+$$
+
+Let's try out three different ways to approximate $R_\textrm{peak}$:
+
+```{r setup, echo = FALSE}
+data <- bombay2
+tvec <- data$tvec
+count <- data$count
+
+ss <- spline.fit(tvec, count, itmax = 100, relpeakcrit = 0.1)
+ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
+
+ss.tmax <- ss.data$tvec[which.max(ss.data$count)]
+ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
+m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.thalf))
+b0 <- as.numeric(coef(m1)[2])
+
+a0 <- ss.data$count[1]
+Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+Ip <- max(ss.data$count)
+c0 <- -Qp.alt/Ip
+
+```
+
+Here's the function:
+
+```{r fun}
+getGamma <- function(r, tmax){
+    x <- list()
+    ## everything else defined in the global environment
+    d0 <- a0 * (exp(r * tmax) - 1)/r
+    
+    gamma <- c0 * Ip/(b0 - c0 * d0)
+    beta <- b0 + gamma
+    N <- beta * gamma/c0
+    i0 <- a0/N
+    c(log.beta = log(beta),
+      log.gamma = log(gamma),
+      log.N = log(N),
+      logit.i = qlogis(i0))
+}
+```
+
+Under approximation
+----------------
+
+Assuming $I(0) \exp(rt) = I_\textrm{peak}$:
+
+```{r underApprox}
+r_under <- log(Ip/a0)/ss.tmax
+(coef1 <- getGamma(r_under, ss.tmax))
+
+plot(count~tvec, data = bombay2)
+lines(tvec, SIR.detsim(tvec, trans.pars(coef1)))
+```
+
+Not bad...
+
+Over approximation
+---------------
+
+Assuming $r' = b_0$:
+
+```{r overApprox}
+(coef2 <- getGamma(b0, ss.tmax))
+```
+
+$b_0 - c_0d_0$ goes negative so this breaks... I wonder if the under approximation method can break as well...
+
+Average
+------------
+
+Taking the average between the two:
+
+```{r average}
+(coef3 <- getGamma((r_under + b0)/2, ss.tmax))
+```
+
+We can try taking a weighted mean... (write an algorithm for it):
+
+```{r WA}
+(coef4 <- getGamma((2 * r_under + b0)/3, ss.tmax))
+plot(count~tvec, data = bombay2)
+lines(tvec, SIR.detsim(tvec, trans.pars(coef4)))
+```
+
+This auto start method is able to give us really good starting value but is unstable. Also, it seems very sensitive to the estimates of second derivative at the peak and $R_\textrm{peak}$.
+
+How can we improve this? 
+
+Weighting algorithm
+---------
+
+```{r weight}
+weight <- function(n = 6){
+    low <- log(r_under)
+    high <- log(b0)
+    
+    i <- 0
+    
+    repeat{
+        i <- i + 1
+        log.r <- (low + high)/2
+        r <- exp(log.r)
+        d0 <- a0 * (exp(r * ss.tmax) - 1)/r
+        
+        if(b0 - c0 * d0 > 0){
+            low <- log(r)
+            if(i > n){
+                break
+            }
+        }else{
+            high <- log(r)
+        }
+    }
+    return(r)
+}
+
+(coef5 <- getGamma(weight(), ss.tmax))
+plot(count~tvec, data = bombay2)
+lines(tvec, SIR.detsim(tvec, trans.pars(coef5)))
+```
+
+After we repeat the algorithm certain amount of time, goodness of fit doesn't really increase... Maybe we can add another condition so that the algorithm stops once nll starts to stay constant....?

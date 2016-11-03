@@ -67,22 +67,36 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
         m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.thalf))
         r <- as.numeric(coef(m1)[2]) ##beta - gamma
         iniI <- ss.data$count[1] ## N * i0
-        ## curvature of spline at max
+        
+        t.diff <- diff(tvec)
+        t.diff <- c(t.diff[1], t.diff)
         
         if (incidence) {
             N <- cumsum(count)[length(tvec)]
-            t.diff <- diff(tvec)
-            t.diff <- c(t.diff[1], t.diff)
-            
             P <- ss.data$count/t.diff
-            
             ss <- spline.fit(tvec, P, single_peak = FALSE, itmax = itmax, relpeakcrit = relpeakcrit)
-
         } ## if incidence
         
+        ## curvature of spline at max
+        ## using quadratic fit:
+        ## t.sub <- (max(tvec) - ss.tmax)/2
+        ## m4 <- lm(log(count)~poly(tvec,2,raw = TRUE), data = subset(ss.data, tvec> ss.tmax - t.sub & tvec < ss.tmax + t.sub))
+        ## Qp.alt <- unname(2*coef(m4)[3])
         Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
+        if(Qp.alt > 0){
+            stop("second derivative larger than 0")
+        }
         Ip <- exp(max(predict(ss,tvec)$y))
         c <- -Qp.alt/Ip
+        
+        ss.int <- transform(ss.data, int = count * t.diff)
+        ss.int <- ss.int[tvec<ss.tmax, ]
+        
+        d0 <- sum(ss.int[,3]) - iniI
+        while(r - c * d0 < 0){
+            ss.int <- ss.int[-nrow(ss.int),]
+            d0 <- sum(ss.int[,3]) - iniI
+        }
         
         if (incidence) {
             gamma <- 0.5 * (sqrt(4*c*N + r^2)-r)
@@ -91,7 +105,7 @@ startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
             d <- iniI/(t.diff[1]* beta * N)
             i0 <- 0.5 * (1-sqrt(1-4*d))
         } else {
-            gamma <- -Qp.alt/r
+            gamma <- c * Ip/(r - c * d0)
             beta <- gamma + r
             N <- beta*gamma/c
             i0 <- iniI/N

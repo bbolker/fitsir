@@ -129,33 +129,33 @@ if (file.exists(fn)) {
     load(fn)
 } else {
     beta.gamma <- curve3d(tmpfun(x, y, fix.name = c("log.beta", "log.gamma")),
-            xlim = min.pars["log.beta"]* c(0.8, 1.2),
-            ylim = min.pars["log.gamma"] * c(0.8, 1.2),
+            xlim = min.pars["log.beta"]* c(0.95, 1.05),
+            ylim = min.pars["log.gamma"] * c(0.95, 1.05),
             n = c(31,31))
     
     beta.N <- curve3d(tmpfun(x, y, fix.name = c("log.beta", "log.N")),
-            xlim = min.pars["log.beta"]* c(0.8, 1.2),
-            ylim = min.pars["log.N"] * c(0.8, 1.2),
+            xlim = min.pars["log.beta"]* c(0.95, 1.05),
+            ylim = min.pars["log.N"] * c(0.95, 1.05),
             n = c(31,31))
     
     beta.i <- curve3d(tmpfun(x, y, fix.name = c("log.beta", "logit.i")),
-            xlim = min.pars["log.beta"]* c(0.8, 1.2),
-            ylim = min.pars["logit.i"] * c(1.2, 0.8),
+            xlim = min.pars["log.beta"]* c(0.95, 1.05),
+            ylim = min.pars["logit.i"] * c(1.05, 0.95),
             n = c(31,31))
     
     gamma.N <- curve3d(tmpfun(x, y, fix.name = c("log.gamma", "log.N")),
-            xlim = min.pars["log.gamma"]* c(0.8, 1.2),
-            ylim = min.pars["log.N"] * c(0.8, 1.2),
+            xlim = min.pars["log.gamma"]* c(0.95, 1.05),
+            ylim = min.pars["log.N"] * c(0.95, 1.05),
             n = c(31,31))
     
     gamma.i <- curve3d(tmpfun(x, y, fix.name = c("log.gamma", "logit.i")),
-            xlim = min.pars["log.gamma"]* c(0.8, 1.2),
-            ylim = min.pars["logit.i"] * c(1.2, 0.8),
+            xlim = min.pars["log.gamma"]* c(0.95, 1.05),
+            ylim = min.pars["logit.i"] * c(1.05, 0.95),
             n = c(31,31))
     
     N.i <- curve3d(tmpfun(x, y, fix.name = c("log.N", "logit.i")),
-            xlim = min.pars["log.N"]* c(0.80, 1.2),
-            ylim = min.pars["logit.i"] * c(1.2, 0.8),
+            xlim = min.pars["log.N"]* c(0.95, 1.05),
+            ylim = min.pars["logit.i"] * c(1.05, 0.95),
             n = c(31,31))
     
     save("beta.gamma", "beta.N", "beta.i", "gamma.N", "gamma.i", "N.i", file=fn)
@@ -178,3 +178,12 @@ l <- lapply(resName, FUN = function(name){
 })
 
 ```
+
+
+```{r}
+
+
+
+
+```
+
