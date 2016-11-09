@@ -10,8 +10,6 @@ truepars <- c(log.beta = log(2),
 )
 
 dd <- simfun(trans.pars(truepars), seed = 123, rpars = list(size = 4))
-tvec <- dd$tvec
-count <- dd$count
 
 lhsf <- function(start = truepars,
                  range = 0.2,
@@ -47,35 +45,54 @@ fitdf <- do.call("rbind", lapply(resList, function(x){
 
 ## it seems like most parameters converge to one place
 ## one of them is getting stuck?
+## maybe try this with auto start or with wider range?
 pairs(fitdf)
 
 SIR.logLik <- fitsir:::SIR.logLik()
 
 ## Assuming that we know N and gamma...
-tmpfun <- function(x, y, llpars = truepars){
+tmpfun <- function(x, y, 
+                   data = dd,
+                   llpars = truepars){
     llpars["log.beta"] <- x
-    llpars["log.gamma"] <- y
-    SIR.logLik(llpars, count, tvec)
+    llpars["logit.i"] <- y
+    SIR.logLik(llpars, data$count, data$tvec)
 }
 
 cc <- curve3d(tmpfun(x, y),
     xlim = truepars["log.beta"]*c(0.4, 1.6),
-    ylim = truepars["log.gamma"]*c(1.6, 0.4),
+    ylim = truepars["logit.i"]*c(1.6, 0.4),
     n = c(51, 51)
 )
 
-image(cc, xlab = "log.beta", ylab = "log.gamma")
+image(cc, xlab = "log.beta", ylab = "logit.i")
 persp3d(cc, col = "blue")
 
 ## might be better to use fitted parameters
 bestfit <- fitdf[which.max(fitdf[,5]),-5]
 
-cc2 <- curve3d(tmpfun(x, y, llpars = bestfit),
-              xlim = bestfit["log.beta"]*c(0.4, 1.6),
-              ylim = bestfit["log.gamma"]*c(1.6, 0.4),
-              n = c(51, 51)
+cc2 <- curve3d(tmpfun(x, y, llpars = bestfit, data = dd),
+    xlim = bestfit["log.beta"]*c(0.4, 1.6),
+    ylim = bestfit["logit.i"]*c(1.6, 0.4),
+    n = c(51, 51)
 )
 
-image(cc2, xlab = "log.beta", ylab = "log.gamma")
+image(cc2, xlab = "log.beta", ylab = "logit.i")
 persp3d(cc2, col = "blue")
+
+## trying with bombay data
+
+bombay2 <- setNames(bombay, c("tvec", "count"))
+
+fitb <- fitsir(bombay2)
+fpars <- coef(fitb)
+
+cc_bombay <- curve3d(tmpfun(x, y, llpars = fpars, data = bombay2),
+    xlim = fpars["log.beta"]*c(0.9, 1.1),
+    ylim = fpars["logit.i"]*c(1.1, 0.9),
+    n = c(81, 81)
+)
+
+image(cc_bombay, xlab = "log.beta", ylab = "logit.i")
+persp3d(cc_bombay, col = "blue")
 
