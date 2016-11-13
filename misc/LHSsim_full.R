@@ -107,7 +107,7 @@ for(i in 1:nsim){
     if (!is(f,"try-error")) {
         resList[[i]] <- f
     }
-    if (!is(f.optim,"try-error")) {
+    if (!is(f.grad,"try-error")) {
         resList.grad[[i]] <- f.grad
     }
     
