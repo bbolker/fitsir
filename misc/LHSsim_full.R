@@ -74,7 +74,7 @@ tmpfun <- function(i, fitfun = fitsir,
     bestfit <- unlist(bestfit)
     
     if(is.null(surfacerange)){
-        surf <- c(0.1, 5)
+        surf <- c(0.5, 2)
     }else{
         surf <- c(1 - surfacerange, 1 + surfacerange)
     }
@@ -90,7 +90,8 @@ tmpfun <- function(i, fitfun = fitsir,
     return(list(
         fitted = truedf,
         bestfit = bestfit,
-        surface = cc
+        surface = cc,
+        data = d
     ))
 }
 
