@@ -1,0 +1,94 @@
+---
+title: "LHS experiment"
+output: html_document
+---
+
+I ran some LHS simulations:
+
+* 100 simulated data sets
+* For each data set, 50 parameters were sampled based on the true parameters. These values were used as starting parameters for fiting
+* Based on the best fit, likelihood surface was created
+* Nelder-Mead vs BFGS
+
+```{r setup, message = FALSE}
+library(dplyr)
+library(fitsir)
+library(magrittr) ## for %T>%
+library(tidyr)
+library(ggplot2); theme_set(theme_bw())
+load("LHSsim_full.rda")
+```
+
+```{r eval = FALSE, inclue = FALSE}
+png("likelihood.png", width = 2560, height = 2560)
+
+par(mfrow = c(10,10), mar = c(0, 0, 0, 0))
+
+lapply(resList, function(x){
+    image(x$surface, xaxt = "n", yaxt = "n", bty = "n")
+})
+
+dev.off()
+```
+
+This is what the likelihood surface looks like when we fix $\gamma, N$ and vary 2 other parameters.
+
+![image](likelihood.png)
+
+I wasn't exactly sure how I should summarize the data... First, I wanted to see if we still get a wide range of parameters so I thought I should look at squared CV for each data. Some of them have very large CV...
+
+```{r CV}
+fit.df <- do.call("rbind", lapply(resList, "[[", 1))
+
+fit.df$sim <- rep(1:100, each = 50)
+
+CV.df <- fit.df %>% 
+    group_by(sim) %>%
+    filter(ll > 1.01 * max(ll)) %>%
+    summarize_all(function(x){var(x)/mean(x)^2})
+
+CV.df %>%
+    select(-ll) %>%
+    gather(key, value, -sim) %>%
+    ggplot() +
+        geom_point(aes(sim, value)) +
+        scale_y_log10() + 
+        facet_wrap(~key, nrow = 1)
+```
+
+This one has maximum squared CV for $\gamma$. What's going on?
+
+```{r maxCV}
+(maxsim <- with(fit.df, which.max(unlist(CV.df[,3]))))
+
+plot(resList[[maxsim]]$data)
+
+fit.df %>%
+    filter(sim == maxsim) %>%
+    filter(ll > 1.01 * max(ll)) %>%
+    apply(1, function(x){
+        lines(SIR.detsim(1:150, trans.pars(x[-5])))
+    })
+
+points(resList[[maxsim]]$data)
+```
+
+I guess it's the noisy data that's causing the problem? Maybe optimizer is getting stuck? Try looking at the one with minimum squared CV?
+
+```{r minCV}
+(minsim <- which.min(unlist(CV.df[,3])))
+mindata <- resList[[minsim]]$data
+plot(mindata)
+
+fit.df %>%
+    filter(sim == minsim) %>%
+    filter(ll > 1.01 * max(ll)) %>%
+    select(-sim) %T>% 
+    apply(1, function(x){
+        lines(SIR.detsim(1:100, trans.pars(x[-5])))
+    }) %>%
+    select(-ll) %>%
+    pairs
+```
+
+This data looks fairly noisy too but it seems like we get a fairly narrow range of parameters. Some parameters look highly correlated... Also, we're not getting good fits either...
