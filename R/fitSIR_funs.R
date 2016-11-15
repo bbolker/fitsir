@@ -34,11 +34,12 @@ spline.fit <- function(tvec, count, ...){
 ##' @param log.N log of population size
 ##' @param logit.i logit of initial proportion infectious
 ##' @export
-startfun <- function(log.beta=log(0.12),log.gamma=log(0.09),
+startfun <- function(data = NULL,
+                     log.beta=log(0.12),log.gamma=log(0.09),
                      log.N=log(10000),logit.i=qlogis(0.01),
-                     auto=FALSE, incidence = FALSE,
-                     data,itmax=100,relpeakcrit=0.1) {
-    if (auto) {
+                     incidence = FALSE,
+                     itmax=100,relpeakcrit=0.1) {
+    if (!is.null(data)) {
         tvec <- data$tvec
         count <- data$count
         ## for smooth.spline(log(count)) ...
