@@ -1,14 +1,14 @@
 library(fitsir)
 library(emdbook)
 source("stochsim_funs.R")
-fitsir.optim <- fitsir:::fitsir.optim
 SIR.logLik <- fitsir:::SIR.logLik
+fitsir.optim <- fitsir:::fitsir.optim
 g <- SIR.logLik()
 
 nsim <- 100
 
-epi_range <- data.frame(min = c(2, 0.1, 1e5, 10),
-                        max = c(8, 2, 1e7, 100),
+epi_range <- data.frame(min = c(2, 0.5, 1e3, 10),
+                        max = c(3, 1, 1e5, 50),
                         row.names = c("R0", "gamma", "N", "I0"))
 
 ltab <- as.data.frame(
@@ -57,7 +57,7 @@ tmpfun <- function(i, fitfun = fitsir,
     true.pars <- with(as.list(p2),
                       c(log.beta=log(beta),log.gamma=log(gamma),
                         log.N=log(N),logit.i=qlogis(i0)))
-    d <- simfun(pars=p2,tmax=100,dt=1,rpars=list(size=3),seed=101)
+    d <- simfun(pars=p2,seed=101)
     
     truestart <- lhsf(true.pars, range = fitrange, seed = 101)
     
@@ -70,8 +70,21 @@ tmpfun <- function(i, fitfun = fitsir,
     
     truedf <- as.data.frame(t(truefit))
     
-    bestfit <- truedf[which.max(truedf$ll),]
+    cat("fit2...\n")
+    
+    secondfit <- apply(truedf, 1, function(x){
+        f <- fitfun(d, start = x[-5], ...)
+        c(coef(f), ll = logLik(f))
+    })
+    
+    seconddf <- as.data.frame(t(secondfit))
+    
+    bestfit <- seconddf[which.max(seconddf$ll),]
     bestfit <- unlist(bestfit)
+    
+    cat("hessian...\n")
+    
+    hess <- findHess(d, bestfit)
     
     if(is.null(surfacerange)){
         surf <- c(0.5, 2)
@@ -88,8 +101,11 @@ tmpfun <- function(i, fitfun = fitsir,
     )
     
     return(list(
+        truepars = true.pars,
         fitted = truedf,
+        fitted2 = seconddf,
         bestfit = bestfit,
+        hessian = hess,
         surface = cc,
         data = d
     ))

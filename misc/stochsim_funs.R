@@ -12,9 +12,9 @@
 ##' @param rpars additional arguments for \code{rfun}
 simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
                    tmax=100,dt=1,
-                   rfun=rnbinom,
-                   rmean="mu",
-                   rpars=list(size=1),
+                   rfun=rnorm,
+                   rmean="mean",
+                   rpars=list(sd=10),
                    seed=NULL,
                    drop.zeros=TRUE
                    ) {
@@ -25,8 +25,8 @@ simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
                    rpars)
     count <- do.call(rfun,noiseArgs)
     ##
-    lastpos <- tail(which(count>0),1)
-    return(data.frame(tvec,count)[1:lastpos,])
+    lastpos <- head(which(count <= 0),1)
+    return(data.frame(tvec,count)[1:(lastpos-1),])
 }
 
 fitfun <- function(data) {

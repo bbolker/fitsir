@@ -33,62 +33,58 @@ dev.off()
 
 This is what the likelihood surface looks like when we fix $\gamma, N$ and vary 2 other parameters.
 
-![image](likelihood.png)
+![](likelihood.png)
 
-I wasn't exactly sure how I should summarize the data... First, I wanted to see if we still get a wide range of parameters so I thought I should look at squared CV for each data. Some of them have very large CV...
+Boxplot comparing BFGS and Nelder-Mead
 
-```{r CV}
-fit.df <- do.call("rbind", lapply(resList, "[[", 1))
+```{r boxplot, fig.width = 10, fig.height = 4}
+fit.df <- do.call("rbind", lapply(resList, "[[", 3))
+fit.df.grad <- do.call("rbind", lapply(resList.grad, "[[", 3))
 
-fit.df$sim <- rep(1:100, each = 50)
+fit.df$method <- "NM"; fit.df.grad$method <- "BFGS"
 
-CV.df <- fit.df %>% 
-    group_by(sim) %>%
-    filter(ll > 1.01 * max(ll)) %>%
-    summarize_all(function(x){var(x)/mean(x)^2})
+fit.df$sim <- fit.df.grad$sim <- rep(1:100, each = 50)
+tot.df <- rbind(fit.df, fit.df.grad)
 
-CV.df %>%
-    select(-ll) %>%
-    gather(key, value, -sim) %>%
+set.seed(100)
+samp.df <- tot.df %>%
+    filter(sim %in% sample(100, 20))
+
+drawbox <- function(data){
+    data %>%
+    select(-5) %>%
+    gather(key, value, -sim, -method) %>%
     ggplot() +
-        geom_point(aes(sim, value)) +
-        scale_y_log10() + 
-        facet_wrap(~key, nrow = 1)
+        geom_boxplot(aes(x = factor(sim), y = value, col = method), position = "identity") +
+        facet_wrap(~key, scale = "free", nrow = 1) +
+        theme(axis.title.x=element_blank(),
+            axis.text.x=element_blank(),
+            axis.ticks.x=element_blank())
+}
+
+samp.df %>% drawbox
 ```
 
-This one has maximum squared CV for $\gamma$. What's going on?
+```{r empty, echo = FALSE, eval = FALSE}
+g.box <- samp.df %>% drawbox +
+    scale_y_continuous(breaks = NULL) + 
+    theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        legend.position = "none"
+    )
 
-```{r maxCV}
-(maxsim <- with(fit.df, which.max(unlist(CV.df[,3]))))
+ggsave("NMvsBFGS.png", g.box, width = 12, height = 3, dpi = 1200)
+```
 
-plot(resList[[maxsim]]$data)
+BFGS is doing weird things... However, if we look at good fits, it seems fine...
 
-fit.df %>%
-    filter(sim == maxsim) %>%
+```{r goodbox, fig.width = 10, fig.height = 4}
+samp.df %>%
+    group_by(sim, method) %>%
     filter(ll > 1.01 * max(ll)) %>%
-    apply(1, function(x){
-        lines(SIR.detsim(1:150, trans.pars(x[-5])))
-    })
-
-points(resList[[maxsim]]$data)
+    drawbox
 ```
-
-I guess it's the noisy data that's causing the problem? Maybe optimizer is getting stuck? Try looking at the one with minimum squared CV?
-
-```{r minCV}
-(minsim <- which.min(unlist(CV.df[,3])))
-mindata <- resList[[minsim]]$data
-plot(mindata)
-
-fit.df %>%
-    filter(sim == minsim) %>%
-    filter(ll > 1.01 * max(ll)) %>%
-    select(-sim) %T>% 
-    apply(1, function(x){
-        lines(SIR.detsim(1:100, trans.pars(x[-5])))
-    }) %>%
-    select(-ll) %>%
-    pairs
-```
-
-This data looks fairly noisy too but it seems like we get a fairly narrow range of parameters. Some parameters look highly correlated... Also, we're not getting good fits either...
