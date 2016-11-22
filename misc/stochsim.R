@@ -12,9 +12,9 @@ library(splines) ## for ns()
 ##' @param rpars additional arguments for \code{rfun}
 simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
                    tmax=100,dt=1,
-                   rfun=rnbinom,
-                   rmean="mu",
-                   rpars=list(size=1)
+                   rfun=rnorm,
+                   rmean="mean",
+                   rpars=list(sd = 3)
                    ) {
     tvec <- seq(0,tmax,by=dt)
     ss <- SIR.detsim(tvec,pars)
@@ -25,10 +25,10 @@ simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
 }
 
 set.seed(101)
-s0 <- simfun(rpars=list(size=10))
+s0 <- simfun()
 
 ## get starting values and trajectory based on them
-ss0 <- startfun(auto=TRUE,data=s0)
+ss0 <- startfun(s0)
 ss2 <- SIR.detsim(s0$tvec,trans.pars(ss0))
 
 ## fit and corresponding trajectory
