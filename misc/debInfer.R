@@ -40,12 +40,25 @@ fitsir.deBInfer <- function(data,
     ## FIXME: Enforce DRY coding
     ## Can't think of an easy way...
     default <- list(fixed = FALSE, samp.type = "rw", prior = "unif")
-    R0.default <- append(list(value = 2, hypers = list(min = 1, max = 10), prop.var = 2), default)
-    r.default <- append(list(value = 1, hypers = list(min = 0.01, max = 4), prop.var = 0.1), default)
-    S.default <- append(list(value = 2000, hypers = list(min = 1e3, max = 1e6), prop.var = 1000), default)
-    I.default <- append(list(value = 10, hypers = list(min = 1, max = 20), prop.var = 2), default)
+    values <- list(R0=2,r=1,S=2000,I=10)
+    hypers <- list(R0=list(min=1,max=10),
+                   r=list(min=0.01,max=4)
+                   ## FIXME
+                   ) ## hyperparameters
+    prop.vars <- list(R0=2,r=0.1,
+                      ## FIXME) ## proposal variance
+    cfun <- function(value,hyper,prop.var) {
+        append(list(value=value,hypers=hyper,prop.var=prop.var),default)
+        }
+    defaultlist <- Map(cfun, values, hypers, prop.vars)
+                   
+    ## R0.default <- append(list(value = 2, hypers = list(min = 1, max = 10),
+    ##                           prop.var = 2), default)
+    ## r.default <- append(list(value = 1, hypers = list(min = 0.01, max = 4), prop.var = 0.1), default)
+    ## S.default <- append(list(value = 2000, hypers = list(min = 1e3, max = 1e6), prop.var = 1000), default)
+    ## I.default <- append(list(value = 10, hypers = list(min = 1, max = 20), prop.var = 2), default)
     
-    defaultlist <- list(R0.default, r.default, S.default, I.default)
+    ## defaultlist <- list(R0.default, r.default, S.default, I.default)
     
     argslist <- list(R0.args, r.args, S.args, I.args)
     
@@ -64,7 +77,17 @@ fitsir.deBInfer <- function(data,
     S <- do.call("debinfer_par", args = append(defaultlist[[3]], list(name = "S", var.type = "init")))
     I <- do.call("debinfer_par", args = append(defaultlist[[4]], list(name = "I", var.type = "init")))
     R <- debinfer_par(name = "R", var.type = "init", fixed = TRUE, value = 0)
-    
+
+    dfun <- function(x,name,var.type) {
+        do.call(debinfer_par,
+                args=append(x,list(name=name,var.type=var.type)))
+    }
+    debsetupList <- Map(dfun,
+                        defaultlist,
+                        list("R0","r","S","I"),
+                        list("de","de","init","init"))
+                        
+    ## FIXME: now do.call(setup_debinfer,debsetupList)
     mcmc.pars <- setup_debinfer(R0, r, I, S, R)
         
     mcmc_samples <- de_mcmc(N = iter, data=data, de.model=SIR.grad,
