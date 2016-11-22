@@ -35,6 +35,39 @@ This is what the likelihood surface looks like when we fix $\gamma, N$ and vary 
 
 ![](likelihood.png)
 
+```{r}
+## would like to do this as a "functional sequence" if we can figure it out
+L_sum <-  function(.) {
+    bind_rows(lapply(.,function(x) data.frame(ll=x$fitted2$ll)),
+          .id="run") %>%
+    group_by(run) %>%
+    mutate(r=rank(-ll),
+           rel_nll=(min(ll)-ll))
+}
+L_comb <- list(NM=L_sum(resList),BFGS=L_sum(resList.grad)) %>%
+    bind_rows(.id="optim")
+## ??? summarise: what fraction are bad, and how much worse is bad
+## than best ??
+## for each run: fraction that are good (e.g. 40/50) and the
+##   difference between top and bottom; the only trick is deciding
+##   how big the threshold between good an bad is (e.g. >10 units worse
+##   than good = bad
+ggplot(L_comb,aes(r,rel_nll,group=run,colour=run))+geom_line()+
+    facet_wrap(~optim,scale="free")
+```
+
+```{r}
+L_dat <- lapply(resList,"[[","data") %>%
+    bind_rows(.id="run")
+ggplot(L_dat,aes(tvec,count,group=run))+geom_line()+
+    scale_y_log10()
+```
+
+- plot sampling of fits from good and bad components (because 5000 is too many), and distribution
+- distribution of R0, r, i/N, N for good and bad fits
+- ??? visualize likelihood surface ??? profile ???
+
+
 Boxplot comparing BFGS and Nelder-Mead
 
 ```{r boxplot, fig.width = 10, fig.height = 4}

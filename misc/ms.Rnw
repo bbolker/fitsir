@@ -30,6 +30,21 @@ models (focusing particularly on SIR models) to epidemic data.
 \item[advanced methods] \emph{brief} pointers to relevant literature here. Dealing with combined process/measurement error \citep{king_avoidable_2015}; iterated filtering, TSIR, etc.. Bayesian methods (Stan, \code{debInfer}, ...)
 \end{description}
 
+
+\section*{Results}
+
+\begin{itemize}
+  \item ``macro-scale'' optima: i.e., steps on a plateau à la Raue et al
+    \begin{itemize}
+    \item conjecture: for Gaussian fitting with Gaussian errors, there are really only two local optima --- bad (low-$\rzero$, extremely high $\gamma$, \ldots) and ``good fit''
+    \item are there triple-minima when $\rzero$ is actually close to 1? (cf Bombay ...)
+    \item NM is better at not zooming off to bad spaces (even though we lose the power of the sensitivity equations); BFGS and NM agree for good fits
+
+    \end{itemize}
+\end{itemize}
+
+Effects of misspecification: e.g. fitting NBinom with Gaussian model etc.
+
 \section*{To do}
 
 \begin{itemize}

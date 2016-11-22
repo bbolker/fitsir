@@ -65,6 +65,7 @@ cc <- curve3d(tmpfun(x, y),
     n = c(51, 51)
 )
 
+
 image(cc, xlab = "log.beta", ylab = "logit.i")
 persp3d(cc, col = "blue")
 
@@ -96,3 +97,5 @@ cc_bombay <- curve3d(tmpfun(x, y, llpars = fpars, data = bombay2),
 image(cc_bombay, xlab = "log.beta", ylab = "logit.i")
 persp3d(cc_bombay, col = "blue")
 
+
+save(list=ls(pattern="^cc*"),file="LHSsim_pre_cc.rda")
