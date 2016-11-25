@@ -21,7 +21,7 @@ set.seed(101)
 ltab[] <- lapply(ltab, sample)
 
 lhsf <- function(start = startfun(),
-                 range = 0.4,
+                 range = 0.5,
                  seed = NULL,
                  n = 50){
     if(!is.null(seed)) set.seed(seed)
@@ -46,7 +46,7 @@ surffun <- function(x, y,
 }
 
 tmpfun <- function(i, fitfun = fitsir,
-                   fitrange = 0.4,
+                   fitrange = 0.5,
                    surfacerange = NULL,
                    ...) {
     p <- ltab[i,]
@@ -119,7 +119,7 @@ for(i in 1:nsim){
     cat(i, "\n")
     f <- try(tmpfun(i))
     cat("f-done\n")
-    f.grad <- try(tmpfun(i, fitfun = fitsir.optim))
+    f.grad <- try(tmpfun(i, fitfun = fitsir.optim, nll = TRUE))
     cat("f.grad-done\n")
     if (!is(f,"try-error")) {
         resList[[i]] <- f
