@@ -208,7 +208,6 @@ trans.pars <- function(params) {
                     gamma=exp(log.gamma),
                     N=exp(log.N),
                     i0=plogis(logit.i)))
-    if (is.list(params)) tpars <- as.list(tpars)
     return(tpars)
 }
 
