@@ -311,7 +311,7 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param tvec time vector
 ##' @param dist conditional distribution of reported data (IGNORED)
 ##' @param debug print debugging output?
-##' @export
+##' @export 
 SIR.logLik <- function(incidence = FALSE){
     g <- function(params, count, tvec=NULL,
                   dist=dnorm2,

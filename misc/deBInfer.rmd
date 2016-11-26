@@ -1,0 +1,120 @@
+---
+title: "deBInfer with SIR model"
+output: html_document
+---
+
+```{r load, include = FALSE}
+library(ggplot2); theme_set(theme_bw())
+library(deBInfer)
+## we need this because deBInfer files aren't exported...
+library(devtools); load_all("..")
+library(dplyr)
+library(tidyr)
+source("stochsim_funs.R")
+```
+
+Let's try with simulated data first. Priors are chosen near the true values...
+
+```{r sim_data}
+data <- simfun(pars = c(beta = 2, gamma = 0.6, N = 1e5, i0 = 2e-4), rpars = list(sd = 20), seed = 101)
+
+fn <- "deBInfer.rda"
+if(file.exists(fn)){
+    debres <- load(fn)
+}else{
+    f.d <- fitsir.deBInfer(data,
+        R0.args = list(value = 3.1, prior = "norm", hypers = list(mean = 3.2, sd = 0.1), prop.var = 0.2),
+        r.args = list(value = 1.26, hypers = list(min = 1.1, max = 1.5), prop.var = 0.5),
+        I.args = list(value = 28, prior = "norm", hypers = list(mean = 30, sd = 5), prop.var = 4),
+        S.args = list(value = 1.1e5, prior = "norm", hypers = list(mean = 1.1e5, sd = 2e4), prop.var = 1e5),
+        iter = 20000,
+        plot = TRUE
+    )
+    save("f.d", file = fn)
+}
+```
+
+We can look at the distribution:
+
+```{r ddist}
+burnin <- 10000
+pairs(f.d, burnin = burnin, scatter=TRUE, trend=TRUE)
+```
+
+We can look at the trajectory as well... I wrote a small methods for it.
+
+```{r dtraj}
+plot(f.d, burnin = burnin)
+```
+
+It seems to work OK...Now, I would like to compare it to `fitsir` parameters.
+
+```{r parchange, fig.width = 12}
+(f <- fitsir(data))
+max(f.d$lpost) ## seems like I need to run mcmc longer or have better priors to get better fits...?
+
+fit.summary <- f %>%
+    coef %>%
+    summarize.pars %>%
+    t %>%
+    as.data.frame %>%
+    select(-c(3, 4, 7)) %>%
+    plyr::rename(c("I0" = "I", "S0" = "S")) %>%
+    gather
+
+mcmc.pars <- f.d$samples %>% as.data.frame
+
+mcmc.pars %>%
+    gather %>%
+    mutate(key = factor(key, levels = c("R0", "r", "I", "S"))) %>%
+    ggplot() +
+        geom_histogram(aes(x = value), bins = 20, fill = "white", col = "black") +
+        geom_vline(data = fit.summary, aes(xintercept = value), lty = 2, col = "red") +
+        facet_wrap(~key, scale = "free", nrow = 1)
+```
+
+It doesn't do very well even though I started fairly close to the true valeus and ran it for a long time... Should I write some functions for `fitsir.deBInfer`?
+
+Let's try using deBInfer on bombay data. Give small $R_0$ and $r$ on purpose.
+
+```{r bombay}
+bombay2 <- setNames(bombay, c("tvec", "count"))
+if(!exists("f.bombay")){
+    f.bombay <- fitsir.deBInfer(bombay2,
+        R0.args = list(value = 1.1, hypers = list(min = 1, max = 1.2), prop.var = 0.1),
+        r.args = list(value = 0.2, hypers = list(min = 0.1, max = 0.5), prop.var = 0.5),
+        I.args = list(value = 10, hypers = list(min = 1, max = 100), prop.var = 10),
+        S.args = list(value = 3e7, hypers = list(min = 2e7, max = 5e7), prop.var = 1e8),
+        iter = 20000,
+        plot = TRUE
+    )
+    save("f.d", "f.bombay", file = fn)
+}
+burnin = 1000
+pairs(f.bombay, burnin = burnin, scatter=TRUE, trend=TRUE)
+
+plot(f.bombay)
+```
+
+We can be naive and give bad prior:
+
+```{r}
+if(!exists("f.bombay2")){
+    f.bombay2 <- fitsir.deBInfer(bombay2,
+        R0.args = list(value = 2, hypers = list(min = 1.3, max = 5), prop.var = 0.2),
+        r.args = list(value = 1, hypers = list(min = 0.1, max = 3), prop.var = 0.7),
+        I.args = list(value = 10, hypers = list(min = 1, max = 100), prop.var = 10),
+        S.args = list(value = 2e5, hypers = list(min = 1e4, max = 1e6), prop.var = 1e10),
+        iter = 10000,
+        plot = TRUE
+    )
+    save("f.d", "f.bombay", "f.bombay2", file = fn)
+}
+
+pairs(f.bombay2, burnin = burnin, scatter=TRUE, trend=TRUE)
+
+plot(f.bombay2)
+```
+
+So we get a decent looking fit with different relatively high R0...
+
