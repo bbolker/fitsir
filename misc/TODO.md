@@ -1,5 +1,15 @@
 ## exploration to-do list
 
+- Figure 1: prevalence?? or preferably re-do with incidence if not too hard
+   - (a) cumulative distributions of attained log-likelihood for N-M and BFGS, showing three levels (pick an example with three)
+   - (b) points and trajectory for each plateau (i.e., flat, jump-up plus decay, good fit)
+   - (c) ??? basins of attraction for difference plateaus: i.e. plot the starting points from the LHS coloured accord to which plateau they end up in.  Summaries???
+- check Hessians (analytical + finite-diff of grad, which you can get via numDeriv)
+
+- do this for real epidemic curves
+
+
+
 - re-run resList.grad (BFGS) with negative log-likelihood outcomes
 - big LHS experiment:
     - sensitivity equations vs. no explicit gradient
@@ -16,6 +26,7 @@
 	    - Bombay
 		- Harbin
 		- Phila 1918 flu
+		- Gani & Leach smallpox?
 		- ???
 i.e., is it just that the Bombay data are weird?
 
