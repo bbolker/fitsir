@@ -246,10 +246,8 @@ SIR.detsim <- function(t, params, findSens = FALSE,
                        incidence = FALSE, reportAll = FALSE){
     with(as.list(params),{
         if(incidence){
-            l <- length(t)
             t.d <- diff(t[1:2])
             t <- c(t[1] - t.d, t)
-            t.interval <- diff(t)
         }
         
         if (findSens) {
@@ -311,28 +309,27 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param tvec time vector
 ##' @param dist conditional distribution of reported data (IGNORED)
 ##' @param debug print debugging output?
-##' @export
-SIR.logLik <- function(incidence = FALSE){
-    g <- function(params, count, tvec=NULL,
+##' @export 
+SIR.logLik  <- function(params, count, tvec=NULL,
                   dist=dnorm2,
-                  debug=FALSE) {
-        ## HACK: nloptr appears to strip names from parameters
-        ## if (is.null(params)) return(NA_real_) ## why ???
-        ## if (is.null(names(params)) &&
-        ##     !is.null(params)) ## ??? why ???
-        ##     names(params) <- parnames(SIR.logLik)
-        if (is.null(tvec)) tvec <- seq(length(count))
-        if (debug) cat(params)
-        tpars <- trans.pars(params)
-        i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
+                  debug=FALSE,
+                  incidence = FALSE) {
+    ## HACK: nloptr appears to strip names from parameters
+    ## if (is.null(params)) return(NA_real_) ## why ???
+    ## if (is.null(names(params)) &&
+    ##     !is.null(params)) ## ??? why ???
+    ##     names(params) <- parnames(SIR.logLik)
+    if (is.null(tvec)) tvec <- seq(length(count))
+    if (debug) cat(params)
+    tpars <- trans.pars(params)
+    i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
         
-        r <- -sum(dnorm2(count,i.hat,log=TRUE))
-        if (debug) cat(" ",r,"\n")
-        return(r)
-    }
-    attr(g, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
-    return(g)
+    r <- -sum(dnorm2(count,i.hat,log=TRUE))
+    if (debug) cat(" ",r,"\n")
+    return(r)
 }
+attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
+    
 ## parnames() specification required in order to use
 ## functions with parameters specified as a
 ##  vector (rather than a list) with mle2
@@ -366,13 +363,12 @@ fitsir <- function(data,method="Nelder-Mead",
                    timescale=NULL,
                    incidence = FALSE,
                    start=startfun(),debug=FALSE) {
-    g <- SIR.logLik(incidence = incidence)
-    m <- mle2(g,
+    m <- mle2(SIR.logLik,
          vecpar=TRUE,
          start=start,
          method=method,
          control=control,
-         data=c(data,list(debug=debug)))
+         data=c(data,list(debug=debug, incidence = incidence)))
     ## FIXME: extend S4 class?
     ## class(m) <- c("fitsir","mle2")
     return(m)

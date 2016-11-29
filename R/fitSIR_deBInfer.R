@@ -68,4 +68,21 @@ fitsir.deBInfer <- function(data,
                             obs.model=deBInfer.logLik, all.params=mcmc.pars,
                             Tmax = max(tvec), data.times=tvec, cnt=cnt,
                             plot=plot, solver="ode", ...)
+    class(mcmc_samples) <- append("fitsir_deBInfer", class(mcmc_samples))
+    return(mcmc_samples)
+}
+
+plot.fitsir_deBInfer <- function(x, plot.type = "trajectory",
+                                 burnin = 1000, n = 500,
+                                 prob = 0.95,
+                                 ...){
+    if(plot.type == "trajectory"){
+        tvec <- x$data$tvec
+        post_traj <- post_sim(x, n = n, times = tvec, burnin = burnin, output = "all", prob = prob)
+        plot(x$data, ...)
+        lines(tvec, post_traj[["median"]]$I)
+        matlines(tvec, post_traj[["HDI"]]$I, col = 2, lty = 2)
+    }else{
+        deBInfer:::plot.debinfer_result(x, plot.type, ...)
+    }
 }
