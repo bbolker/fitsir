@@ -3,7 +3,6 @@ library(emdbook)
 source("stochsim_funs.R")
 SIR.logLik <- fitsir:::SIR.logLik
 fitsir.optim <- fitsir:::fitsir.optim
-g <- SIR.logLik()
 
 nsim <- 100
 
@@ -42,12 +41,13 @@ surffun <- function(x, y,
     tmp <- llpars
     tmp["log.beta"] <- x
     tmp["logit.i"] <- y
-    g(tmp, data$count, data$tvec)
+    SIR.logLik(tmp, data$count, data$tvec, incidence = incidence)
 }
 
 tmpfun <- function(i, fitfun = fitsir,
                    fitrange = 0.5,
                    surfacerange = NULL,
+                   incidence = FALSE,
                    ...) {
     p <- ltab[i,]
     p2 <- c(beta=unname(p["R0"]*p["gamma"]),
@@ -57,14 +57,14 @@ tmpfun <- function(i, fitfun = fitsir,
     true.pars <- with(as.list(p2),
                       c(log.beta=log(beta),log.gamma=log(gamma),
                         log.N=log(N),logit.i=qlogis(i0)))
-    d <- simfun(pars=p2,seed=101)
+    d <- simfun(pars=p2,seed=101, incidence = incidence)
     
     truestart <- lhsf(true.pars, range = fitrange, seed = 101)
     
     cat("fit...\n")
     
     truefit <- apply(truestart, 1, function(x){
-        f <- fitfun(d, start = x, ...)
+        f <- fitfun(d, start = x, incidence = incidence, ...)
         c(coef(f), ll = logLik(f))
     })
     
@@ -73,7 +73,7 @@ tmpfun <- function(i, fitfun = fitsir,
     cat("fit2...\n")
     
     secondfit <- apply(truedf, 1, function(x){
-        f <- fitfun(d, start = x[-5], ...)
+        f <- fitfun(d, start = x[-5], incidence = incidence, ...)
         c(coef(f), ll = logLik(f))
     })
     
@@ -81,10 +81,6 @@ tmpfun <- function(i, fitfun = fitsir,
     
     bestfit <- seconddf[which.max(seconddf$ll),]
     bestfit <- unlist(bestfit)
-    
-    cat("hessian...\n")
-    
-    hess <- findHess(d, bestfit)
     
     if(is.null(surfacerange)){
         surf <- c(0.5, 2)
@@ -97,15 +93,16 @@ tmpfun <- function(i, fitfun = fitsir,
     cc <- curve3d(surffun(x, y),
         xlim = sort(bestfit["log.beta"]*surf),
         ylim = sort(bestfit["logit.i"]*surf),
-        n = c(51, 51)
+        n = c(51, 51),
+        sys3d = "none"
     )
     
     return(list(
         truepars = true.pars,
+        start = truestart,
         fitted = truedf,
         fitted2 = seconddf,
         bestfit = bestfit,
-        hessian = hess,
         surface = cc,
         data = d
     ))
@@ -114,12 +111,13 @@ tmpfun <- function(i, fitfun = fitsir,
 fn <- "LHSsim_full.rda"
 
 resList <- resList.grad <- vector("list", nsim)
+incidence = TRUE ## for some reason, surffun won't take incidence...
 
 for(i in 1:nsim){
     cat(i, "\n")
-    f <- try(tmpfun(i))
+    f <- try(tmpfun(i, incidence = TRUE))
     cat("f-done\n")
-    f.grad <- try(tmpfun(i, fitfun = fitsir.optim, nll = TRUE))
+    f.grad <- try(tmpfun(i, incidence = TRUE, fitfun = fitsir.optim, nll = TRUE))
     cat("f.grad-done\n")
     if (!is(f,"try-error")) {
         resList[[i]] <- f
