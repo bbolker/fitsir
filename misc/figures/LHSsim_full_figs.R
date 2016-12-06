@@ -80,7 +80,7 @@ g.nll <- ggplot(fits2, aes(r, nll)) +
 
 g.traj <- ggplot(ex.sim, aes(tvec, count)) +
     geom_line(aes(col = run)) +
-    annotate("text", x = 0, y = max(data$count), label = label, hjust = 0.1, vjust = 1.2) +
+    annotate("text", x = 0, y = max(data$count), label = label, hjust = 0.1, vjust = 0) +
     geom_point(data = data, size = 0.8) +
     scale_x_continuous(name = "time") +
     facet_wrap(~run, nrow = 1) +
