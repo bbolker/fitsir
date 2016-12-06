@@ -83,7 +83,6 @@ g.traj <- ggplot(ex.sim, aes(tvec, count)) +
     annotate("text", x = 0, y = max(data$count), label = label, hjust = 0.1, vjust = 1.2) +
     geom_point(data = data, size = 0.8) +
     scale_x_continuous(name = "time") +
-    scale_y_continuous(expand = c(0, 0)) +
     facet_wrap(~run, nrow = 1) +
     theme(strip.background = element_blank(),
           strip.text.x = element_blank()) +
