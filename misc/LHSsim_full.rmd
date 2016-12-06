@@ -21,7 +21,7 @@ library(emdbook)
 load("LHSsim_full.rda")
 SIR.logLik <- fitsir:::SIR.logLik
 fitsir.optim <- fitsir:::fitsir.optim
-g <- SIR.logLik()
+incidence = TRUE
 ```
 
 ```{r eval = FALSE, inclue = FALSE}
@@ -100,7 +100,7 @@ L_dat <- lapply(resList,"[[","data") %>%
 
 get_traj <- function(pars, tvec){
     data.frame(tvec = tvec,
-               count = SIR.detsim(tvec, trans.pars(pars)))
+               count = SIR.detsim(tvec, trans.pars(pars), incidence = incidence))
 }
 
 merge_traj <- function(x){
@@ -178,56 +178,7 @@ sL %>%
         scale_y_sqrt()
 ```
 
-Note that I used [multi-log transformation](http://www.casagrandi.it/work/ecologia/papers/Dushoff1996.pdf) for the x axis and sqrt scaling for y axis (can't use log10 because of zeroes) so that it's easier to see what's going on (we get a very wide range so it's really difficult to see things without doing this). Also, all values with $r < 0$ were replaced with $r = 0$. We see that most of the bad fits from NM has small $R_0$ and $r$. On the other hand, bad fits from BFGS show different summary statistics (very high $r$ and $R_0$ and small $N$). Finally, we want to look at some of the weird fits...
-
-```{r}
-(weirdfit <- resList[[55]]$fitted2[25,-5])
-fitsir(resList[[55]]$data, start = weirdfit)
-```
-
-I think this one was just getting stuck... Try looking at another one:
-
-```{r}
-(weirdfit2 <- resList.grad[[4]]$fitted2[18,-5])
-for(i in 1:5){
-    if(i == 1){
-        f <- fitsir(resList[[4]]$data, start = weirdfit2)
-    }else{
-        f <- fitsir(resList[[4]]$data, start = coef(f))
-    }
-}
-print(f)
-```
-
-Is this one really a local minima? I even tried this with `fitsir.optim` and it still gets stuck at the same place.
-```{r}
-summarize.pars(weirdfit2)
-```
-
-Let's look at the likelihood surface near this point
-
-```{r}
-weirdpars <- coef(f)
-
-tmpfun <- function(x, y, 
-                   data = resList[[4]]$data,
-                   llpars = weirdpars){
-    tmp <- llpars
-    tmp["log.beta"] <- x
-    tmp["logit.i"] <- y
-    g(tmp, data$count, data$tvec)
-}
-
-cc <- curve3d(tmpfun(x, y),
-    xlim = sort(weirdpars["log.beta"]*c(0.8, 1.08)),
-    ylim = sort(weirdpars["logit.i"]*c(0.85, 1.15)),
-    n = c(51, 51), theta = 30
-)
-
-with(cc, image(x, y, log(z-min(z)+1e-5)))
-```
-
-Try profiling...? This seems like a local minima, although I would have to look at all four dimensions...
+Note that I used [multi-log transformation](http://www.casagrandi.it/work/ecologia/papers/Dushoff1996.pdf) for the x axis and sqrt scaling for y axis (can't use log10 because of zeroes) so that it's easier to see what's going on (we get a very wide range so it's really difficult to see things without doing this). Also, all values with $r < 0$ were replaced with $r = 0$. We see that most of the bad fits from NM has small $R_0$ and $r$. On the other hand, bad fits from BFGS show different summary statistics (very high $r$ and $R_0$ and small $N$). 
 
 - plot sampling of fits from good and bad components (because 5000 is too many), and distribution
 - distribution of R0, r, i/N, N for good and bad fits

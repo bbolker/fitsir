@@ -16,11 +16,12 @@ simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
                    rmean="mean",
                    rpars=list(sd=10),
                    seed=NULL,
-                   drop.zeros=TRUE
+                   drop.zeros=TRUE,
+                   incidence = FALSE
                    ) {
     if (!is.null(seed)) set.seed(seed)
     tvec <- seq(0,tmax,by=dt)
-    ss <- SIR.detsim(tvec,pars)
+    ss <- SIR.detsim(tvec,pars, incidence = incidence)
     noiseArgs <- c(setNames(list(length(ss),ss),c("n",rmean)),
                    rpars)
     count <- do.call(rfun,noiseArgs)
