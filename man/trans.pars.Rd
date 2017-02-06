@@ -5,8 +5,8 @@
 \alias{trans.pars}
 \title{Starting function}
 \usage{
-startfun(log.beta = log(0.12), log.gamma = log(0.09), log.N = log(10000),
-  logit.i = qlogis(0.01), auto = FALSE, incidence = FALSE, data,
+startfun(data = NULL, log.beta = log(0.12), log.gamma = log(0.09),
+  log.N = log(10000), logit.i = qlogis(0.01), incidence = FALSE,
   itmax = 100, relpeakcrit = 0.1)
 
 trans.pars(params)

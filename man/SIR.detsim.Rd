@@ -4,8 +4,7 @@
 \alias{SIR.detsim}
 \title{deterministic trajectory of SIR}
 \usage{
-SIR.detsim(t, params, findSens = FALSE, incidence = FALSE,
-  reportAll = FALSE, ...)
+SIR.detsim(t, params, grad = FALSE, incidence = FALSE)
 }
 \arguments{
 \item{t}{time vector}

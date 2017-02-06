@@ -4,8 +4,8 @@
 \alias{findSens}
 \title{returns}
 \usage{
-findSens(data, params, plot.it = FALSE, log = "xy", incidence = FALSE,
-  sensOnly = FALSE, nll = FALSE)
+findSens(params, count, tvec = NULL, dist = c("norm", "pois"),
+  incidence = FALSE, debug = FALSE)
 }
 \description{
 returns

@@ -305,7 +305,7 @@ SIR.detsim <- function(t, params, grad = FALSE,
 SIR.logLik  <- function(params, count, tvec=NULL,
                   dist=c("norm", "pois"),
                   debug=FALSE,
-                  incidence = FALSE) {
+                  incidence=FALSE) {
     dist <- match.arg(dist)
     ## HACK: nloptr appears to strip names from parameters
     ## if (is.null(params)) return(NA_real_) ## why ???
@@ -354,19 +354,71 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 fitsir <- function(data, start=startfun(),
                    dist=c("norm", "pois"),
                    incidence=FALSE,
-                   method="Nelder-Mead",
+                   grad=FALSE,
+                   method=NULL,
                    control=list(maxit=1e5),
                    timescale=NULL,
+                   verbose = FALSE,
                    debug=FALSE) {
     dist <- match.arg(dist)
-    m <- mle2(SIR.logLik,
-         vecpar=TRUE,
-         start=start,
-         method=method,
-         control=control,
-         data=c(data,list(debug=debug, incidence = incidence, dist = dist)))
-    ## FIXME: extend S4 class?
-    ## class(m) <- c("fitsir","mle2")
+    
+    if(grad){
+        if(is.null(method)) method <- "BFGS"
+        
+        f.env <- new.env()
+        ## set initial values
+        assign("oldnll",NULL,f.env)
+        assign("oldpar",NULL,f.env)
+        assign("oldgrad",NULL,f.env)
+        assign("data", data, f.env)
+        objfun <- function(par, count, tvec, dist, incidence, debug) {
+            if (identical(par,oldpar)) {
+                if (verbose) cat("returning old version of value\n")
+                return(oldnll)
+            }
+            if (verbose) cat("computing new version (nll)\n")
+            
+            v <- findSens(par, count, tvec, dist, incidence, debug)
+            oldnll <<- v["nll"]
+            oldgrad <<- v[-1]
+            oldpar <<- par
+            
+            return(oldnll)
+        }
+        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
+        environment(objfun) <- f.env
+        gradfun <- function(par, count, tvec, dist, incidence, debug) {
+            if (identical(par,oldpar)) {
+                if (verbose) cat("returning old version of grad\n")
+                return(oldgrad)
+            }
+            if (verbose) cat("computing new version (grad)\n")
+            v <- findSens(par, count, tvec, dist, incidence, debug)
+            oldnll <<- v["nll"]
+            oldgrad <<- v[-1]
+            oldpar <<- par
+            return(oldgrad)
+        }
+        environment(gradfun) <- f.env
+        
+    }else{
+        if(is.null(method)) method <- "Nelder-Mead"
+        
+        objfun <- SIR.logLik
+    }
+    
+    ## FIXME: grad = FALSE is broken
+    
+    m <- mle2(objfun,
+              vecpar=TRUE,
+              start=start,
+              method=method,
+              control=control,
+              gr=gradfun,
+              data=c(data,list(debug=debug, incidence = incidence, dist = dist)))
+    
+    m <- new("fitsir.mle2", m)
+    
     return(m)
 }
 
@@ -379,15 +431,16 @@ fitsir <- function(data, start=startfun(),
 ## d(NLL)/dQ = d(NLL)/d(SSQ)*d(SSQ)/dQ = n/2*(n/SSQ)*1/n * d(SSQ)/dQ =
 ##     n/(2*SSQ) * d(SSQ)/dQ
 ## what is C?
-findSens <- function(data, params, incidence = FALSE, 
-                     dist = c("norm", "pois"), sensOnly = FALSE) {
+findSens <- function(params, count, tvec=NULL,
+                     dist = c("norm", "pois"),
+                     incidence = FALSE, 
+                     debug = FALSE) {
     dist <- match.arg(dist)
-    t <- data$tvec
+    if (is.null(tvec)) tvec <- seq(length(count))
     tpars <- trans.pars(params)
-    r <- SIR.detsim(t, tpars, grad = TRUE, incidence = incidence)
+    r <- SIR.detsim(tvec, tpars, grad = TRUE, incidence = incidence)
     
     with(as.list(c(tpars, r)), {
-        count <- data$count
         i.hat <- exp(logI)
         
         deriv_list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
@@ -396,9 +449,7 @@ findSens <- function(data, params, incidence = FALSE,
         
         sensitivity <- c(nll, sapply(deriv_list, function(nu) findDeriv(count, i.hat, nu, dist = dist)))
         names(sensitivity) <- c("nll", "sens_beta", "sens_gamma", "sens_N", "sens_I0")
-        if(sensOnly){
-            sensitivity <- sensitivity[-1]
-        }
+        
         return(sensitivity)
     })
 }
@@ -418,59 +469,4 @@ findNLL <- function(x, mean, dist){
         norm = -sum(dnorm2(x,mean,log=TRUE)),
         pois = -sum(dpois(x,mean,log=TRUE))
     )
-}
-
-fitsir.optim <- function(data,
-                         start = startfun(),
-                         dist = c("norm", "pois"),
-                         incidence = FALSE,
-                         verbose = FALSE,
-                         control=list(maxit=1e5)){
-    dist <- match.arg(dist)
-    
-    f.env <- new.env()
-    ## set initial values
-    assign("oldnll",NULL,f.env)
-    assign("oldpar",NULL,f.env)
-    assign("oldgrad",NULL,f.env)
-    assign("data", data, f.env)
-    objfun <- function(par) {
-        if (identical(par,oldpar)) {
-            if (verbose) cat("returning old version of value\n")
-            return(oldnll)
-        }
-        if (verbose) cat("computing new version (nll)\n")
-        
-        v <- findSens(data, par, incidence = incidence, dist = dist)
-        oldnll <<- v["nll"]
-        oldgrad <<- v[-1]
-        oldpar <<- par
-        
-        return(oldnll)
-    }
-    attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
-    environment(objfun) <- f.env
-    gradfun <- function(par) {
-        if (identical(par,oldpar)) {
-            if (verbose) cat("returning old version of grad\n")
-            return(oldgrad)
-        }
-        if (verbose) cat("computing new version (grad)\n")
-        v <- findSens(data, par, incidence = incidence, dist = dist)
-        oldnll <<- v["nll"]
-        oldgrad <<- v[-1]
-        oldpar <<- par
-        return(oldgrad)
-    }
-    environment(gradfun) <- f.env
-    
-    m <- mle2(objfun,
-              vecpar=TRUE,
-              start=start,
-              method="BFGS",
-              control=control,
-              gr = gradfun,
-              data=c(data,list(debug=debug)))
-    
-    return(m)
 }
