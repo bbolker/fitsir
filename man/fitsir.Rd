@@ -4,18 +4,18 @@
 \alias{fitsir}
 \title{fitting function}
 \usage{
-fitsir(data, method = "Nelder-Mead", control = list(maxit = 1e+05),
-  timescale = NULL, incidence = FALSE, start = startfun(),
-  debug = FALSE)
+fitsir(data, start = startfun(), dist = c("norm", "pois"),
+  incidence = FALSE, grad = FALSE, method = NULL, control = list(maxit =
+  1e+05), timescale = NULL, verbose = FALSE, debug = FALSE)
 }
 \arguments{
 \item{data}{data frame with columns \code{tvec} and \code{count}}
 
+\item{start}{starting parameters}
+
 \item{method}{optimization method}
 
 \item{control}{control parameters for optimization}
-
-\item{start}{starting parameters}
 
 \item{debug}{print debugging output?}
 }

@@ -164,23 +164,23 @@ SIR.grad.sens <- function(t, x, params) {
         grad_IS = beta*I/N
         grad_II = beta*S/N-gamma
 	
-        dnu_beta_S = grad_SS * nu_beta_S + grad_SI * nu_beta_I - S*I/N
+        dnu_S_b = grad_SS * nu_S_b + grad_SI * nu_I_b - S*I/N
 	
-        dnu_N_S = grad_SS * nu_N_S + grad_SI * nu_N_I + beta*S*I/N^2
+        dnu_S_N = grad_SS * nu_S_N + grad_SI * nu_I_N + beta*S*I/N^2
 	
-        dnu_gamma_S = grad_SS * nu_gamma_S + grad_SI * nu_gamma_I
+        dnu_S_g = grad_SS * nu_S_g + grad_SI * nu_I_g
 	
-        dnu_I0_S = grad_SS * nu_I0_S + grad_SI * nu_I0_I
+        dnu_S_i = grad_SS * nu_S_i + grad_SI * nu_I_i
 	
-        dnu_beta_I = grad_IS * nu_beta_S + grad_II * nu_beta_I + S*I/N
+        dnu_I_b = grad_IS * nu_S_b + grad_II * nu_I_b + S*I/N
 	
-        dnu_N_I = grad_IS * nu_N_S + grad_II * nu_N_I - beta*S*I/N^2
+        dnu_I_N = grad_IS * nu_S_N + grad_II * nu_I_N - beta*S*I/N^2
 	
-        dnu_gamma_I = grad_IS * nu_gamma_S +  grad_II * nu_gamma_I - I
+        dnu_I_g = grad_IS * nu_S_g +  grad_II * nu_I_g - I
 	
-        dnu_I0_I = grad_IS * nu_I0_S + grad_II * nu_I0_I
+        dnu_I_i = grad_IS * nu_S_i + grad_II * nu_I_i
 	
-        list(c(dS, dlogI, dnu_beta_S, dnu_gamma_S, dnu_N_S, dnu_I0_S, dnu_beta_I, dnu_gamma_I, dnu_N_I, dnu_I0_I), I = I)
+        list(c(dS, dlogI, dnu_S_b, dnu_S_g, dnu_S_N, dnu_S_i, dnu_I_b, dnu_I_g, dnu_I_N, dnu_I_i), I = I)
     })
 }
 
@@ -242,63 +242,55 @@ summarize.pars <- function(params) {
 ##' tvec <- seq(0,200,by=0.01)
 ##' ss <- SIR.detsim(tvec,pars)
 ##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
-SIR.detsim <- function(t, params, findSens = FALSE,
-                       incidence = FALSE, reportAll = FALSE){
+SIR.detsim <- function(t, params, grad = FALSE,
+                       incidence = FALSE){
     with(as.list(params),{
         if(incidence){
-            t.d <- diff(t[1:2])
-            t <- c(t[1] - t.d, t)
+            t <- c(t[1] - diff(t[1:2]), t)
         }
         
-        if (findSens) {
+        if (grad) {
             func <- "derivs_sens"
             yini <- c(S = N*(1-i0), logI = log(N*i0),
-                      nu_beta_S = 0, nu_gamma_S = 0, nu_N_S = 1-i0,
-                      nu_I0_S = -N,
-                      nu_beta_I = 0, nu_gamma_I = 0, nu_N_I = i0,
-                      nu_I0_I = N)
+                nu_S_b = 0, nu_S_g = 0, nu_S_N = 1-i0, nu_S_i = -N,
+                nu_I_b = 0, nu_I_g = 0, nu_I_N = i0, nu_I_i = N
+            )
         }else{
             func <- "derivs"
             yini <- c(S=N*(1-i0),logI=log(N*i0))
         }
         
-        odesol <- as.data.frame(ode(y=yini,
-                                    times=t,
-                                    func=func,
-                                    parms=params[1:3],
-                                    dllname = "fitsir",
-                                    initfunc = "initmod",
-                                    method = "rk4",
-                                    hini = 0.01))
+        odesol <- as.data.frame(ode(
+            y=yini,
+            times=t,
+            func=func,
+            parms=params[1:3],
+            dllname = "fitsir",
+            initfunc = "initmod",
+            method = "rk4",
+            hini = 0.01
+        ))
         
-        if (findSens) {
-            sensName = c("nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
-            logSens <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
-            odesol[,sensName] = sweep(odesol[,sensName], 2, rep(logSens,2), "*")
-        }
-        
-        if (reportAll){
-            return(odesol)
-        }
+        returnName <- c("logI", "nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
         
         if(incidence){
-            odesol <- as.data.frame(diff(as.matrix(odesol)))
-            if(findSens){
-                odesol <- -odesol[,c("S", "nu_beta_S", "nu_gamma_S", "nu_N_S", "nu_I0_S")]
-                names(odesol) <- c("I", "nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")		
-            }else{
-                odesol <- -odesol
-                names(odesol) <- c("NA.t","I","NA.p")
-            }
-            odesol[,"logI"] <- log(odesol[,"I"])
+            odesol <- -as.data.frame(diff(as.matrix(odesol)))
+            odesol[,"S"] <- log(odesol[,"S"])
+            odesol <- odesol[,which(names(odesol) %in% c("S", "nu_S_b", "nu_S_g", "nu_S_N", "nu_S_i"))]
+        }else{
+            odesol <- odesol[,which(names(odesol) %in% returnName)]
         }
         
-        if(findSens){
+        if (grad) {
+            if(!all(names(odesol) == returnName))
+                names(odesol) <- returnName
+            
+            logSens <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
+            odesol[,-1] <- sweep(odesol[,-1], 2, logSens, "*")
             return(odesol)
         }else{
-            return(exp(odesol[,"logI"]))
+            return(exp(odesol))
         }
-        
     })
 }
 
@@ -311,9 +303,10 @@ SIR.detsim <- function(t, params, findSens = FALSE,
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, tvec=NULL,
-                  dist=dnorm2,
+                  dist=c("norm", "pois"),
                   debug=FALSE,
-                  incidence = FALSE) {
+                  incidence=FALSE) {
+    dist <- match.arg(dist)
     ## HACK: nloptr appears to strip names from parameters
     ## if (is.null(params)) return(NA_real_) ## why ???
     ## if (is.null(names(params)) &&
@@ -324,7 +317,7 @@ SIR.logLik  <- function(params, count, tvec=NULL,
     tpars <- trans.pars(params)
     i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
         
-    r <- -sum(dnorm2(count,i.hat,log=TRUE))
+    r <- findNLL(count, i.hat, dist)
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -358,43 +351,88 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
 ##' mean((1-ss2/cc)^2)
-fitsir <- function(data,method="Nelder-Mead",
+fitsir <- function(data, start=startfun(),
+                   dist=c("norm", "pois"),
+                   incidence=FALSE,
+                   grad=FALSE,
+                   method=NULL,
                    control=list(maxit=1e5),
                    timescale=NULL,
-                   incidence = FALSE,
-                   start=startfun(),debug=FALSE) {
-    m <- mle2(SIR.logLik,
-         vecpar=TRUE,
-         start=start,
-         method=method,
-         control=control,
-         data=c(data,list(debug=debug, incidence = incidence)))
-    ## FIXME: extend S4 class?
-    ## class(m) <- c("fitsir","mle2")
+                   verbose = FALSE,
+                   debug=FALSE) {
+    dist <- match.arg(dist)
+    dataarg <- c(data,list(debug=debug, incidence = incidence, dist = dist))
+    
+    ## TODO: set default method to Nelder-Mead
+    ## and remove grad argument
+    ## gradient evaluation should be selected based on the methods...
+    
+    if(grad){
+        if(is.null(method)) method <- "BFGS"
+        
+        f.env <- new.env()
+        ## set initial values
+        assign("oldnll",NULL,f.env)
+        assign("oldpar",NULL,f.env)
+        assign("oldgrad",NULL,f.env)
+        assign("data", data, f.env)
+        objfun <- function(par, count, tvec, dist, incidence, debug) {
+            if (identical(par,oldpar)) {
+                if (verbose) cat("returning old version of value\n")
+                return(oldnll)
+            }
+            if (verbose) cat("computing new version (nll)\n")
+            
+            v <- findSens(par, count, tvec, dist, incidence, debug)
+            oldnll <<- v["nll"]
+            oldgrad <<- v[-1]
+            oldpar <<- par
+            
+            return(oldnll)
+        }
+        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
+        environment(objfun) <- f.env
+        gradfun <- function(par, count, tvec, dist, incidence, debug) {
+            if (identical(par,oldpar)) {
+                if (verbose) cat("returning old version of grad\n")
+                return(oldgrad)
+            }
+            if (verbose) cat("computing new version (grad)\n")
+            v <- findSens(par, count, tvec, dist, incidence, debug)
+            oldnll <<- v["nll"]
+            oldgrad <<- v[-1]
+            oldpar <<- par
+            return(oldgrad)
+        }
+        environment(gradfun) <- f.env
+        
+        m <- mle2(objfun,
+                  vecpar=TRUE,
+                  start=start,
+                  method=method,
+                  control=control,
+                  gr=gradfun,
+                  data=dataarg)
+        
+    }else{
+        if(is.null(method)) method <- "Nelder-Mead"
+        
+        m <- mle2(SIR.logLik,
+                  vecpar=TRUE,
+                  start=start,
+                  method=method,
+                  control=control,
+                  data=dataarg)
+    }
+    
+    ## FIXME: call mle2 only once
+    
+    m <- new("fitsir.mle2", m)
+    
     return(m)
 }
 
 ## Introducing sensitivity equations
-
-##' Calculate SSQ
-##' 
-##' @param data data for deterministic simulation (data frame with columns \code{tvec} and \code{count})
-##' @param params parameter vector
-##' @param incidence (logical) compute SSQ based on incidence?
-##' @param SSQonly (logical) return only the sum of squares? (alternatively, return derivatives of SSQ with respect to parameters)
-findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
-    ssqL <- list()
-    ssqL <- within(ssqL, {
-        t <- data$tvec
-        sim <- SIR.detsim(t, trans.pars(params),
-                          findSens = TRUE, incidence = incidence)
-        obs <- data$count
-        pred <- exp(sim$logI)
-        SSQ <- sum((pred - obs)^2)
-    })
-    if (SSQonly) return(ssqL$SSQ)
-    return(ssqL)
-}
 
 ##' returns
 ##'
@@ -403,122 +441,42 @@ findSSQ <- function(data, params, incidence = FALSE, SSQonly = FALSE){
 ## d(NLL)/dQ = d(NLL)/d(SSQ)*d(SSQ)/dQ = n/2*(n/SSQ)*1/n * d(SSQ)/dQ =
 ##     n/(2*SSQ) * d(SSQ)/dQ
 ## what is C?
-findSens <- function(data, params, plot.it = FALSE, log = "xy",
-                     incidence = FALSE, sensOnly = FALSE,
-                     nll = FALSE, poisson = FALSE) {
-    t <- data$tvec
+findSens <- function(params, count, tvec=NULL,
+                     dist = c("norm", "pois"),
+                     incidence = FALSE, 
+                     debug = FALSE) {
+    dist <- match.arg(dist)
+    if (is.null(tvec)) tvec <- seq(length(count))
     tpars <- trans.pars(params)
-    r <- SIR.detsim(t, tpars, findSens = TRUE, incidence = incidence)
+    r <- SIR.detsim(tvec, tpars, grad = TRUE, incidence = incidence)
     
-    with(as.list(c(tpars, r)),{
-        n <- length(t)
-        count <- data$count
-        I <- exp(logI)
-        sigma2 <- sum((I-count)^2)/(n-1)
+    with(as.list(c(tpars, r)), {
+        i.hat <- exp(logI)
         
-        if (plot.it) {
-            matplot(cbind(count, I), log=log, type = "l")
-        }
+        deriv_list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         
-        derVec <- c("nu_beta_I", "nu_gamma_I", "nu_N_I", "nu_I0_I")
+        nll <- findNLL(count, i.hat, dist)
         
-        findDeriv <- function(i){
-            d1 <- get(derVec[i])
-            
-            if(nll){
-                deriv <- sum((I-count)/sigma2 * d1 + (1/(2*sigma2) - ((I - count)^2)/(2*sigma2^2)) * sum(2 * (I - count)/(n-1) * d1))
-            }else if(poisson){
-                deriv <- sum((1 - count/I) * d1)
-            }else{
-                deriv <- sum(2 * (I - count) * d1)
-            }
-            
-            return(deriv)
-        }
+        sensitivity <- c(nll, sapply(deriv_list, function(nu) findDeriv(count, i.hat, nu, dist = dist)))
+        names(sensitivity) <- c("nll", "sens_beta", "sens_gamma", "sens_N", "sens_I0")
         
-        if(nll){
-            val <- -sum(dnorm2(count,I,log=TRUE))
-        }else if(poisson){
-            val <- sum(I - count * log(I))
-        }else{
-            val <- sum((count - I)^2)
-        }
-        
-        sens <- c(1:4)
-        sensitivity <- c(val, unlist(lapply(sens, findDeriv)))
-        names(sensitivity) <- c("val", "sens_beta", "sens_gamma", "sens_N", "sens_I0")
-        if(sensOnly){
-            sensitivity <- sensitivity[-1]
-        }
         return(sensitivity)
     })
 }
 
-fitsir.optim <- function(data,
-                         start = startfun(),
-                         incidence = FALSE,
-                         verbose = FALSE,
-                         plot.it = FALSE,
-                         debug = FALSE,
-                         control=list(maxit=1e5),
-                         nll = FALSE,
-                         poisson = FALSE){
-    
-    if(plot.it){
-        plot(data)
-    }
-    
-    f.env <- new.env()
-    ## set initial values
-    assign("oldval",NULL,f.env)
-    assign("oldpar",NULL,f.env)
-    assign("oldgrad",NULL,f.env)
-    assign("data", data, f.env)
-    objfun <- function(par) {
-        if (identical(par,oldpar)) {
-            if (verbose) cat("returning old version of value\n")
-            return(oldval)
-        }
-        if(debug) cat(par, "\n")
-        if (verbose) cat("computing new version (val)\n")
-        
-        v <- findSens(data, par, incidence = incidence, nll = nll, poisson = poisson)
-        oldval <<- v["val"]
-        oldgrad <<- v[-1]
-        oldpar <<- par
-        
-        if(plot.it){
-            lines(data$tvec,
-                  SIR.detsim(data$tvec, trans.pars(par),
-                             incidence = incidence))
-        }
-        if(debug) cat(" ",oldval,"\n")
-        return(oldval)
-    }
-    attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
-    environment(objfun) <- f.env
-    gradfun <- function(par) {
-        if (identical(par,oldpar)) {
-            if (verbose) cat("returning old version of grad\n")
-            return(oldgrad)
-        }
-        if (verbose) cat("computing new version (grad)\n")
-        v <- findSens(data, par, incidence = incidence, nll = nll, poisson = poisson)
-        oldval <<- v["val"]
-        oldgrad <<- v[-1]
-        oldpar <<- par
-        return(oldgrad)
-    }
-    environment(gradfun) <- f.env
-    
-    
-    m <- mle2(objfun,
-              vecpar=TRUE,
-              start=start,
-              method="BFGS",
-              control=control,
-              gr = gradfun,
-              data=c(data,list(debug=debug)))
-    
-    return(m)
+findDeriv <- function(x, mean, nu, dist){
+    switch(dist,
+        norm = {
+            n <- length(x)
+            sigma2 <- sum((mean-x)^2)/(n-1)
+            sum((mean-x)/sigma2 * nu + (1/(2*sigma2) - ((mean - x)^2)/(2*sigma2^2)) * sum(2 * (mean - x)/(n-1) * nu))}, 
+        pois = sum((1 - x/mean) * nu)
+    )
+}
+
+findNLL <- function(x, mean, dist){
+    switch(dist,
+        norm = -sum(dnorm2(x,mean,log=TRUE)),
+        pois = -sum(dpois(x,mean,log=TRUE))
+    )
 }
