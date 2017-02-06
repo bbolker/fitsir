@@ -361,6 +361,11 @@ fitsir <- function(data, start=startfun(),
                    verbose = FALSE,
                    debug=FALSE) {
     dist <- match.arg(dist)
+    dataarg <- c(data,list(debug=debug, incidence = incidence, dist = dist))
+    
+    ## TODO: set default method to Nelder-Mead
+    ## and remove grad argument
+    ## gradient evaluation should be selected based on the methods...
     
     if(grad){
         if(is.null(method)) method <- "BFGS"
@@ -401,21 +406,26 @@ fitsir <- function(data, start=startfun(),
         }
         environment(gradfun) <- f.env
         
+        m <- mle2(objfun,
+                  vecpar=TRUE,
+                  start=start,
+                  method=method,
+                  control=control,
+                  gr=gradfun,
+                  data=dataarg)
+        
     }else{
         if(is.null(method)) method <- "Nelder-Mead"
         
-        objfun <- SIR.logLik
+        m <- mle2(SIR.logLik,
+                  vecpar=TRUE,
+                  start=start,
+                  method=method,
+                  control=control,
+                  data=dataarg)
     }
     
-    ## FIXME: grad = FALSE is broken
-    
-    m <- mle2(objfun,
-              vecpar=TRUE,
-              start=start,
-              method=method,
-              control=control,
-              gr=gradfun,
-              data=c(data,list(debug=debug, incidence = incidence, dist = dist)))
+    ## FIXME: call mle2 only once
     
     m <- new("fitsir.mle2", m)
     
