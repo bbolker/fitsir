@@ -118,35 +118,55 @@ g0 + geom_line(data=dat,aes(x=week-2,y=h1),colour="red")+
 \item Figure out why neither the straight SIR fit nor the K-M fit are working with the parameters given by Dietz.  Unit problems?  Typos?  Failure of K-M second-order approximation?  Try the fits myself.
 \end{itemize}
 
-Better, but still not very good:
-<<fitsir,cache=TRUE>>=
-dat1 <- setNames(dat,c("tvec","count"))
-ff <- fitsir(dat1,start=startfun(auto=TRUE,data=dat1))
+I neeed to try the second order approximation but you're using prevalence instead of incidence...
+
+<<sir0>>==
 dietz_pars <- c(R0=2,gamma=7/11,N=2985)
 dietz_lpars <- with(as.list(dietz_pars),
       c(log.beta=log(R0*gamma),
         log.gamma=log(gamma),
         log.N=log(N),
         logit.i=qlogis(1e-3)))
-ff2 <- fitsir(dat1,start=dietz_lpars)
+tvec <- dat1$tvec
 
-gettraj <- function(x,tvec=dat1$tvec) {
-    data.frame(tvec=tvec,
-               count=SIR.detsim(tvec,trans.pars(coef(x))))
-}
-tt <- gettraj(ff2,tvec=seq(0,18,length=51))
+plot(tvec, SIR.detsim(tvec, trans.pars(dietz_lpars), incidence = TRUE), type = "l")
+points(dat1)
 @
 
-<<plot_fitsir_traj>>=
-par(las=1,bty="l")
-with(dat1,plot(tvec-2,count,xlab="time"))
-with(tt,lines(tvec,count),col=2)
+We get something similar.
+
+<<fitsir2, cache=TRUE>>==
+ff2 <- fitsir(dat1,start=dietz_lpars, incidence = TRUE)
+
+plot(ff2)
 @
 
 <<sum_fitsir_pars>>=
-summarize.pars(coef(ff))
+print(ff2)
+summarize.pars(coef(ff2))
 @
 
-There's an issue with whether we're assuming $t=0$ at the beginning of the epidemic (Dietz's data starts with ``week 2'' ...)
+There's an issue with whether we're assuming $t=0$ at the beginning of the epidemic (Dietz's data starts with ``week 2'' ...). SWP: I don't think this should be an issue...?
+
+Not much difference between different methods:
+
+<<compare_methods>>==
+fitsir(dat1, incidence = TRUE)
+fitsir(dat1, grad = TRUE, incidence = TRUE)
+@
+
+Trying poisson...
+
+<<pois>>==
+dat2 <- dat1
+dat2$count <- round(dat2$count)
+ff3 <- fitsir(dat2, dist = "pois")
+plot(ff3)
+print(ff3)
+summarize.pars(coef(ff3))
+@
+
+This seems closer to Dietz parameters!
+
 \bibliography{plague}
 \end{document}
