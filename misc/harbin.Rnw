@@ -16,15 +16,17 @@ It occurred to me that it would be interesting to contrast information that we h
 
 <<opts,echo=FALSE>>=
 library("knitr")
-opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,echo=FALSE)
+opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,echo=FALSE,error=FALSE)
 @
 
 Load packages:
 <<pkgs,message=FALSE>>=
-library("deSolve")
-library("ggplot2"); theme_set(theme_bw())
-library("bbmle")
-library("fitsir")
+library(deSolve)
+library(ggplot2); theme_set(theme_bw())
+library(bbmle)
+library(fitsir)
+library(dplyr)
+library(tidyr)
 ## if necessary:
 ## devtools::install_github("bbolker/fitsir")
 @
@@ -60,7 +62,9 @@ I used \code{g3data} to extract data points from Dietz's figure (before I found 
 dat <- read.csv("Dietz_harbin_sm.csv",header=FALSE)
 names(dat) <- c("week","Deaths")
 g0 <- ggplot(dat,aes(week,Deaths))+geom_point()+
-  geom_smooth(method="loess")+
+    geom_smooth(method="loess")+
+    geom_smooth(method="gam",method.args=list(family=quasipoisson),
+                formula=y~s(x,k=10),colour="purple")+
   coord_cartesian(ylim=c(0,260))
 @
 
@@ -95,8 +99,8 @@ S0 <- c(S=unname(dietz_harbin["x0"])-1,I=1,R=0)
 hfit1 <- ode(y=S0,
              times=c(0,dat$day),
              func=gSIR,parms=dietz_harbin)
-dat$h1 <- diff(hfit1[,"R"])
-dat$h2 <- with(as.list(dietz_harbin), 
+dat$dpSIR <- diff(hfit1[,"R"])
+dat$dpKM <- with(as.list(dietz_harbin), 
         {
            c1 <- sqrt((rzero-1)^2+2*rzero^2/x0)
            c2 <- atanh((rzero-1)/c1)
@@ -121,6 +125,7 @@ g0 + geom_line(data=dat,aes(x=week-2,y=h1),colour="red")+
 I neeed to try the second order approximation but you're using prevalence instead of incidence...
 
 <<sir0>>==
+dat1 <- setNames(dat,c("tvec","count"))
 dietz_pars <- c(R0=2,gamma=7/11,N=2985)
 dietz_lpars <- with(as.list(dietz_pars),
       c(log.beta=log(R0*gamma),
@@ -129,7 +134,9 @@ dietz_lpars <- with(as.list(dietz_pars),
         logit.i=qlogis(1e-3)))
 tvec <- dat1$tvec
 
-plot(tvec, SIR.detsim(tvec, trans.pars(dietz_lpars), incidence = TRUE), type = "l")
+par(las=1,bty="l")
+plot(tvec, SIR.detsim(tvec, trans.pars(dietz_lpars), incidence = TRUE), type = "l",
+     xlab="time",ylab="incidence")
 points(dat1)
 @
 
@@ -137,7 +144,6 @@ We get something similar.
 
 <<fitsir2, cache=TRUE>>==
 ff2 <- fitsir(dat1,start=dietz_lpars, incidence = TRUE)
-
 plot(ff2)
 @
 
