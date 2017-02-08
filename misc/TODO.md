@@ -1,5 +1,7 @@
 ## exploration to-do list
 
+- merge TODO files
+
 - Figure 1: prevalence?? or preferably re-do with incidence if not too hard
    - (a) cumulative distributions of attained log-likelihood for N-M and BFGS, showing three levels (pick an example with three)
    - (b) points and trajectory for each plateau (i.e., flat, jump-up plus decay, good fit)

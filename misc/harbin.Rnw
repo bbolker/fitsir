@@ -94,26 +94,33 @@ gSIR <- function(t,y,params) {
         })
   list(g,NULL)
 }
-dat$day <- dat$week*7
+dat_model <- data.frame(day=seq(1,max(dat$week)*7))
 S0 <- c(S=unname(dietz_harbin["x0"])-1,I=1,R=0)
 hfit1 <- ode(y=S0,
-             times=c(0,dat$day),
-             func=gSIR,parms=dietz_harbin)
-dat$dpSIR <- diff(hfit1[,"R"])
-dat$dpKM <- with(as.list(dietz_harbin), 
+             times=c(0,dat_model$day),
+             func=gSIR,
+             parms=dietz_harbin)
+dat_model$dpSIR <- diff(hfit1[,"R"])*7  ## pretend that incidence is per week
+dat_model$dpKM <- with(as.list(dietz_harbin), 
         {
            c1 <- sqrt((rzero-1)^2+2*rzero^2/x0)
            c2 <- atanh((rzero-1)/c1)
            gamma*x0/(2*rzero^2)*c1*
-             (1/cosh(c1*gamma*dat$day-c2-2))^2
+               (1/cosh(c1*gamma*dat_model$day-c2))^2
         })
+dat_model$dpKM <- dat_model$dpKM*7 ## days -> weeks
+mdat <- dat_model %>% select(day,dpSIR,dpKM) %>%
+    mutate(week=day/7) %>% select(-day) %>%
+    gather(var,val,-week)
 @
+Obviously I don't have this quite right yet ... there's something causing
+a time-shift with Kermack-McK. approx?  Should we do something about this?
 
-Obviously I don't have this quite right yet ...
+Prevalence vs (incidence of infection = $\int_{t_1}^{t_2} \beta SI \, dt$) 
+vs (incidence of recovery/death = $\int_{t_1}^{t_2} \gamma I \, dt$) ?
 
 <<hfit1>>=
-g0 + geom_line(data=dat,aes(x=week-2,y=h1),colour="red")+
-  geom_line(data=dat,aes(y=7*h2),colour="purple")
+g0 + geom_line(data=mdat,aes(x=week,y=val,colour=var))
 @
 
 \section{To do}
@@ -122,7 +129,7 @@ g0 + geom_line(data=dat,aes(x=week-2,y=h1),colour="red")+
 \item Figure out why neither the straight SIR fit nor the K-M fit are working with the parameters given by Dietz.  Unit problems?  Typos?  Failure of K-M second-order approximation?  Try the fits myself.
 \end{itemize}
 
-I neeed to try the second order approximation but you're using prevalence instead of incidence...
+I need to try the second order approximation but you're using prevalence instead of incidence...
 
 <<sir0>>==
 dat1 <- setNames(dat,c("tvec","count"))
@@ -152,7 +159,8 @@ print(ff2)
 summarize.pars(coef(ff2))
 @
 
-There's an issue with whether we're assuming $t=0$ at the beginning of the epidemic (Dietz's data starts with ``week 2'' ...). SWP: I don't think this should be an issue...?
+There's an issue with whether we're assuming $t=0$ at the beginning of the epidemic 
+(Dietz's data starts with ``week 2'' ...). SWP: I don't think this should be an issue...?
 
 Not much difference between different methods:
 
