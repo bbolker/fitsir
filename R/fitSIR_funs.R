@@ -238,14 +238,22 @@ summarize.pars <- function(params) {
 ##' @export
 ##' @useDynLib fitsir initmod
 ##' @examples
-##' pars <- c(beta=0.2,gamma=0.1,N=1000,i0=0.01)
-##' tvec <- seq(0,200,by=0.01)
-##' ss <- SIR.detsim(tvec,pars)
-##' plot(tvec,ss,type="l",xlab="time",ylab="infected")
-SIR.detsim <- function(t, params, grad = FALSE,
-                       incidence = FALSE){
+##' pars <- c(beta=0.4,gamma=0.2,N=5000,i0=0.001)
+##' tvec <- 0:50
+##' ss.p <- SIR.detsim(tvec,pars)
+##' ss.i <- SIR.detsim(tvec,pars,type="incidence")
+##' ss.d <- SIR.detsim(tvec,pars,type="death")
+##' matplot(data.frame(ss.p,ss.i,ss.d),type = "l",xlab="time",ylab="count")
+##' legend(x=0,y=800,col=1:3,lty=1:3,legend=c("prevalence","incidence","death"))
+##' all.equal(cumsum(c(5, ss.i[-length(ss.i)])) - cumsum(c(0, ss.d[-length(ss.d)])), ss.p)
+SIR.detsim <- function(t, params,
+                       type = c("prevalence", "incidence", "death"),
+                       grad = FALSE){
+    type <- match.arg(type)
+    
     with(as.list(params),{
-        if(incidence){
+            
+        if(type %in% c("incidence", "death")){
             t <- c(t[1] - diff(t[1:2]), t)
         }
         
@@ -271,19 +279,32 @@ SIR.detsim <- function(t, params, grad = FALSE,
             hini = 0.01
         ))
         
-        returnName <- c("logI", "nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
+        icol <- c("logI", "nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
+        scol <- c("S", "nu_S_b", "nu_S_g", "nu_S_N", "nu_S_i")
         
-        if(incidence){
-            odesol <- -as.data.frame(diff(as.matrix(odesol)))
-            odesol[,"S"] <- log(odesol[,"S"])
-            odesol <- odesol[,which(names(odesol) %in% c("S", "nu_S_b", "nu_S_g", "nu_S_N", "nu_S_i"))]
+        if(type == "prevalence"){
+            odesol <- odesol[,which(names(odesol) %in% icol)]
         }else{
-            odesol <- odesol[,which(names(odesol) %in% returnName)]
+            if(type == "death"){
+                ## FIXME: type = "death", grad = TRUE sometimes returns an error
+                ## In log(odesol[,"S"]) : NaNs produced
+                ## possibly due to numerical imprecision... something like -1e-14
+                odesol[,"logI"] <- exp(odesol[,"logI"])
+                odesol <- odesol[,which(names(odesol) %in% scol)] + odesol[,which(names(odesol) %in% icol)]
+            }else if(type == "incidence"){
+                odesol <- odesol[,which(names(odesol) %in% scol)]
+            }
+            odesol <- -as.data.frame(diff(as.matrix(odesol)))
+            if(!grad){
+                odesol <- log(unlist(odesol, use.names = FALSE))
+            }else{
+                odesol[,"S"] <- log(odesol[,"S"])
+            }
         }
         
         if (grad) {
-            if(!all(names(odesol) == returnName))
-                names(odesol) <- returnName
+            if(!all(names(odesol) == icol))
+                names(odesol) <- icol
             
             logSens <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
             odesol[,-1] <- sweep(odesol[,-1], 2, logSens, "*")
@@ -304,9 +325,11 @@ SIR.detsim <- function(t, params, grad = FALSE,
 ##' @export 
 SIR.logLik  <- function(params, count, tvec=NULL,
                   dist=c("norm", "pois"),
+                  type = c("prevalence", "incidence", "death"),
                   debug=FALSE,
                   incidence=FALSE) {
     dist <- match.arg(dist)
+    type <- match.arg(type)
     ## HACK: nloptr appears to strip names from parameters
     ## if (is.null(params)) return(NA_real_) ## why ???
     ## if (is.null(names(params)) &&
@@ -315,7 +338,7 @@ SIR.logLik  <- function(params, count, tvec=NULL,
     if (is.null(tvec)) tvec <- seq(length(count))
     if (debug) cat(params)
     tpars <- trans.pars(params)
-    i.hat <- SIR.detsim(tvec,tpars, incidence = incidence)
+    i.hat <- SIR.detsim(tvec,tpars,type)
         
     r <- findNLL(count, i.hat, dist)
     if (debug) cat(" ",r,"\n")
@@ -353,7 +376,7 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' mean((1-ss2/cc)^2)
 fitsir <- function(data, start=startfun(),
                    dist=c("norm", "pois"),
-                   incidence=FALSE,
+                   type = c("prevalence", "incidence", "death"),
                    grad=FALSE,
                    method=NULL,
                    control=list(maxit=1e5),
@@ -361,7 +384,8 @@ fitsir <- function(data, start=startfun(),
                    verbose = FALSE,
                    debug=FALSE) {
     dist <- match.arg(dist)
-    dataarg <- c(data,list(debug=debug, incidence = incidence, dist = dist))
+    type <- match.arg(type)
+    dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
     ## TODO: set default method to Nelder-Mead
     ## and remove grad argument
@@ -376,14 +400,14 @@ fitsir <- function(data, start=startfun(),
         assign("oldpar",NULL,f.env)
         assign("oldgrad",NULL,f.env)
         assign("data", data, f.env)
-        objfun <- function(par, count, tvec, dist, incidence, debug) {
+        objfun <- function(par, count, tvec, dist, type, debug) {
             if (identical(par,oldpar)) {
                 if (verbose) cat("returning old version of value\n")
                 return(oldnll)
             }
             if (verbose) cat("computing new version (nll)\n")
             
-            v <- findSens(par, count, tvec, dist, incidence, debug)
+            v <- findSens(par, count, tvec, dist, type, debug)
             oldnll <<- v["nll"]
             oldgrad <<- v[-1]
             oldpar <<- par
@@ -392,13 +416,13 @@ fitsir <- function(data, start=startfun(),
         }
         attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
         environment(objfun) <- f.env
-        gradfun <- function(par, count, tvec, dist, incidence, debug) {
+        gradfun <- function(par, count, tvec, dist, type, debug) {
             if (identical(par,oldpar)) {
                 if (verbose) cat("returning old version of grad\n")
                 return(oldgrad)
             }
             if (verbose) cat("computing new version (grad)\n")
-            v <- findSens(par, count, tvec, dist, incidence, debug)
+            v <- findSens(par, count, tvec, dist, type, debug)
             oldnll <<- v["nll"]
             oldgrad <<- v[-1]
             oldpar <<- par
@@ -443,12 +467,13 @@ fitsir <- function(data, start=startfun(),
 ## what is C?
 findSens <- function(params, count, tvec=NULL,
                      dist = c("norm", "pois"),
-                     incidence = FALSE, 
+                     type = c("prevalence", "incidence", "death"), 
                      debug = FALSE) {
     dist <- match.arg(dist)
+    type <- match.arg(type)
     if (is.null(tvec)) tvec <- seq(length(count))
     tpars <- trans.pars(params)
-    r <- SIR.detsim(tvec, tpars, grad = TRUE, incidence = incidence)
+    r <- SIR.detsim(tvec, tpars, type, grad = TRUE)
     
     with(as.list(c(tpars, r)), {
         i.hat <- exp(logI)
