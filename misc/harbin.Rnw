@@ -16,7 +16,7 @@ It occurred to me that it would be interesting to contrast information that we h
 
 <<opts,echo=FALSE>>=
 library("knitr")
-opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,echo=FALSE,error=FALSE)
+opts_chunk$set(fig.width=s,fig.height=5,tidy=FALSE,echo=FALSE,error=FALSE)
 @
 
 Load packages:
@@ -62,10 +62,10 @@ I used \code{g3data} to extract data points from Dietz's figure (before I found 
 dat <- read.csv("Dietz_harbin_sm.csv",header=FALSE)
 names(dat) <- c("week","Deaths")
 g0 <- ggplot(dat,aes(week,Deaths))+geom_point()+
-    geom_smooth(method="loess")+
-    geom_smooth(method="gam",method.args=list(family=quasipoisson),
-                formula=y~s(x,k=10),colour="purple")+
-  coord_cartesian(ylim=c(0,260))
+    ## geom_smooth(method="loess")+
+    ## geom_smooth(method="gam",method.args=list(family=quasipoisson),
+    ##             formula=y~s(x,k=10),colour="purple")+
+  coord_cartesian(ylim=c(0,300))
 @
 
 Dietz gives the (Kermack-McKendrick) equations for the incidence, $dz/dt$ (based on a second-order Taylor expansion):
@@ -82,7 +82,7 @@ a mean infectious period of 11 days''.
 The weekly deaths should be approximately proportional to the incidence (this ignores the probability of survival, the integration over weeks, the second-order expansion, and all the other unrealities of the model \ldots)
 
 <<run_ode>>=
-dietz_harbin <- c(x0=2985,rzero=2,gamma=1/11)
+dietz_harbin <- c(x0=2985,rzero=2,gamma=7/11)
 gSIR <- function(t,y,params) {
   g <- with(as.list(c(y,params)),
         {
@@ -94,42 +94,32 @@ gSIR <- function(t,y,params) {
         })
   list(g,NULL)
 }
-dat_model <- data.frame(day=seq(1,max(dat$week)*7))
 S0 <- c(S=unname(dietz_harbin["x0"])-1,I=1,R=0)
 hfit1 <- ode(y=S0,
-             times=c(0,dat_model$day),
+             times=c(0,dat$week),
              func=gSIR,
              parms=dietz_harbin)
-dat_model$dpSIR <- diff(hfit1[,"R"])*7  ## pretend that incidence is per week
-dat_model$dpKM <- with(as.list(dietz_harbin), 
+dat$dpSIR <- diff(hfit1[,"R"])  ## pretend that incidence is per week
+dat$dpKM <- with(as.list(dietz_harbin), 
         {
-           c1 <- sqrt((rzero-1)^2+2*rzero^2/x0)
+           c1 <- sqrt((rzero-1)^2+2*rzero^2/x0) ## I think this is missing a term...
            c2 <- atanh((rzero-1)/c1)
            gamma*x0/(2*rzero^2)*c1*
-               (1/cosh(c1*gamma*dat_model$day-c2))^2
+               (1/cosh(c1*gamma*dat$week/2-c2))^2
         })
-dat_model$dpKM <- dat_model$dpKM*7 ## days -> weeks
-mdat <- dat_model %>% select(day,dpSIR,dpKM) %>%
-    mutate(week=day/7) %>% select(-day) %>%
+mdat <- dat %>%
     gather(var,val,-week)
 @
-Obviously I don't have this quite right yet ... there's something causing
-a time-shift with Kermack-McK. approx?  Should we do something about this?
 
-Prevalence vs (incidence of infection = $\int_{t_1}^{t_2} \beta SI \, dt$) 
-vs (incidence of recovery/death = $\int_{t_1}^{t_2} \gamma I \, dt$) ?
+Dietz gives a wrong equation!
 
 <<hfit1>>=
 g0 + geom_line(data=mdat,aes(x=week,y=val,colour=var))
 @
 
-\section{To do}
+\section{fitsir}
 
-\begin{itemize}
-\item Figure out why neither the straight SIR fit nor the K-M fit are working with the parameters given by Dietz.  Unit problems?  Typos?  Failure of K-M second-order approximation?  Try the fits myself.
-\end{itemize}
-
-I need to try the second order approximation but you're using prevalence instead of incidence...
+Clearly, SIR model doesn't work very well!
 
 <<sir0>>==
 dat1 <- setNames(dat,c("tvec","count"))
@@ -142,45 +132,101 @@ dietz_lpars <- with(as.list(dietz_pars),
 tvec <- dat1$tvec
 
 par(las=1,bty="l")
-plot(tvec, SIR.detsim(tvec, trans.pars(dietz_lpars), incidence = TRUE), type = "l",
-     xlab="time",ylab="incidence")
+plot(tvec, SIR.detsim(tvec, trans.pars(dietz_lpars), type = "death"), type = "l",
+     xlab="time",ylab="death")
 points(dat1)
 @
 
-We get something similar.
+Let's try fitting
 
 <<fitsir2, cache=TRUE>>==
-ff2 <- fitsir(dat1,start=dietz_lpars, incidence = TRUE)
+ff2 <- fitsir(dat1,start=dietz_lpars, type = "death")
 plot(ff2)
 @
 
+It's similar to the parameters that Dietz give but it's not close enough. Why are they different?
+
+KM assume that $\rzero R/N$ is small.
+
 <<sum_fitsir_pars>>=
-print(ff2)
 summarize.pars(coef(ff2))
 @
 
-There's an issue with whether we're assuming $t=0$ at the beginning of the epidemic 
-(Dietz's data starts with ``week 2'' ...). SWP: I don't think this should be an issue...?
+We can also compare prevalence vs incidence vs deaths using this parameter:
 
-Not much difference between different methods:
+<<compare_curves>>==
+fpars <- coef(ff2)
+tpars <- trans.pars(fpars)
+ss.p <- SIR.detsim(tvec, tpars)
+ss.i <- SIR.detsim(tvec, tpars, type = "incidence")
+ss.d <- SIR.detsim(tvec, tpars, type = "death")
 
-<<compare_methods>>==
-fitsir(dat1, incidence = TRUE)
-fitsir(dat1, grad = TRUE, incidence = TRUE)
+matplot(data.frame(ss.p,ss.i,ss.d),type = "l",xlab="time",ylab="count")
+legend(x=1,y=320,col=1:3,lty=1:3,legend=c("prevalence","incidence","death"))
 @
 
-Trying poisson...
+\section{Bombay}
 
-<<pois>>==
-dat2 <- dat1
-dat2$count <- round(dat2$count)
-ff3 <- fitsir(dat2, dist = "pois")
-plot(ff3)
-print(ff3)
-summarize.pars(coef(ff3))
+We can use the Kermack and McKendrick equation to fit a curve to the bombay data. Equation that Kermack and McKendrick gives is
+$$
+\frac{dz}{dt} =890 \sech^2(0.2t - 3.4)
+$$
+
+<<bombay>>==
+plot(bombay)
+lines(890*1/(cosh(0.2*1:31-3.4))^2)
 @
 
-This seems closer to Dietz parameters!
+We're able to reproduce their result. I think these parameters are close to their parameters:
+
+<<bombay_approx>>==
+bpars <- c(log.beta = log(0.82),
+           log.gamma = log(0.33),
+           log.N = log(11300),
+           logit.i = -8)
+
+convertKM <- function(param){
+    with(as.list(summarize.pars(param)),{
+        c1 <- sqrt((R0-1)^2+2*R0^2/N)
+        c2 <- atanh((R0-1)/c1)
+        c(a=1/infper*N/(2*R0)*c1,
+          b=1/infper*c1/2,
+          c=c2)
+    })
+}
+
+convertKM(bpars)
+plot(bombay)
+lines(890*1/(cosh(0.2*1:31-3.4))^2)
+with(as.list(convertKM(bpars)),{
+    lines(a*1/(cosh(b*1:31-c)^2), col =3)
+})
+
+lines(SIR.detsim(1:31, trans.pars(bpars), type = "death"), col = 2)
+@
+
+Now, let's try fitting an SIR model to the data:
+
+<<bombay_fit>>==
+bombay2 <- setNames(bombay, c("tvec", "count"))
+## grad = TRUE because it's faster... 
+## we get stuck at a different local minima if we use NM
+bfit <- fitsir(bombay2, start = bpars, type = "death")
+@
+
+Let's look at the parameters
+
+<<bombay_pars>>===
+KMpars <- convertKM(coef(bfit))
+
+print(KMpars)
+
+plot(bfit)
+with(as.list(KMpars),{
+    lines(a*1/(cosh(b*1:31-c)^2), col =2)
+})
+@
+
 
 \bibliography{plague}
 \end{document}

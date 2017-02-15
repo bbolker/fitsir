@@ -105,7 +105,7 @@ SIR.grad.hessian <- function(t, x, params) {
     })
 }
 
-##' integrate sensitivities
+##' integrate second order sensitivities
 ##' @param t time vector
 ##' @param params parameter vector
 ##' @export
@@ -126,46 +126,61 @@ SIR.detsim.hessian <- function(t, params){
                                     func=SIR.grad.hessian,
                                     parms=params,
                                     method = "rk4",
-                                    hini = 5e-2))
+                                    hini = 0.01))
     })
     
 }
 
-##' find Hessian of SSQ wrt parameters
+##' find Hessian
 ##' @param data data frame with tvec/count
 ##' @param params parameter vector
 ##' @export
-findHess <- function(data, params){
+findHess <- function(data, params, dist = c("norm", "pois")){
+    dist <- match.arg(dist)
     t <- data$tvec
     tpars <- trans.pars(params)
     r <- SIR.detsim.hessian(t, tpars)
     
     with(as.list(c(tpars, r)),{
-        
+        x <- data$count
         parVec <- c(beta, gamma, N, i0)
         
         sensVec <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
         
         sensVec2 <- c(1, 1, 1, 2*i0*exp(-qlogis(i0)) - i0^2 * exp(-qlogis(i0)) * 1/(i0-i0^2))
         
-        derVec <- c("nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
+        derVec <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         
-        derMat <- matrix(c("nu_I_bb", "nu_I_bg", "nu_I_bN", "nu_I_bi",
-                           "nu_I_bg", "nu_I_gg", "nu_I_gN", "nu_I_gi",
-                           "nu_I_bN", "nu_I_gN", "nu_I_NN", "nu_I_Ni",
-                           "nu_I_bi", "nu_I_gi", "nu_I_Ni", "nu_I_ii"), 4, 4)
+        derMat <- matrix(list(nu_I_bb, nu_I_bg, nu_I_bN, nu_I_bi,
+                           nu_I_bg, nu_I_gg, nu_I_gN, nu_I_gi,
+                           nu_I_bN, nu_I_gN, nu_I_NN, nu_I_Ni,
+                           nu_I_bi, nu_I_gi, nu_I_Ni, nu_I_ii), 4, 4)
         
-        findDeriv <- function(i1, i2){
-            d1 <- get(derVec[i1])
-            d2 <- get(derVec[i2])
-            db <- get(derMat[i1,i2])
+        findDeriv <- function(i1, i2, dist){
+            d1 <- derVec[[i1]]
+            d2 <- derVec[[i2]]
+            db <- derMat[i1,i2][[1]]
             
             if(i1 == i2){
                 d12 <- sensVec2[i1]
             }else{
                 d12 <- 0
             }
-            deriv <- 2 * sum(d1 * d2 * sensVec[i1] + (I-data$count) * db * sensVec[i1] + (I-data$count) * d1 * d12) * sensVec[i2]
+            ## I don't know if this is right.. I'll have to go through the derivation a few more times...
+            if(dist == "norm"){
+                n <- length(x)
+                sigma2 <- sum((I-x)^2)/(n-1)
+                term1 <- sum((I-x)/sigma2 * d1 + (1/(2*sigma2) - ((I - x)^2)/(2*sigma2^2)) * sum(2 * (I - x)/(n-1) * d1)) * d12
+                term2 <- (1/sigma2 * d2 - (I-x)/(sigma2^2) * sum(2 * (I - x)/(n-1) * d2)) * d1 + (I - x)/sigma2 * db +
+                    (-1/(2 * sigma2^2) * sum(2 * (I - x)/(n-1) * d2) - 
+                         (I - x)/(sigma2^2) * d2 + (I - x)^2/(sigma2^3) * sum(2 * (I - x)/(n-1) * d2)) *
+                    sum(2 * (I - x)/(n-1) * d1) +
+                    (1/(2 * sigma2) - ((I - x)^2)/(2 * sigma2^2)) * sum(2/(n-1) * d2 * d1 + 2 * (I - x)/(n-1) * db)
+                deriv <- (term1 + sum(term2) * sensVec[i1]) * sensVec[i2]
+            }else if(dist == "pois"){
+                deriv <- sum((db + x/I^2 * d1 * d2 - x/I * db) * sensVec[i1] + (1 - x/I) * d1 * d12) * sensVec[i2]
+            }
+
             return(deriv)
         }
         
@@ -173,7 +188,7 @@ findHess <- function(data, params){
         
         for(i in 1:4){
             for(j in 1:4){
-                m[i,j] = findDeriv(i,j)
+                m[i,j] <- findDeriv(i,j,dist)
             }
         }
         

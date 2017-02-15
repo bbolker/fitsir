@@ -1,30 +1,25 @@
-spline.fit <- function(tvec, count, ...){
-  args <- list(...)
-  
-  with(args, {
+spline.fit <- function(tvec, count, itmax=100,relpeakcrit=0.1){
     single_peak <- FALSE
     it <- 1
     spar <- 0.5
     while (!single_peak && it<itmax) {
-      ss <- smooth.spline(tvec,log(count),spar=spar)
-      dd <- predict(ss,deriv=1)$y
-      ## change in sign of first derivative
-      dds <- diff(sign(dd))
-      spar <- if (spar<0.8) spar+0.05 else (1+spar)/2
-      it <- it+1
-      ncrit <- sum(dds<0)
-      peakvals <- count[dds<0]
-      relpeakvals <- peakvals[-1]/peakvals[1]
-      single_peak <- ncrit==1 ||
+        ss <- smooth.spline(tvec,log(count),spar=spar)
+        dd <- predict(ss,deriv=1)$y
+        ## change in sign of first derivative
+        dds <- diff(sign(dd))
+        spar <- if (spar<0.8) spar+0.05 else (1+spar)/2
+        it <- it+1
+        ncrit <- sum(dds<0)
+        peakvals <- count[dds<0]
+        relpeakvals <- peakvals[-1]/peakvals[1]
+        single_peak <- ncrit==1 ||
         all(relpeakvals<relpeakcrit)
     }
     if (it==itmax) {
-      ## try harder?
-      stop("couldn't smooth enough")
+        ## try harder?
+        stop("couldn't smooth enough")
     }
-    
     return(ss)
-  })
 }
 
 ##' Starting function
@@ -75,7 +70,7 @@ startfun <- function(data = NULL,
         if (incidence) {
             N <- cumsum(count)[length(tvec)]
             P <- ss.data$count/t.diff
-            ss <- spline.fit(tvec, P, single_peak = FALSE, itmax = itmax, relpeakcrit = relpeakcrit)
+            ss <- spline.fit(tvec, P, itmax = itmax, relpeakcrit = relpeakcrit)
         } ## if incidence
         
         ## curvature of spline at max
@@ -430,26 +425,20 @@ fitsir <- function(data, start=startfun(),
         }
         environment(gradfun) <- f.env
         
-        m <- mle2(objfun,
-                  vecpar=TRUE,
-                  start=start,
-                  method=method,
-                  control=control,
-                  gr=gradfun,
-                  data=dataarg)
-        
     }else{
         if(is.null(method)) method <- "Nelder-Mead"
         
-        m <- mle2(SIR.logLik,
-                  vecpar=TRUE,
-                  start=start,
-                  method=method,
-                  control=control,
-                  data=dataarg)
+        objfun <- SIR.logLik
+        gradfun <- NULL
     }
     
-    ## FIXME: call mle2 only once
+    m <- mle2(objfun,
+              vecpar=TRUE,
+              start=start,
+              method=method,
+              control=control,
+              gr=gradfun,
+              data=dataarg)
     
     m <- new("fitsir.mle2", m)
     
