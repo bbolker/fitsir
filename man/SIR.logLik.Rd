@@ -5,7 +5,8 @@
 \title{Normal log-likelihood for SIR trajectory}
 \usage{
 SIR.logLik(params, count, tvec = NULL, dist = c("norm", "pois"),
-  debug = FALSE, incidence = FALSE)
+  type = c("prevalence", "incidence", "death"), debug = FALSE,
+  incidence = FALSE)
 }
 \arguments{
 \item{params}{parameter vector (log.N0, logit.i0, log.beta, log.gamma)}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/hessian.R
 \name{SIR.detsim.hessian}
 \alias{SIR.detsim.hessian}
-\title{integrate sensitivities}
+\title{integrate second order sensitivities}
 \usage{
 SIR.detsim.hessian(t, params)
 }
@@ -12,6 +12,6 @@ SIR.detsim.hessian(t, params)
 \item{params}{parameter vector}
 }
 \description{
-integrate sensitivities
+integrate second order sensitivities
 }
 

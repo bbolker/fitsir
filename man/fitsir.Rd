@@ -5,8 +5,9 @@
 \title{fitting function}
 \usage{
 fitsir(data, start = startfun(), dist = c("norm", "pois"),
-  incidence = FALSE, grad = FALSE, method = NULL, control = list(maxit =
-  1e+05), timescale = NULL, verbose = FALSE, debug = FALSE)
+  type = c("prevalence", "incidence", "death"), grad = FALSE,
+  method = NULL, control = list(maxit = 1e+05), timescale = NULL,
+  verbose = FALSE, debug = FALSE)
 }
 \arguments{
 \item{data}{data frame with columns \code{tvec} and \code{count}}
