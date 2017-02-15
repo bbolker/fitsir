@@ -26,3 +26,23 @@
 ##' lines(bombay$week,ss)
 ##' }
 NULL
+
+##' 1918 Philadelphia flu data set
+##' 
+##' @docType data
+##' @encoding UTF-8
+##' @keywords datasets
+##' @name phila1918
+##' @usage data(phila1918)
+##' @format A data frame with two elements
+NULL
+
+##' 1912 Harbin plague data set
+##' 
+##' @docType data
+##' @encoding UTF-8
+##' @keywords datasets
+##' @name harbin
+##' @usage data(harbin)
+##' @format A data frame with two elements
+NULL

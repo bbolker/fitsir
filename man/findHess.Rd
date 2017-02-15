@@ -2,9 +2,9 @@
 % Please edit documentation in R/hessian.R
 \name{findHess}
 \alias{findHess}
-\title{find Hessian of SSQ wrt parameters}
+\title{find Hessian}
 \usage{
-findHess(data, params)
+findHess(data, params, dist = c("norm", "pois"))
 }
 \arguments{
 \item{data}{data frame with tvec/count}
@@ -12,6 +12,6 @@ findHess(data, params)
 \item{params}{parameter vector}
 }
 \description{
-find Hessian of SSQ wrt parameters
+find Hessian
 }
 

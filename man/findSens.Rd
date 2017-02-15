@@ -5,7 +5,7 @@
 \title{returns}
 \usage{
 findSens(params, count, tvec = NULL, dist = c("norm", "pois"),
-  incidence = FALSE, debug = FALSE)
+  type = c("prevalence", "incidence", "death"), debug = FALSE)
 }
 \description{
 returns
