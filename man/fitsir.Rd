@@ -4,9 +4,9 @@
 \alias{fitsir}
 \title{fitting function}
 \usage{
-fitsir(data, start = startfun(), dist = c("norm", "pois"),
-  type = c("prevalence", "incidence", "death"), grad = FALSE,
-  method = NULL, control = list(maxit = 1e+05), timescale = NULL,
+fitsir(data, start = startfun(), dist = c("norm", "pois", "nbinom"),
+  type = c("prevalence", "incidence", "death"), method = c("Nelder-Mead",
+  "BFGS", "SANN"), control = list(maxit = 1e+05), timescale = NULL,
   verbose = FALSE, debug = FALSE)
 }
 \arguments{

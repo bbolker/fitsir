@@ -4,7 +4,7 @@
 \alias{findSens}
 \title{returns}
 \usage{
-findSens(params, count, tvec = NULL, dist = c("norm", "pois"),
+findSens(params, count, tvec = NULL, dist = c("norm", "pois", "nbinom"),
   type = c("prevalence", "incidence", "death"), debug = FALSE)
 }
 \description{

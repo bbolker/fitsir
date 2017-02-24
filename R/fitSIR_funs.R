@@ -1,134 +1,28 @@
-spline.fit <- function(tvec, count, itmax=100,relpeakcrit=0.1){
-    single_peak <- FALSE
-    it <- 1
-    spar <- 0.5
-    while (!single_peak && it<itmax) {
-        ss <- smooth.spline(tvec,log(count),spar=spar)
-        dd <- predict(ss,deriv=1)$y
-        ## change in sign of first derivative
-        dds <- diff(sign(dd))
-        spar <- if (spar<0.8) spar+0.05 else (1+spar)/2
-        it <- it+1
-        ncrit <- sum(dds<0)
-        peakvals <- count[dds<0]
-        relpeakvals <- peakvals[-1]/peakvals[1]
-        single_peak <- ncrit==1 ||
-        all(relpeakvals<relpeakcrit)
-    }
-    if (it==itmax) {
-        ## try harder?
-        stop("couldn't smooth enough")
-    }
-    return(ss)
-}
-
-##' Starting function
-##' @rdname trans.pars
-##' @param log.beta log of per capita transmission rate
-##' @param log.gamma log of recovery/removal rate
-##' @param log.N log of population size
-##' @param logit.i logit of initial proportion infectious
-##' @export
-startfun <- function(data = NULL,
-                     log.beta=log(0.12),log.gamma=log(0.09),
-                     log.N=log(10000),logit.i=qlogis(0.01),
-                     incidence = FALSE,
-                     itmax=100,relpeakcrit=0.1) {
-    if (!is.null(data)) {
-        tvec <- data$tvec
-        count <- data$count
-        ## for smooth.spline(log(count)) ...
-        if (any(count<=0)) {
-            count <- pmax(count,min(count[count>0])/2)
-        }
-        ## smooth data; start with smoothing par 0.5, try
-        ## to increase it until there is a single critical point ...
-        ## (check that second deriv is negative???)
-        ss <- spline.fit(tvec, count, itmax = itmax, relpeakcrit = relpeakcrit)
-        
-        ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
-        
-        ## find max value:
-        ##  finding max based on data is a bit more robust
-        ##   hard to distinguish between max and min with predict()
-        ##    ufun <- function(x) predict(ss,x,deriv=1)$y
-        ##    ss.tmax <- uniroot(ufun,range(tvec))$root
-        ##
-        ## ??? what do we do if smoothing until we have only a single
-        ##   critical point 
-        ss.tmax <- ss.data$tvec[which.max(ss.data$count)]
-        ## find a point halfway between initial and max
-        ##  scaling could be adjustable?
-        ss.thalf <- min(tvec)+0.5*(ss.tmax-min(tvec))
-        m1 <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.thalf))
-        r <- as.numeric(coef(m1)[2]) ##beta - gamma
-        iniI <- ss.data$count[1] ## N * i0
-        
-        t.diff <- diff(tvec)
-        t.diff <- c(t.diff[1], t.diff)
-        
-        if (incidence) {
-            N <- cumsum(count)[length(tvec)]
-            P <- ss.data$count/t.diff
-            ss <- spline.fit(tvec, P, itmax = itmax, relpeakcrit = relpeakcrit)
-        } ## if incidence
-        
-        ## curvature of spline at max
-        ## using quadratic fit:
-        ## t.sub <- (max(tvec) - ss.tmax)/2
-        ## m4 <- lm(log(count)~poly(tvec,2,raw = TRUE), data = subset(ss.data, tvec> ss.tmax - t.sub & tvec < ss.tmax + t.sub))
-        ## Qp.alt <- unname(2*coef(m4)[3])
-        Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
-        if(Qp.alt > 0){
-            stop("second derivative larger than 0")
-        }
-        Ip <- exp(max(predict(ss,tvec)$y))
-        c <- -Qp.alt/Ip
-        
-        ss.int <- transform(ss.data, int = count * t.diff)
-        ss.int <- ss.int[tvec<ss.tmax, ]
-        
-        d0 <- sum(ss.int[,3]) - iniI
-        while(r - c * d0 < 0){
-            ss.int <- ss.int[-nrow(ss.int),]
-            d0 <- sum(ss.int[,3]) - iniI
-        }
-        
-        if (incidence) {
-            gamma <- 0.5 * (sqrt(4*c*N + r^2)-r)
-            beta <- gamma + r
-            N <- N
-            d <- iniI/(t.diff[1]* beta * N)
-            i0 <- 0.5 * (1-sqrt(1-4*d))
-        } else {
-            gamma <- c * Ip/(r - c * d0)
-            beta <- gamma + r
-            N <- beta*gamma/c
-            i0 <- iniI/N
-        }
-        
-        x <- c(
-            log.beta = log(beta),
-            log.gamma = log(gamma),
-            log.N = log(N),
-            logit.i = qlogis(i0)
-        )
-        
-        return(x)
-    } ## if (auto)
-    
-    c(log.beta=log.beta,log.gamma=log.gamma,log.N=log.N,
-         logit.i=logit.i)
-}
-
 ##' Normal distribution with profiled sd
 ##' @param x numeric value
 ##' @param mean mean of distribution
-##' @param log (logical) return log-likelihood?
+##' @param log (logical) return log-likelihood
 ##' @return likelihood or log-likelihood vector
 dnorm2 <- function(x,mean,log=FALSE) {
     rmse <- sqrt(sum((x-mean)^2)/(length(x)-1))
     return(dnorm(x,mean,sd=rmse,log=log))
+}
+
+##' Negative binomial distribution with profiled dispersion parameter
+##' @param x numeric value
+##' @param mean mean of distribution
+##' @param log (logical) return log-likelihood
+##' @return likelihood or log-likelihood vector
+dnbinom2 <- function(x,mean,log=FALSE) {
+    size <- findSize(x,mean)
+    return(dnbinom(x,mu=mean,size=size,log=log))
+}
+
+dbinom2 <- function(x, mean, log=FALSE) {
+    N <- length(x)
+    f <- function(r){
+        sum(digamma(x + r)) - N * digamma(r) + N * log(r/(r + sum(x)/N))
+    }
 }
 
 ##' gradient function (solves with {S,log(I)} for stability)
@@ -249,7 +143,7 @@ SIR.detsim <- function(t, params,
     with(as.list(params),{
             
         if(type %in% c("incidence", "death")){
-            t <- c(t[1] - diff(t[1:2]), t)
+            t <- c(t, 2*t[length(t)] - t[length(t)-1])
         }
         
         if (grad) {
@@ -319,10 +213,9 @@ SIR.detsim <- function(t, params,
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, tvec=NULL,
-                  dist=c("norm", "pois"),
+                  dist=c("norm", "pois", "nbinom"),
                   type = c("prevalence", "incidence", "death"),
-                  debug=FALSE,
-                  incidence=FALSE) {
+                  debug=FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
     ## HACK: nloptr appears to strip names from parameters
@@ -370,24 +263,21 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' mean((1-ss/cc)^2)
 ##' mean((1-ss2/cc)^2)
 fitsir <- function(data, start=startfun(),
-                   dist=c("norm", "pois"),
+                   dist=c("norm", "pois", "nbinom"),
                    type = c("prevalence", "incidence", "death"),
-                   grad=FALSE,
-                   method=NULL,
+                   method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
                    timescale=NULL,
                    verbose = FALSE,
                    debug=FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
+    method <- match.arg(method)
     dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
-    ## TODO: set default method to Nelder-Mead
-    ## and remove grad argument
-    ## gradient evaluation should be selected based on the methods...
+    grad <- ifelse(method %in% c("Nelder-Mead", "SANN"), FALSE, TRUE)
     
     if(grad){
-        if(is.null(method)) method <- "BFGS"
         
         f.env <- new.env()
         ## set initial values
@@ -426,8 +316,6 @@ fitsir <- function(data, start=startfun(),
         environment(gradfun) <- f.env
         
     }else{
-        if(is.null(method)) method <- "Nelder-Mead"
-        
         objfun <- SIR.logLik
         gradfun <- NULL
     }
@@ -455,7 +343,7 @@ fitsir <- function(data, start=startfun(),
 ##     n/(2*SSQ) * d(SSQ)/dQ
 ## what is C?
 findSens <- function(params, count, tvec=NULL,
-                     dist = c("norm", "pois"),
+                     dist = c("norm", "pois", "nbinom"),
                      type = c("prevalence", "incidence", "death"), 
                      debug = FALSE) {
     dist <- match.arg(dist)
@@ -478,6 +366,7 @@ findSens <- function(params, count, tvec=NULL,
     })
 }
 
+##' Derivative of negative log likelihood with respect to parameters
 findDeriv <- function(x, mean, nu, dist){
     switch(dist,
         norm = {
@@ -488,9 +377,35 @@ findDeriv <- function(x, mean, nu, dist){
     )
 }
 
+##' Negative log likelihood
 findNLL <- function(x, mean, dist){
     switch(dist,
         norm = -sum(dnorm2(x,mean,log=TRUE)),
-        pois = -sum(dpois(x,mean,log=TRUE))
+        pois = -sum(dpois(x,mean,log=TRUE)),
+        nbinom = -sum(dnbinom2(x,mean,log=TRUE))
     )
+}
+
+##' Maximum likelihood estimate of negative binomial dispersion parameter
+findSize <- function(x, mean){
+    n <- length(x)
+    dsize <- function(size, x, mean){
+        p <- size/(size + mean)
+        sum(digamma(x + size)) - n * digamma(size) + sum(log(1 - p))
+    }
+    
+    maxint <- 10
+    
+    while(dsize(maxint, x, mean) > 0){
+        maxint <- maxint + 5
+    }
+    
+    sol <- try(uniroot(
+        dsize,
+        interval = c(1e-2, maxint),
+        x = x,
+        mean = mean
+    ))
+    
+    sol$root
 }
