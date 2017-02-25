@@ -14,20 +14,6 @@ Bombay data: gotten from somewhere (?)
 Make sure to read the reference for cautions!
 n.b. fitting obviously isn't working right yet.
 }
-\examples{
-par(las=1,bty="l")
-plot(mort~week,data=bombay)
-\dontrun{
-## NONE OF THESE ACTUALLY WORK RELIABLY!
-ff <- fitsir(setNames(bombay,c("tvec","count")))
-ff3 <- fitsir(setNames(bombay,c("tvec","count")),start=startfun(log.N=10))
-ff2 <- fitsir(setNames(bombay,c("tvec","count")),method="BFGS")
-ff4 <- fitsir(setNames(bombay,c("tvec","count")),start=startfun(log.N=10),
-        method="SANN")
-ss <- with(bombay,SIR.detsim(t=week,params=trans.pars(coef(ff3))))
-lines(bombay$week,ss)
-}
-}
 \references{
 Baca<U+CC58>r, Nicolas. 2012. <U+FFFD><U+C3F7>he Model of Kermack and McKendrick for the Plague Epidemic in Bombay and the Type Reproduction Number with Seasonality.<U+FFFD><U+FFFD> Journal of Mathematical Biology 64 (3): 403<U+FFFD><U+FFFD>22. doi:10.1007/s00285-011-0417-5.
 }

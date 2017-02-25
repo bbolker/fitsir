@@ -9,6 +9,10 @@ startfun(data = NULL, type = c("prevalence", "incidence", "death"),
   logit.i = qlogis(0.01), itmax = 100, relpeakcrit = 0.1)
 }
 \arguments{
+\item{data}{data frame with columns \code{tvec} and \code{count}}
+
+\item{type}{epidemic data type}
+
 \item{log.beta}{log of per capita transmission rate}
 
 \item{log.gamma}{log of recovery/removal rate}
@@ -16,6 +20,10 @@ startfun(data = NULL, type = c("prevalence", "incidence", "death"),
 \item{log.N}{log of population size}
 
 \item{logit.i}{logit of initial proportion infectious}
+
+\item{itmax}{maximum number of iterations in \code{\link{spline2}}}
+
+\item{relpeakcrit}{critical relative peak value used in \code{\link{spline2}}}
 }
 \description{
 Starting function

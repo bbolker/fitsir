@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitSIR_funs.R
 \name{SIR.logLik}
 \alias{SIR.logLik}
-\title{Normal log-likelihood for SIR trajectory}
+\title{Log-likelihood for SIR trajectory}
 \usage{
 SIR.logLik(params, count, tvec = NULL, dist = c("norm", "pois", "nbinom"),
   type = c("prevalence", "incidence", "death"), debug = FALSE)
@@ -14,11 +14,13 @@ SIR.logLik(params, count, tvec = NULL, dist = c("norm", "pois", "nbinom"),
 
 \item{tvec}{time vector}
 
-\item{dist}{conditional distribution of reported data (IGNORED)}
+\item{dist}{conditional distribution of reported data}
+
+\item{type}{type of reported data}
 
 \item{debug}{print debugging output?}
 }
 \description{
-Normal log-likelihood for SIR trajectory
+Log-likelihood for SIR trajectory
 }
 

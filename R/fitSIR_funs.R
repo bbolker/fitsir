@@ -8,54 +8,6 @@ dnorm2 <- function(x,mean,log=FALSE) {
     return(dnorm(x,mean,sd=rmse,log=log))
 }
 
-##' gradient function (solves with {S,log(I)} for stability)
-##' @param t time vector
-##' @param x state vector (with names \code{S}, \code{logI})
-##' @param params parameter vector (with names \code{beta} (scaled transmission rate), \code{N} (population size), \code{gamma} (recovery/removal rate)
-##' @return gradient vector for a simple SIR model
-##' @export
-SIR.grad <- function(t, x, params) {
-    g <- with(as.list(c(x,params)),
-    {
-        I = exp(logI)
-        dS = -beta*exp(logI)*S/N
-        dlogI = beta*S/N-gamma
-        list(c(dS,dlogI), I = I)
-    })
-}
-
-SIR.grad.sens <- function(t, x, params) {
-    g <- with(as.list(c(x,params)),
-    {
-        I = exp(logI)
-        dS = -beta*S*I/N
-        dlogI = beta*S/N-gamma
-        
-        grad_SS = - beta * I/N
-        grad_SI = - beta * S/N
-        grad_IS = beta*I/N
-        grad_II = beta*S/N-gamma
-	
-        dnu_S_b = grad_SS * nu_S_b + grad_SI * nu_I_b - S*I/N
-	
-        dnu_S_N = grad_SS * nu_S_N + grad_SI * nu_I_N + beta*S*I/N^2
-	
-        dnu_S_g = grad_SS * nu_S_g + grad_SI * nu_I_g
-	
-        dnu_S_i = grad_SS * nu_S_i + grad_SI * nu_I_i
-	
-        dnu_I_b = grad_IS * nu_S_b + grad_II * nu_I_b + S*I/N
-	
-        dnu_I_N = grad_IS * nu_S_N + grad_II * nu_I_N - beta*S*I/N^2
-	
-        dnu_I_g = grad_IS * nu_S_g +  grad_II * nu_I_g - I
-	
-        dnu_I_i = grad_IS * nu_S_i + grad_II * nu_I_i
-	
-        list(c(dS, dlogI, dnu_S_b, dnu_S_g, dnu_S_N, dnu_S_i, dnu_I_b, dnu_I_g, dnu_I_N, dnu_I_i), I = I)
-    })
-}
-
 ##' additive log-ratio transformation and inverse
 ##' @param x value to transform (or inverse-transform)
 alrinv <- function(x) {
@@ -187,12 +139,13 @@ SIR.detsim <- function(t, params,
     })
 }
 
-##' Normal log-likelihood for SIR trajectory
+##' Log-likelihood for SIR trajectory
 ##' 
 ##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
 ##' @param tvec time vector
-##' @param dist conditional distribution of reported data (IGNORED)
+##' @param dist conditional distribution of reported data
+##' @param type type of reported data
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, tvec=NULL,
@@ -228,34 +181,29 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 
 ##' fitting function
 ##' @param data data frame with columns \code{tvec} and \code{count}
+##' @param start starting parameters
+##' @param dist conditional distribution of reported data
+##' @param type type of reported data
 ##' @param method optimization method
 ##' @param control  control parameters for optimization
-##' @param start starting parameters
 ##' @param debug print debugging output?
 ##' @export
 ##' @importFrom bbmle mle2
 ##' @examples
-##' library("bbmle") ## needed at present for coef()
 ##' bombay2 <- setNames(bombay,c("tvec","count"))
-##' ## use default starting values
-##' (f1 <- fitsir(bombay2))  ## NOT a good fit
+##' (f1 <- fitsir(bombay2, type="death"))
+##' plot(f1)
 ##' ss <- SIR.detsim(bombay2$tvec,trans.pars(coef(f1)))
 ##' cc <- bombay2$count
-##' goodcoef <- c(log.beta=2.506739,log.gamma=2.475908,
-##'               log.N=14.436240,logit.i=-12.782353)
-##' ss2 <- SIR.detsim(bombay2$tvec,trans.pars(goodcoef))
-##' plot(count~tvec,data=bombay2)
-##' lines(bombay2$tvec,ss)
-##' lines(bombay2$tvec,ss2,col=2)
+##' 
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
-##' mean((1-ss2/cc)^2)
 fitsir <- function(data, start=startfun(),
                    dist=c("norm", "pois", "nbinom"),
                    type = c("prevalence", "incidence", "death"),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
-                   timescale=NULL,
+                   timescale=NULL, ## TODO: what is this?
                    verbose = FALSE,
                    debug=FALSE) {
     dist <- match.arg(dist)
@@ -326,8 +274,13 @@ fitsir <- function(data, start=startfun(),
 
 ## Introducing sensitivity equations
 
-##' returns
-##'
+##' Gradient of negative log likelihood with respect to each parameters
+##' 
+##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
+##' @param count data (epidemic counts for each time period)
+##' @param tvec time vector
+##' @param dist conditional distribution of reported data
+##' @param type type of reported data
 findSens <- function(params, count, tvec=NULL,
                      dist = c("norm", "pois", "nbinom"),
                      type = c("prevalence", "incidence", "death"), 

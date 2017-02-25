@@ -108,7 +108,6 @@ SIR.grad.hessian <- function(t, x, params) {
 ##' integrate second order sensitivities
 ##' @param t time vector
 ##' @param params parameter vector
-##' @export
 SIR.detsim.hessian <- function(t, params){
     with(as.list(c(params)),{
         yini <- c(S = N*(1-i0), logI = log(N*i0),
@@ -134,7 +133,6 @@ SIR.detsim.hessian <- function(t, params){
 ##' find Hessian
 ##' @param data data frame with tvec/count
 ##' @param params parameter vector
-##' @export
 findHess <- function(data, params, dist = c("norm", "pois")){
     dist <- match.arg(dist)
     t <- data$tvec

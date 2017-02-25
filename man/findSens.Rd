@@ -2,12 +2,23 @@
 % Please edit documentation in R/fitSIR_funs.R
 \name{findSens}
 \alias{findSens}
-\title{returns}
+\title{Gradient of negative log likelihood with respect to each parameters}
 \usage{
 findSens(params, count, tvec = NULL, dist = c("norm", "pois", "nbinom"),
   type = c("prevalence", "incidence", "death"), debug = FALSE)
 }
+\arguments{
+\item{params}{parameter vector (log.N0, logit.i0, log.beta, log.gamma)}
+
+\item{count}{data (epidemic counts for each time period)}
+
+\item{tvec}{time vector}
+
+\item{dist}{conditional distribution of reported data}
+
+\item{type}{type of reported data}
+}
 \description{
-returns
+Gradient of negative log likelihood with respect to each parameters
 }
 

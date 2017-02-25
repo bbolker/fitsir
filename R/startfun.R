@@ -1,4 +1,8 @@
-##' Fit splines
+##' Fit a spline to an epidemic data
+##' @param count data (epidemic counts for each time period)
+##' @param tvec time vector
+##' @param maxit maximum number of iterations
+##' @param relpeakcrit critical relative peak value to test for single peak
 spline2 <- function(tvec, count, itmax=100,relpeakcrit=0.1){
     single_peak <- FALSE
     it <- 1
@@ -24,10 +28,14 @@ spline2 <- function(tvec, count, itmax=100,relpeakcrit=0.1){
 }
 
 ##' Starting function
+##' @param data data frame with columns \code{tvec} and \code{count}
+##' @param type epidemic data type
 ##' @param log.beta log of per capita transmission rate
 ##' @param log.gamma log of recovery/removal rate
 ##' @param log.N log of population size
 ##' @param logit.i logit of initial proportion infectious
+##' @param itmax maximum number of iterations in \code{\link{spline2}}
+##' @param relpeakcrit critical relative peak value used in \code{\link{spline2}}
 ##' @export
 startfun <- function(data = NULL,
                      type = c("prevalence", "incidence", "death"),

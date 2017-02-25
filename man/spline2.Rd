@@ -2,11 +2,20 @@
 % Please edit documentation in R/startfun.R
 \name{spline2}
 \alias{spline2}
-\title{Fit splines}
+\title{Fit a spline to an epidemic data}
 \usage{
 spline2(tvec, count, itmax = 100, relpeakcrit = 0.1)
 }
+\arguments{
+\item{tvec}{time vector}
+
+\item{count}{data (epidemic counts for each time period)}
+
+\item{relpeakcrit}{critical relative peak value to test for single peak}
+
+\item{maxit}{maximum number of iterations}
+}
 \description{
-Fit splines
+Fit a spline to an epidemic data
 }
 
