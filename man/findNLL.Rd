@@ -4,7 +4,7 @@
 \alias{findNLL}
 \title{Negative log likelihood}
 \usage{
-findNLL(x, mean, dist)
+findNLL(x, mean, size = NULL, dist)
 }
 \description{
 Negative log likelihood

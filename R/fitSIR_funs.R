@@ -8,23 +8,6 @@ dnorm2 <- function(x,mean,log=FALSE) {
     return(dnorm(x,mean,sd=rmse,log=log))
 }
 
-##' Negative binomial distribution with profiled dispersion parameter
-##' @param x numeric value
-##' @param mean mean of distribution
-##' @param log (logical) return log-likelihood
-##' @return likelihood or log-likelihood vector
-dnbinom2 <- function(x,mean,log=FALSE) {
-    size <- findSize(x,mean)
-    return(dnbinom(x,mu=mean,size=size,log=log))
-}
-
-dbinom2 <- function(x, mean, log=FALSE) {
-    N <- length(x)
-    f <- function(r){
-        sum(digamma(x + r)) - N * digamma(r) + N * log(r/(r + sum(x)/N))
-    }
-}
-
 ##' gradient function (solves with {S,log(I)} for stability)
 ##' @param t time vector
 ##' @param x state vector (with names \code{S}, \code{logI})
@@ -227,8 +210,13 @@ SIR.logLik  <- function(params, count, tvec=NULL,
     if (debug) cat(params)
     tpars <- trans.pars(params)
     i.hat <- SIR.detsim(tvec,tpars,type)
-        
-    r <- findNLL(count, i.hat, dist)
+    
+    if (dist == "nbinom") {
+        size <- findSize(count,i.hat)
+    } else {
+        size <- NULL
+    }
+    r <- findNLL(count,i.hat,size,dist)
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -277,8 +265,11 @@ fitsir <- function(data, start=startfun(),
     
     grad <- ifelse(method %in% c("Nelder-Mead", "SANN"), FALSE, TRUE)
     
-    if(grad){
-        
+    if (grad & dist == "nbinom") {
+        stop("Gradient not available for negative binomial distribution.")
+    }
+    
+    if (grad) {
         f.env <- new.env()
         ## set initial values
         assign("oldnll",NULL,f.env)
@@ -293,7 +284,7 @@ fitsir <- function(data, start=startfun(),
             if (verbose) cat("computing new version (nll)\n")
             
             v <- findSens(par, count, tvec, dist, type, debug)
-            oldnll <<- v["nll"]
+            oldnll <<- v[1]
             oldgrad <<- v[-1]
             oldpar <<- par
             
@@ -308,7 +299,7 @@ fitsir <- function(data, start=startfun(),
             }
             if (verbose) cat("computing new version (grad)\n")
             v <- findSens(par, count, tvec, dist, type, debug)
-            oldnll <<- v["nll"]
+            oldnll <<- v[1]
             oldgrad <<- v[-1]
             oldpar <<- par
             return(oldgrad)
@@ -337,11 +328,6 @@ fitsir <- function(data, start=startfun(),
 
 ##' returns
 ##'
-## convert to NLL:
-## NLL = C + n/2*log(SSQ/n)
-## d(NLL)/dQ = d(NLL)/d(SSQ)*d(SSQ)/dQ = n/2*(n/SSQ)*1/n * d(SSQ)/dQ =
-##     n/(2*SSQ) * d(SSQ)/dQ
-## what is C?
 findSens <- function(params, count, tvec=NULL,
                      dist = c("norm", "pois", "nbinom"),
                      type = c("prevalence", "incidence", "death"), 
@@ -357,17 +343,16 @@ findSens <- function(params, count, tvec=NULL,
         
         deriv_list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         
-        nll <- findNLL(count, i.hat, dist)
+        nll <- findNLL(count, i.hat, size, dist)
         
-        sensitivity <- c(nll, sapply(deriv_list, function(nu) findDeriv(count, i.hat, nu, dist = dist)))
-        names(sensitivity) <- c("nll", "sens_beta", "sens_gamma", "sens_N", "sens_I0")
+        sensitivity <- c(nll, sapply(deriv_list, function(nu) findDeriv(count, i.hat, size = size, nu, dist = dist)))
         
         return(sensitivity)
     })
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
-findDeriv <- function(x, mean, nu, dist){
+findDeriv <- function(x, mean, size = NULL, nu, dist){
     switch(dist,
         norm = {
             n <- length(x)
@@ -378,34 +363,35 @@ findDeriv <- function(x, mean, nu, dist){
 }
 
 ##' Negative log likelihood
-findNLL <- function(x, mean, dist){
+findNLL <- function(x,mean,size=NULL,dist){
     switch(dist,
         norm = -sum(dnorm2(x,mean,log=TRUE)),
         pois = -sum(dpois(x,mean,log=TRUE)),
-        nbinom = -sum(dnbinom2(x,mean,log=TRUE))
+        nbinom = -sum(dnbinom(x,mu=mean,size=size,log=TRUE))
     )
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
 findSize <- function(x, mean){
-    n <- length(x)
-    dsize <- function(size, x, mean){
-        p <- size/(size + mean)
-        sum(digamma(x + size)) - n * digamma(size) + sum(log(1 - p))
-    }
-    
     maxint <- 10
     
-    while(dsize(maxint, x, mean) > 0){
+    while(derivSize(x, mean, maxint) > 0){
         maxint <- maxint + 5
     }
     
     sol <- try(uniroot(
-        dsize,
+        derivSize,
         interval = c(1e-2, maxint),
         x = x,
         mean = mean
     ))
     
     sol$root
+}
+
+##' derivative of nbinom nll with respect to its dispersion parameter
+derivSize <- function(x, mean, size){
+    n <- length(x)
+    p <- size/(size + mean)
+    sum(digamma(x + size)) - n * digamma(size) + sum(log(1 - p))
 }

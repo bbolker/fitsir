@@ -4,7 +4,7 @@
 \alias{findDeriv}
 \title{Derivative of negative log likelihood with respect to parameters}
 \usage{
-findDeriv(x, mean, nu, dist)
+findDeriv(x, mean, size = NULL, nu, dist)
 }
 \description{
 Derivative of negative log likelihood with respect to parameters
