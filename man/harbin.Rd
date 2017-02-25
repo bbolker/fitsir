@@ -12,5 +12,8 @@ data(harbin)
 \description{
 1912 Harbin plague data set
 }
+\references{
+Dietz, K. 2009. "Epidemics: the fitting of the first dynamic models to data". Journal of Contemporary Mathematical Analysis (Armenian Academy of Sciences), 44(2), 97-104.
+}
 \keyword{datasets}
 

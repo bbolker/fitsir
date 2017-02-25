@@ -11,7 +11,7 @@ dnorm2(x, mean, log = FALSE)
 
 \item{mean}{mean of distribution}
 
-\item{log}{(logical) return log-likelihood?}
+\item{log}{(logical) return log-likelihood}
 }
 \value{
 likelihood or log-likelihood vector
