@@ -335,18 +335,14 @@ findNLL <- function(x,mean,size=NULL,dist){
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
 findSize <- function(x, mean){
-    ss <- exp(seq(log(1), log(1e4), by = 0.01))
-    ds <- sapply(ss, function(ss) derivSize(x, mean, ss))
-    xmax <- ss[tail(which(ds > 0), 1)]
-    xmin <- ss[head(which(ds < 0), 1)]
-    
     sol <- try(uniroot(
         derivSize,
-        interval = c(xmin, xmax),
-        x = x,
-        mean = mean
+        interval=c(1, 1e3),
+        x=x,
+        mean=mean,
+        extendInt="yes"
     ))
-    
+    ## what happens if uniroot fails?
     sol$root
 }
 
