@@ -149,7 +149,7 @@ SIR.detsim <- function(t, params,
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, tvec=NULL,
-                  dist=c("norm", "pois", "nbinom"),
+                  dist=c("norm", "pois", "qpois", "nbinom"),
                   type = c("prevalence", "incidence", "death"),
                   debug=FALSE) {
     dist <- match.arg(dist)
@@ -199,7 +199,7 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
 fitsir <- function(data, start=startfun(),
-                   dist=c("norm", "pois", "nbinom"),
+                   dist=c("norm", "pois", "qpois", "nbinom"),
                    type = c("prevalence", "incidence", "death"),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
@@ -269,6 +269,13 @@ fitsir <- function(data, start=startfun(),
     
     m <- new("fitsir.mle2", m)
     
+    if (dist == "qpois") {
+        mean <- SIR.detsim(data$tvec, trans.pars(coef(m)), type = type)
+        x <- data$count
+        ss <- sum((x-mean)^2/mean)
+        m@vcov <- ss/length(x) * m@vcov
+    }
+    
     return(m)
 }
 
@@ -282,7 +289,7 @@ fitsir <- function(data, start=startfun(),
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
 findSens <- function(params, count, tvec=NULL,
-                     dist = c("norm", "pois", "nbinom"),
+                     dist = c("norm", "pois", "qpois", "nbinom"),
                      type = c("prevalence", "incidence", "death"), 
                      debug = FALSE) {
     dist <- match.arg(dist)
@@ -305,7 +312,8 @@ findSens <- function(params, count, tvec=NULL,
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
-findDeriv <- function(x, mean, size = NULL, nu, dist){
+findDeriv <- function(x,mean,size=NULL,nu,dist){
+    if (dist == "qpois") dist <- "pois"
     switch(dist,
         norm = {
             n <- length(x)
@@ -317,6 +325,7 @@ findDeriv <- function(x, mean, size = NULL, nu, dist){
 
 ##' Negative log likelihood
 findNLL <- function(x,mean,size=NULL,dist){
+    if (dist == "qpois") dist <- "pois"
     switch(dist,
         norm = -sum(dnorm2(x,mean,log=TRUE)),
         pois = -sum(dpois(x,mean,log=TRUE)),
@@ -326,15 +335,14 @@ findNLL <- function(x,mean,size=NULL,dist){
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
 findSize <- function(x, mean){
-    maxint <- 10
-    
-    while(derivSize(x, mean, maxint) > 0){
-        maxint <- maxint + 5
-    }
+    ss <- exp(seq(log(1), log(1e4), by = 0.01))
+    ds <- sapply(ss, function(ss) derivSize(x, mean, ss))
+    xmax <- ss[tail(which(ds > 0), 1)]
+    xmin <- ss[head(which(ds < 0), 1)]
     
     sol <- try(uniroot(
         derivSize,
-        interval = c(1e-2, maxint),
+        interval = c(xmin, xmax),
         x = x,
         mean = mean
     ))
