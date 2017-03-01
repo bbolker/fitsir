@@ -27,7 +27,7 @@
 ##' plot(ff3, add=TRUE, level=0.8, col.traj="blue", col.conf="blue")
 ##' 
 ##' ff4 <- fitsir(harbin2, type="death", dist="nbinom")
-##' plot(ff4, level=0.8, col.traj="black", col.conf="black", log="y")
+##' plot(ff4, level=0.8, log="y")
 setMethod("plot", signature(x="fitsir.mle2", y="missing"),
     function(x, level,
              main, xlim, ylim, xlab, ylab, add=FALSE,
