@@ -4,10 +4,10 @@
 \alias{fitsir}
 \title{fitting function}
 \usage{
-fitsir(data, start = startfun(), dist = c("norm", "pois", "nbinom"),
-  type = c("prevalence", "incidence", "death"), method = c("Nelder-Mead",
-  "BFGS", "SANN"), control = list(maxit = 1e+05), timescale = NULL,
-  verbose = FALSE, debug = FALSE)
+fitsir(data, start = startfun(), dist = c("norm", "pois", "qpois",
+  "nbinom"), type = c("prevalence", "incidence", "death"),
+  method = c("Nelder-Mead", "BFGS", "SANN"), control = list(maxit = 1e+05),
+  timescale = NULL, verbose = FALSE, debug = FALSE)
 }
 \arguments{
 \item{data}{data frame with columns \code{tvec} and \code{count}}

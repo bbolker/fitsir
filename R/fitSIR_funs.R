@@ -50,8 +50,22 @@ summarize.pars <- function(params) {
            infper=exp(-log.gamma),
            i0=plogis(logit.i),
            I0=plogis(logit.i)*exp(log.N),
-           S0 = (1-plogis(logit.i))*exp(log.N),
+           S0=(1-plogis(logit.i))*exp(log.N),
            N=exp(log.N)))
+}
+
+summarize.pars.deriv <- function(params) {
+    with(as.list(params),{
+        list(
+            R0.deriv=c(exp(log.beta-log.gamma), -exp(log.beta-log.gamma), 0, 0),
+            r.deriv=c(exp(log.beta), -exp(log.gamma), 0, 0),
+            infeper.deriv=c(0, -exp(-log.gamma), 0, 0),
+            i0.deriv=c(0, 0, 0, plogis(logit.i)^2*exp(-logit.i)),
+            I0.deriv=c(0, 0, plogis(logit.i)*exp(log.N), plogis(logit.i)^2*exp(-logit.i)*exp(log.N)),
+            S0.deriv=c(0, 0, (1-plogis(logit.i))*exp(log.N), -plogis(logit.i)^2*exp(-logit.i)*exp(log.N)),
+            N.deriv=c(0, 0, exp(log.N), 0)
+        )
+    })
 }
 
 ##' deterministic trajectory of SIR
@@ -63,10 +77,10 @@ summarize.pars <- function(params) {
 ##' @useDynLib fitsir initmod
 ##' @examples
 ##' pars <- c(beta=0.4,gamma=0.2,N=5000,i0=0.001)
-##' tvec <- 0:50
-##' ss.p <- SIR.detsim(tvec,pars)
-##' ss.i <- SIR.detsim(tvec,pars,type="incidence")
-##' ss.d <- SIR.detsim(tvec,pars,type="death")
+##' times <- 0:50
+##' ss.p <- SIR.detsim(times,pars)
+##' ss.i <- SIR.detsim(times,pars,type="incidence")
+##' ss.d <- SIR.detsim(times,pars,type="death")
 ##' matplot(data.frame(ss.p,ss.i,ss.d),type = "l",xlab="time",ylab="count")
 ##' legend(x=0,y=800,col=1:3,lty=1:3,legend=c("prevalence","incidence","death"))
 ##' all.equal(cumsum(c(5, ss.i[-length(ss.i)])) - cumsum(c(0, ss.d[-length(ss.d)])), ss.p)
@@ -143,12 +157,12 @@ SIR.detsim <- function(t, params,
 ##' 
 ##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
-##' @param tvec time vector
+##' @param times time vector
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
 ##' @param debug print debugging output?
 ##' @export 
-SIR.logLik  <- function(params, count, tvec=NULL,
+SIR.logLik  <- function(params, count, times=NULL,
                   dist=c("norm", "pois", "qpois", "nbinom"),
                   type = c("prevalence", "incidence", "death"),
                   debug=FALSE) {
@@ -159,17 +173,17 @@ SIR.logLik  <- function(params, count, tvec=NULL,
     ## if (is.null(names(params)) &&
     ##     !is.null(params)) ## ??? why ???
     ##     names(params) <- parnames(SIR.logLik)
-    if (is.null(tvec)) tvec <- seq(length(count))
+    if (is.null(times)) times <- seq(length(count))
     if (debug) cat(params)
     tpars <- trans.pars(params)
-    i.hat <- SIR.detsim(tvec,tpars,type)
+    i.hat <- SIR.detsim(times,tpars,type)
     
     if (dist == "nbinom") {
-        size <- findSize(count,i.hat)
+        size <- mle.size(count,i.hat)
     } else {
         size <- NULL
     }
-    r <- findNLL(count,i.hat,size,dist)
+    r <- minusloglfun(count,i.hat,size,dist)
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -180,7 +194,7 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##  vector (rather than a list) with mle2
 
 ##' fitting function
-##' @param data data frame with columns \code{tvec} and \code{count}
+##' @param data data frame with columns \code{times} and \code{count}
 ##' @param start starting parameters
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
@@ -190,10 +204,10 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' @export
 ##' @importFrom bbmle mle2
 ##' @examples
-##' bombay2 <- setNames(bombay,c("tvec","count"))
+##' bombay2 <- setNames(bombay,c("times","count"))
 ##' (f1 <- fitsir(bombay2, type="death"))
 ##' plot(f1)
-##' ss <- SIR.detsim(bombay2$tvec,trans.pars(coef(f1)))
+##' ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
 ##' cc <- bombay2$count
 ##' 
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
@@ -204,18 +218,19 @@ fitsir <- function(data, start=startfun(),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
                    timescale=NULL, ## TODO: what is this?
-                   verbose = FALSE,
                    debug=FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
     method <- match.arg(method)
     dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
-    grad <- ifelse(method %in% c("Nelder-Mead", "SANN"), FALSE, TRUE)
-    
-    if (grad & dist == "nbinom") {
-        stop("Gradient not available for negative binomial distribution.")
+    if (method=="BFGS" & dist=="nbinom") {
+        message("Sensitivity equations are not available for negative binomial distribution.
+                \nReverting back to Nelder-Mead method.")
+        method <- "Nelder-Mead"
     }
+    
+    grad <- ifelse(method %in% c("Nelder-Mead", "SANN"), FALSE, TRUE)
     
     if (grad) {
         f.env <- new.env()
@@ -224,14 +239,14 @@ fitsir <- function(data, start=startfun(),
         assign("oldpar",NULL,f.env)
         assign("oldgrad",NULL,f.env)
         assign("data", data, f.env)
-        objfun <- function(par, count, tvec, dist, type, debug) {
+        objfun <- function(par, count, times, dist, type, debug) {
             if (identical(par,oldpar)) {
-                if (verbose) cat("returning old version of value\n")
+                if (debug) cat("returning old version of value\n")
                 return(oldnll)
             }
-            if (verbose) cat("computing new version (nll)\n")
+            if (debug) cat("computing new version (nll)\n")
             
-            v <- findSens(par, count, tvec, dist, type, debug)
+            v <- SIR.sensitivity(par, count, times, dist, type, debug)
             oldnll <<- v[1]
             oldgrad <<- v[-1]
             oldpar <<- par
@@ -240,13 +255,13 @@ fitsir <- function(data, start=startfun(),
         }
         attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
         environment(objfun) <- f.env
-        gradfun <- function(par, count, tvec, dist, type, debug) {
+        gradfun <- function(par, count, times, dist, type, debug) {
             if (identical(par,oldpar)) {
-                if (verbose) cat("returning old version of grad\n")
+                if (debug) cat("returning old version of grad\n")
                 return(oldgrad)
             }
-            if (verbose) cat("computing new version (grad)\n")
-            v <- findSens(par, count, tvec, dist, type, debug)
+            if (debug) cat("computing new version (grad)\n")
+            v <- SIR.sensitivity(par, count, times, dist, type, debug)
             oldnll <<- v[1]
             oldgrad <<- v[-1]
             oldpar <<- par
@@ -267,10 +282,10 @@ fitsir <- function(data, start=startfun(),
               gr=gradfun,
               data=dataarg)
     
-    m <- new("fitsir.mle2", m)
+    m <- new("fitsir", m)
     
     if (dist == "qpois") {
-        mean <- SIR.detsim(data$tvec, trans.pars(coef(m)), type = type)
+        mean <- SIR.detsim(data$times, trans.pars(coef(m)), type = type)
         x <- data$count
         ss <- sum((x-mean)^2/mean)
         m@vcov <- ss/length(x) * m@vcov
@@ -285,34 +300,34 @@ fitsir <- function(data, start=startfun(),
 ##' 
 ##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
-##' @param tvec time vector
+##' @param times time vector
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
-findSens <- function(params, count, tvec=NULL,
+SIR.sensitivity <- function(params, count, times=NULL,
                      dist = c("norm", "pois", "qpois", "nbinom"),
                      type = c("prevalence", "incidence", "death"), 
                      debug = FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
-    if (is.null(tvec)) tvec <- seq(length(count))
+    if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
-    r <- SIR.detsim(tvec, tpars, type, grad = TRUE)
+    r <- SIR.detsim(times, tpars, type, grad = TRUE)
     
     with(as.list(c(tpars, r)), {
         i.hat <- exp(logI)
         
-        deriv_list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
+        nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         
-        nll <- findNLL(count, i.hat, size, dist)
+        nll <- minusloglfun(count, i.hat, size, dist)
         
-        sensitivity <- c(nll, sapply(deriv_list, function(nu) findDeriv(count, i.hat, size = size, nu, dist = dist)))
+        sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, size = size, nu, dist = dist)))
         
         return(sensitivity)
     })
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
-findDeriv <- function(x,mean,size=NULL,nu,dist){
+derivfun <- function(x,mean,size=NULL,nu,dist){
     if (dist == "qpois") dist <- "pois"
     switch(dist,
         norm = {
@@ -324,7 +339,7 @@ findDeriv <- function(x,mean,size=NULL,nu,dist){
 }
 
 ##' Negative log likelihood
-findNLL <- function(x,mean,size=NULL,dist){
+minusloglfun <- function(x,mean,size=NULL,dist){
     if (dist == "qpois") dist <- "pois"
     switch(dist,
         norm = -sum(dnorm2(x,mean,log=TRUE)),
@@ -334,9 +349,9 @@ findNLL <- function(x,mean,size=NULL,dist){
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
-findSize <- function(x, mean){
+mle.size <- function(x, mean){
     sol <- try(uniroot(
-        derivSize,
+        grad.size,
         interval=c(1, 1e3),
         x=x,
         mean=mean,
@@ -347,7 +362,7 @@ findSize <- function(x, mean){
 }
 
 ##' derivative of nbinom nll with respect to its dispersion parameter
-derivSize <- function(x, mean, size){
+grad.size <- function(x, mean, size){
     n <- length(x)
     p <- size/(size + mean)
     sum(digamma(x + size)) - n * digamma(size) + sum(log(1 - p))
