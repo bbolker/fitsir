@@ -1,14 +1,14 @@
 ##' Fit a spline to an epidemic data
 ##' @param count data (epidemic counts for each time period)
-##' @param tvec time vector
+##' @param times time vector
 ##' @param maxit maximum number of iterations
 ##' @param relpeakcrit critical relative peak value to test for single peak
-spline2 <- function(tvec, count, itmax=100,relpeakcrit=0.1){
+smooth.spline2 <- function(times, count, itmax=100,relpeakcrit=0.1){
     single_peak <- FALSE
     it <- 1
     spar <- 0.5
     while (!single_peak && it<itmax) {
-        ss <- smooth.spline(tvec,log(count),spar=spar)
+        ss <- smooth.spline(times,log(count),spar=spar)
         dd <- predict(ss,deriv=1)$y
         ## change in sign of first derivative
         dds <- diff(sign(dd))
@@ -28,14 +28,14 @@ spline2 <- function(tvec, count, itmax=100,relpeakcrit=0.1){
 }
 
 ##' Starting function
-##' @param data data frame with columns \code{tvec} and \code{count}
+##' @param data data frame with columns \code{times} and \code{count}
 ##' @param type epidemic data type
 ##' @param log.beta log of per capita transmission rate
 ##' @param log.gamma log of recovery/removal rate
 ##' @param log.N log of population size
 ##' @param logit.i logit of initial proportion infectious
-##' @param itmax maximum number of iterations in \code{\link{spline2}}
-##' @param relpeakcrit critical relative peak value used in \code{\link{spline2}}
+##' @param itmax maximum number of iterations in \code{\link{smooth.spline2}}
+##' @param relpeakcrit critical relative peak value used in \code{\link{smooth.spline2}}
 ##' @export
 startfun <- function(data = NULL,
                      type = c("prevalence", "incidence", "death"),
@@ -45,14 +45,14 @@ startfun <- function(data = NULL,
     if (!is.null(data)) { ## auto start
         type <- match.arg(type)
         
-        tvec <- data$tvec
+        times <- data$times
         count <- data$count
         ## for smooth.spline(log(count)) ...
         if (any(count<=0)) {
             count <- pmax(count,min(count[count>0])/2)
         }
         
-        t.diff <- diff(tvec)
+        t.diff <- diff(times)
         t.diff <- c(t.diff, t.diff[length(t.diff)])
         
         if (type != "prevalence") {
@@ -64,14 +64,14 @@ startfun <- function(data = NULL,
         ## smooth data; start with smoothing par 0.5, try
         ## to increase it until there is a single critical point ...
         ## (check that second deriv is negative???)
-        ss <- spline2(tvec, count, itmax = itmax, relpeakcrit = relpeakcrit)
+        ss <- smooth.spline2(times, count, itmax = itmax, relpeakcrit = relpeakcrit)
         
-        ss.data <- data.frame(tvec = tvec, count = exp(predict(ss)$y))
-        ss.tmax <- ss.data$tvec[which.max(ss.data$count)]
-        ss.t1 <- min(tvec)+0.25*(ss.tmax-min(tvec))
-        ss.t2 <- min(tvec)+0.75*(ss.tmax-min(tvec))
+        ss.data <- data.frame(times = times, count = exp(predict(ss)$y))
+        ss.tmax <- ss.data$times[which.max(ss.data$count)]
+        ss.t1 <- min(times)+0.25*(ss.tmax-min(times))
+        ss.t2 <- min(times)+0.75*(ss.tmax-min(times))
         
-        m <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.t2 & tvec>=ss.t1))
+        m <- lm(log(count)~times,data=subset(ss.data,times<=ss.t2 & times>=ss.t1))
         r <- unname(coef(m)[2]) ##beta - gamma
         
         ## interpolate starting value based on linear regression
@@ -79,19 +79,19 @@ startfun <- function(data = NULL,
         
         ## curvature of spline at max
         ## using quadratic fit:
-        ## t.sub <- (max(tvec) - ss.tmax)/2
-        ## m4 <- lm(log(count)~poly(tvec,2,raw = TRUE), data = subset(ss.data, tvec> ss.tmax - t.sub & tvec < ss.tmax + t.sub))
+        ## t.sub <- (max(times) - ss.tmax)/2
+        ## m4 <- lm(log(count)~poly(times,2,raw = TRUE), data = subset(ss.data, times> ss.tmax - t.sub & times < ss.tmax + t.sub))
         ## Qp.alt <- unname(2*coef(m4)[3])
         Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
         if(Qp.alt > 0){
             stop("second derivative larger than 0")
         }
-        Ip <- exp(max(predict(ss,tvec)$y))
+        Ip <- exp(max(predict(ss,times)$y))
         c <- -Qp.alt/Ip
         
         if (type %in% c("prevalence", "death")) {
             ss.int <- transform(ss.data, int = count * t.diff)
-            ss.int <- ss.int[tvec<ss.tmax, ]
+            ss.int <- ss.int[times<ss.tmax, ]
             
             d0 <- sum(ss.int[,3]) - iniI
             
@@ -113,13 +113,13 @@ startfun <- function(data = NULL,
         } else if (type == "incidence") {
             ss.t3 <- floor(ss.tmax+0.25*ss.tmax)
             ss.t4 <- ceiling(ss.tmax+0.75*ss.tmax)
-            m2 <- lm(log(count)~tvec,data=subset(ss.data,tvec<=ss.t4 & tvec>=ss.t3))
+            m2 <- lm(log(count)~times,data=subset(ss.data,times<=ss.t4 & times>=ss.t3))
             
-            tvec.predict1 <- seq(min(tvec), ss.t2, by = t.diff[length(t.diff)])
-            tvec.predict2 <- seq(ceiling(ss.t3), 3*ss.tmax, by = t.diff[length(t.diff)])
-            count.predict1 <- exp(predict(m, data.frame(tvec = tvec.predict1)))
-            count.predict2 <- exp(predict(m2, data.frame(tvec = tvec.predict2)))
-            finalsize <- sum(count.predict1) + sum(count.orig[tvec > ss.t2 & tvec <= ss.t3]) + sum(count.predict2)
+            times.predict1 <- seq(min(times), ss.t2, by = t.diff[length(t.diff)])
+            times.predict2 <- seq(ceiling(ss.t3), 3*ss.tmax, by = t.diff[length(t.diff)])
+            count.predict1 <- exp(predict(m, data.frame(times = times.predict1)))
+            count.predict2 <- exp(predict(m2, data.frame(times = times.predict2)))
+            finalsize <- sum(count.predict1) + sum(count.orig[times > ss.t2 & times <= ss.t3]) + sum(count.predict2)
             
             sizefun <- function(beta) {
                 R0 <- beta/(beta-r)

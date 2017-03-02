@@ -1,8 +1,8 @@
-##' Plotting method for fitsir.mle2 objects
+##' Plotting method for fitsir objects
 ##' 
-##' @name plot.fitsir.mle2
-##' @rdname plot.fitsir.mle2
-##' @param x An object of class \code{fitsir.mle2}
+##' @name plot.fitsir
+##' @rdname plot.fitsir
+##' @param x An object of class \code{fitsir}
 ##' @param level the confidence level required
 ##' @param main main title
 ##' @param xlab x label
@@ -14,7 +14,7 @@
 ##' @param lty.conf line type for trajectories based on confidence intervals
 ##' @param ... additional arguments
 ##' @examples
-##' harbin2 <- setNames(harbin, c("tvec", "count"))
+##' harbin2 <- setNames(harbin, c("times", "count"))
 ##' ff <- fitsir(harbin2, type="death")
 ##' plot(ff)
 ##' 
@@ -28,17 +28,17 @@
 ##' 
 ##' ff4 <- fitsir(harbin2, type="death", dist="nbinom")
 ##' plot(ff4, level=0.8, log="y")
-setMethod("plot", signature(x="fitsir.mle2", y="missing"),
+setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
              main, xlim, ylim, xlab, ylab, add=FALSE,
              col.traj="black",lty.traj=1,
              col.conf="red",lty.conf=4,
              ...){
-        tvec <- x@data$tvec
+        times <- x@data$times
         count <- x@data$count
         pars <- coef(x)
         type <- x@data$type
-        i.hat <- SIR.detsim(tvec, trans.pars(pars), type)
+        i.hat <- SIR.detsim(times, trans.pars(pars), type)
         
         if (missing(main)) main <- paste("fitsir result:", x@data$dist)
         if (missing(xlab)) xlab <- "time"
@@ -48,15 +48,15 @@ setMethod("plot", signature(x="fitsir.mle2", y="missing"),
             ymax <- max(i.hat, count)
             ylim <- c(ymin, ymax)
         }
-        if (missing(xlim)) xlim <- c(min(tvec), max(tvec))
+        if (missing(xlim)) xlim <- c(min(times), max(times))
         
         if (!add) {
-            plot(tvec, i.hat, type="l",
+            plot(times, i.hat, type="l",
                  col=col.traj, lty=lty.traj, xlim=xlim, ylim=ylim,
                  xlab=xlab, ylab=ylab, main=main, ...)
-            points(tvec, count)
+            points(times, count)
         } else {
-            lines(tvec, i.hat, col=col.traj, lty=lty.traj, ...)
+            lines(times, i.hat, col=col.traj, lty=lty.traj, ...)
         }
         
         if (!missing(level)) {
@@ -66,14 +66,55 @@ setMethod("plot", signature(x="fitsir.mle2", y="missing"),
                 bpars <- coef(cc)
                 ## FIXME: I think this is an error with bbmle
                 names(bpars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
-                bfit <- SIR.detsim(tvec, trans.pars(bpars), type)
-                lines(tvec, bfit, col=col.conf, lty=lty.conf)
+                bfit <- SIR.detsim(times, trans.pars(bpars), type)
+                lines(times, bfit, col=col.conf, lty=lty.conf)
             } else {
-                conf.traj <- apply(cc, 2, function(x) SIR.detsim(tvec, trans.pars(x), type))
-                matlines(tvec, conf.traj, col=col.conf, lty=lty.conf)
+                conf.traj <- apply(cc, 2, function(x) SIR.detsim(times, trans.pars(x), type))
+                matlines(times, conf.traj, col=col.conf, lty=lty.conf)
             }
         }
         
         invisible()
+    }
+)
+
+##' Coef method for fitsir objects
+##' @name coef.fitsir
+##' @rdname coef.fitsir
+##' @param object An object of class \code{fitsir}
+##' @param type types of returned parameters
+setMethod("coef", "fitsir", 
+    function(object,type=c("raw","trans","summary")){
+        type <- match.arg(type)
+        cc <- object@coef
+        switch(type,
+            raw=cc,
+            trans=trans.pars(cc),
+            summary=summarize.pars(cc)
+        )
+    }
+)
+
+setMethod("summary", "fitsir",
+    function(object,...){
+        cc <- object@coef
+        m <- unname(do.call(rbind, summarize.pars.deriv(cc)))
+        cc.vcov <- m %*% object@vcov %*% t(m)
+        smat <- rbind(
+            Estimate=summarize.pars(cc),
+            `Std. Error` = sqrt(diag(cc.vcov))
+        )
+        m2logL <- 2*object@min
+        new("summary-fitsir", call=object@call.orig, coef=cc, summary=smat, m2logL=m2logL)
+    }
+)
+
+setMethod("show", "summary-fitsir",
+    function(object){
+        cat("Maximum likelihood estimation\n\nCall:\n")
+        print(object@call)
+        cat("\nCoefficients:\n")
+        printCoefmat(object@summary)
+        cat("\n-2 log L:", object@m2logL, "\n")
     }
 )

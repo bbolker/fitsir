@@ -21,9 +21,9 @@ startfun(data = NULL, type = c("prevalence", "incidence", "death"),
 
 \item{logit.i}{logit of initial proportion infectious}
 
-\item{itmax}{maximum number of iterations in \code{\link{spline2}}}
+\item{itmax}{maximum number of iterations in \code{\link{smooth.spline2}}}
 
-\item{relpeakcrit}{critical relative peak value used in \code{\link{spline2}}}
+\item{relpeakcrit}{critical relative peak value used in \code{\link{smooth.spline2}}}
 }
 \description{
 Starting function
