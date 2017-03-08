@@ -7,10 +7,10 @@
 fitsir(data, start = startfun(), dist = c("norm", "pois", "qpois",
   "nbinom"), type = c("prevalence", "incidence", "death"),
   method = c("Nelder-Mead", "BFGS", "SANN"), control = list(maxit = 1e+05),
-  timescale = NULL, verbose = FALSE, debug = FALSE)
+  xname = "times", yname = "count", timescale = NULL, debug = FALSE)
 }
 \arguments{
-\item{data}{data frame with columns \code{tvec} and \code{count}}
+\item{data}{data frame}
 
 \item{start}{starting parameters}
 
@@ -22,19 +22,25 @@ fitsir(data, start = startfun(), dist = c("norm", "pois", "qpois",
 
 \item{control}{control parameters for optimization}
 
+\item{xname}{column name for time variable}
+
+\item{yname}{column name for count variable}
+
 \item{debug}{print debugging output?}
 }
 \description{
 fitting function
 }
 \examples{
-bombay2 <- setNames(bombay,c("tvec","count"))
+bombay2 <- setNames(bombay,c("times","count"))
 (f1 <- fitsir(bombay2, type="death"))
 plot(f1)
-ss <- SIR.detsim(bombay2$tvec,trans.pars(coef(f1)))
+ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
 cc <- bombay2$count
 
 ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 mean((1-ss/cc)^2)
+
+(f2 <- fitsir(harbin, type="death", xname="week", yname="Deaths"))
 }
 

@@ -19,10 +19,10 @@ deterministic trajectory of SIR
 }
 \examples{
 pars <- c(beta=0.4,gamma=0.2,N=5000,i0=0.001)
-tvec <- 0:50
-ss.p <- SIR.detsim(tvec,pars)
-ss.i <- SIR.detsim(tvec,pars,type="incidence")
-ss.d <- SIR.detsim(tvec,pars,type="death")
+times <- 0:50
+ss.p <- SIR.detsim(times,pars)
+ss.i <- SIR.detsim(times,pars,type="incidence")
+ss.d <- SIR.detsim(times,pars,type="death")
 matplot(data.frame(ss.p,ss.i,ss.d),type = "l",xlab="time",ylab="count")
 legend(x=0,y=800,col=1:3,lty=1:3,legend=c("prevalence","incidence","death"))
 all.equal(cumsum(c(5, ss.i[-length(ss.i)])) - cumsum(c(0, ss.d[-length(ss.d)])), ss.p)

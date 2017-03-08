@@ -30,6 +30,8 @@ smooth.spline2 <- function(times, count, itmax=100,relpeakcrit=0.1){
 ##' Starting function
 ##' @param data data frame with columns \code{times} and \code{count}
 ##' @param type epidemic data type
+##' @param xname column name for time variable
+##' @param yname column name for count variable
 ##' @param log.beta log of per capita transmission rate
 ##' @param log.gamma log of recovery/removal rate
 ##' @param log.N log of population size
@@ -39,14 +41,15 @@ smooth.spline2 <- function(times, count, itmax=100,relpeakcrit=0.1){
 ##' @export
 startfun <- function(data = NULL,
                      type = c("prevalence", "incidence", "death"),
+                     xname = "times", yname = "count",
                      log.beta=log(0.12),log.gamma=log(0.09),
                      log.N=log(10000),logit.i=qlogis(0.01),
                      itmax=100,relpeakcrit=0.1) {
     if (!is.null(data)) { ## auto start
         type <- match.arg(type)
         
-        times <- data$times
-        count <- data$count
+        times <- data[[xname]]
+        count <- data[[yname]]
         ## for smooth.spline(log(count)) ...
         if (any(count<=0)) {
             count <- pmax(count,min(count[count>0])/2)

@@ -1,4 +1,4 @@
-##' Plotting method for fitsir objects
+##' S4 plot method for fitsir objects
 ##' 
 ##' @name plot.fitsir
 ##' @rdname plot.fitsir
@@ -18,16 +18,17 @@
 ##' ff <- fitsir(harbin2, type="death")
 ##' plot(ff)
 ##' 
-##' plot(ff, level=0.95, log="y")
 ##' ff2 <- fitsir(harbin2, type="death", method="BFGS")
-##' plot(ff2, add=TRUE, col.traj="blue")
-##' 
-##' plot(ff2, level=0.8, col.traj="red", log="y")
 ##' ff3 <- fitsir(harbin2, type="death", dist="pois", method="BFGS")
-##' plot(ff3, add=TRUE, level=0.8, col.traj="blue", col.conf="blue")
+##' plot(ff2, level=0.95, col.traj="red", main="Normal error vs. Poisson error CIs")
+##' plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
+##' legend(2, 270, legend = c("Normal", "Poisson"), col=c("red", "blue"), lty=1)
 ##' 
 ##' ff4 <- fitsir(harbin2, type="death", dist="nbinom")
-##' plot(ff4, level=0.8, log="y")
+##' ff5 <- fitsir(harbin2, type="death", dist="qpois")
+##' plot(ff4, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
+##' plot(ff5, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
+##' legend(2, 270, legend = c("Negative binomial", "Quasipoisson"), col=c("red", "blue"), lty=1)
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
              main, xlim, ylim, xlab, ylab, add=FALSE,
@@ -36,16 +37,16 @@ setMethod("plot", signature(x="fitsir", y="missing"),
              ...){
         times <- x@data$times
         count <- x@data$count
-        pars <- coef(x)
+        pars <- coef(x, "trans")
         type <- x@data$type
-        i.hat <- SIR.detsim(times, trans.pars(pars), type)
+        i.hat <- SIR.detsim(times, pars, type)
         
         if (missing(main)) main <- paste("fitsir result:", x@data$dist)
         if (missing(xlab)) xlab <- "time"
         if (missing(ylab)) ylab <- paste(type, "count")
         if (missing(ylim)) {
             ymin <- min(i.hat, count)
-            ymax <- max(i.hat, count)
+            ymax <- 1.1 * max(i.hat, count)
             ylim <- c(ymin, ymax)
         }
         if (missing(xlim)) xlim <- c(min(times), max(times))
@@ -60,18 +61,16 @@ setMethod("plot", signature(x="fitsir", y="missing"),
         }
         
         if (!missing(level)) {
-            cc <- confint(x, level=level)
-            if (class(cc) == "mle2") {
-                message("Plotting the better fit instead\n")
-                bpars <- coef(cc)
-                ## FIXME: I think this is an error with bbmle
-                names(bpars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
-                bfit <- SIR.detsim(times, trans.pars(bpars), type)
-                lines(times, bfit, col=col.conf, lty=lty.conf)
-            } else {
-                conf.traj <- apply(cc, 2, function(x) SIR.detsim(times, trans.pars(x), type))
-                matlines(times, conf.traj, col=col.conf, lty=lty.conf)
-            }
+            nu <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
+            xvcov <- x@vcov
+            if(any(diag(xvcov < 0)))
+                warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate")
+            
+            ivcov <- nu %*% xvcov %*% t(nu)
+            ierr <- sqrt(diag(ivcov))
+            z <- -qnorm((1-level)/2)
+            conf.mat <- cbind(i.hat + z * ierr, i.hat - z * ierr)
+            matlines(times, conf.mat, col=col.conf, lty=lty.conf)
         }
         
         invisible()

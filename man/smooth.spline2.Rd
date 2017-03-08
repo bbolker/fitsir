@@ -4,10 +4,10 @@
 \alias{smooth.spline2}
 \title{Fit a spline to an epidemic data}
 \usage{
-smooth.spline2(tvec, count, itmax = 100, relpeakcrit = 0.1)
+smooth.spline2(times, count, itmax = 100, relpeakcrit = 0.1)
 }
 \arguments{
-\item{tvec}{time vector}
+\item{times}{time vector}
 
 \item{count}{data (epidemic counts for each time period)}
 

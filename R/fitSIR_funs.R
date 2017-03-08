@@ -194,12 +194,14 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##  vector (rather than a list) with mle2
 
 ##' fitting function
-##' @param data data frame with columns \code{times} and \code{count}
+##' @param data data frame
 ##' @param start starting parameters
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
 ##' @param method optimization method
 ##' @param control  control parameters for optimization
+##' @param xname column name for time variable
+##' @param yname column name for count variable
 ##' @param debug print debugging output?
 ##' @export
 ##' @importFrom bbmle mle2
@@ -212,16 +214,20 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' 
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
+##' 
+##' (f2 <- fitsir(harbin, type="death", xname="week", yname="Deaths"))
 fitsir <- function(data, start=startfun(),
                    dist=c("norm", "pois", "qpois", "nbinom"),
                    type = c("prevalence", "incidence", "death"),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
+                   xname = "times", yname = "count",
                    timescale=NULL, ## TODO: what is this?
                    debug=FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
     method <- match.arg(method)
+    data <- data.frame(times = data[[xname]], count = data[[yname]])
     dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
     if (method=="BFGS" & dist=="nbinom") {
