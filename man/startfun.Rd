@@ -5,13 +5,18 @@
 \title{Starting function}
 \usage{
 startfun(data = NULL, type = c("prevalence", "incidence", "death"),
-  log.beta = log(0.12), log.gamma = log(0.09), log.N = log(10000),
-  logit.i = qlogis(0.01), itmax = 100, relpeakcrit = 0.1)
+  xname = "times", yname = "count", log.beta = log(0.12),
+  log.gamma = log(0.09), log.N = log(10000), logit.i = qlogis(0.01),
+  itmax = 100, relpeakcrit = 0.1)
 }
 \arguments{
-\item{data}{data frame with columns \code{tvec} and \code{count}}
+\item{data}{data frame with columns \code{times} and \code{count}}
 
 \item{type}{epidemic data type}
+
+\item{xname}{column name for time variable}
+
+\item{yname}{column name for count variable}
 
 \item{log.beta}{log of per capita transmission rate}
 

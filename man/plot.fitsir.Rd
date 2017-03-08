@@ -3,7 +3,7 @@
 \docType{methods}
 \name{plot.fitsir}
 \alias{plot.fitsir}
-\title{Plotting method for fitsir objects}
+\title{S4 plot method for fitsir objects}
 \usage{
 \S4method{plot}{fitsir,missing}(x, level, main, xlim, ylim, xlab, ylab,
   add = FALSE, col.traj = "black", lty.traj = 1, col.conf = "red",
@@ -33,22 +33,23 @@
 \item{...}{additional arguments}
 }
 \description{
-Plotting method for fitsir objects
+S4 plot method for fitsir objects
 }
 \examples{
-harbin2 <- setNames(harbin, c("tvec", "count"))
+harbin2 <- setNames(harbin, c("times", "count"))
 ff <- fitsir(harbin2, type="death")
 plot(ff)
 
-plot(ff, level=0.95, log="y")
 ff2 <- fitsir(harbin2, type="death", method="BFGS")
-plot(ff2, add=TRUE, col.traj="blue")
-
-plot(ff2, level=0.8, col.traj="red", log="y")
 ff3 <- fitsir(harbin2, type="death", dist="pois", method="BFGS")
-plot(ff3, add=TRUE, level=0.8, col.traj="blue", col.conf="blue")
+plot(ff2, level=0.95, col.traj="red", main="Normal error vs. Poisson error CIs")
+plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
+legend(2, 270, legend = c("Normal", "Poisson"), col=c("red", "blue"), lty=1)
 
 ff4 <- fitsir(harbin2, type="death", dist="nbinom")
-plot(ff4, level=0.8, log="y")
+ff5 <- fitsir(harbin2, type="death", dist="qpois")
+plot(ff4, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
+plot(ff5, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
+legend(2, 270, legend = c("Negative binomial", "Quasipoisson"), col=c("red", "blue"), lty=1)
 }
 

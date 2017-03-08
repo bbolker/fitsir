@@ -4,7 +4,7 @@
 \alias{SIR.logLik}
 \title{Log-likelihood for SIR trajectory}
 \usage{
-SIR.logLik(params, count, tvec = NULL, dist = c("norm", "pois", "qpois",
+SIR.logLik(params, count, times = NULL, dist = c("norm", "pois", "qpois",
   "nbinom"), type = c("prevalence", "incidence", "death"), debug = FALSE)
 }
 \arguments{
@@ -12,7 +12,7 @@ SIR.logLik(params, count, tvec = NULL, dist = c("norm", "pois", "qpois",
 
 \item{count}{data (epidemic counts for each time period)}
 
-\item{tvec}{time vector}
+\item{times}{time vector}
 
 \item{dist}{conditional distribution of reported data}
 

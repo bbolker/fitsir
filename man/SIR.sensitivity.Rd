@@ -4,7 +4,7 @@
 \alias{SIR.sensitivity}
 \title{Gradient of negative log likelihood with respect to each parameters}
 \usage{
-SIR.sensitivity(params, count, tvec = NULL, dist = c("norm", "pois",
+SIR.sensitivity(params, count, times = NULL, dist = c("norm", "pois",
   "qpois", "nbinom"), type = c("prevalence", "incidence", "death"),
   debug = FALSE)
 }
@@ -13,7 +13,7 @@ SIR.sensitivity(params, count, tvec = NULL, dist = c("norm", "pois",
 
 \item{count}{data (epidemic counts for each time period)}
 
-\item{tvec}{time vector}
+\item{times}{time vector}
 
 \item{dist}{conditional distribution of reported data}
 
