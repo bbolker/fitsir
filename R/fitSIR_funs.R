@@ -187,7 +187,6 @@ SIR.logLik  <- function(params, count, times=NULL,
     if (debug) cat(" ",r,"\n")
     return(r)
 }
-attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
     
 ## parnames() specification required in order to use
 ## functions with parameters specified as a
@@ -200,8 +199,8 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' @param type type of reported data
 ##' @param method optimization method
 ##' @param control  control parameters for optimization
-##' @param xname column name for time variable
-##' @param yname column name for count variable
+##' @param tcol column name for time variable
+##' @param icol column name for count variable
 ##' @param debug print debugging output?
 ##' @export
 ##' @importFrom bbmle mle2
@@ -214,20 +213,18 @@ attr(SIR.logLik, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
 ##' 
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
-##' 
-##' (f2 <- fitsir(harbin, type="death", xname="week", yname="Deaths"))
 fitsir <- function(data, start=startfun(),
                    dist=c("norm", "pois", "qpois", "nbinom"),
                    type = c("prevalence", "incidence", "death"),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
-                   xname = "times", yname = "count",
+                   tcol = "times", icol = "count",
                    timescale=NULL, ## TODO: what is this?
                    debug=FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
     method <- match.arg(method)
-    data <- data.frame(times = data[[xname]], count = data[[yname]])
+    data <- data.frame(times = data[[tcol]], count = data[[icol]])
     dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
     if (method=="BFGS" & dist=="nbinom") {
@@ -259,7 +256,6 @@ fitsir <- function(data, start=startfun(),
             
             return(oldnll)
         }
-        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
         environment(objfun) <- f.env
         gradfun <- function(par, count, times, dist, type, debug) {
             if (identical(par,oldpar)) {
@@ -279,6 +275,7 @@ fitsir <- function(data, start=startfun(),
         objfun <- SIR.logLik
         gradfun <- NULL
     }
+    attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
     
     m <- mle2(objfun,
               vecpar=TRUE,
@@ -294,7 +291,7 @@ fitsir <- function(data, start=startfun(),
         mean <- SIR.detsim(data$times, trans.pars(coef(m)), type = type)
         x <- data$count
         ss <- sum((x-mean)^2/mean)
-        m@vcov <- ss/length(x) * m@vcov
+        m@vcov <- ss/(length(x)-1) * m@vcov
     }
     
     return(m)
@@ -356,20 +353,22 @@ minusloglfun <- function(x,mean,size=NULL,dist){
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
 mle.size <- function(x, mean){
-    sol <- try(uniroot(
-        grad.size,
-        interval=c(1, 1e3),
-        x=x,
-        mean=mean,
-        extendInt="yes"
+    nb <- function(x, mean, size) minusloglfun(x, mean, size, dist="nbinom")
+    sol <- try(optim(
+        par=list(size=1e2),
+        fn=nb,
+        gr=grad.size,
+        x=x, mean=mean,
+        method="BFGS",
+        control=list(maxit=1e5)
     ))
-    ## what happens if uniroot fails?
-    sol$root
+    
+    sol$par
 }
 
 ##' derivative of nbinom nll with respect to its dispersion parameter
 grad.size <- function(x, mean, size){
     n <- length(x)
     p <- size/(size + mean)
-    sum(digamma(x + size)) - n * digamma(size) + sum(log(1 - p))
+    -sum(digamma(x+size) - digamma(size) - x/(size+mean) + log(size) + 1 - log(size+mean) - size/(size+mean))
 }

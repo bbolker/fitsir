@@ -7,7 +7,7 @@
 fitsir(data, start = startfun(), dist = c("norm", "pois", "qpois",
   "nbinom"), type = c("prevalence", "incidence", "death"),
   method = c("Nelder-Mead", "BFGS", "SANN"), control = list(maxit = 1e+05),
-  xname = "times", yname = "count", timescale = NULL, debug = FALSE)
+  tcol = "times", icol = "count", timescale = NULL, debug = FALSE)
 }
 \arguments{
 \item{data}{data frame}
@@ -22,9 +22,9 @@ fitsir(data, start = startfun(), dist = c("norm", "pois", "qpois",
 
 \item{control}{control parameters for optimization}
 
-\item{xname}{column name for time variable}
+\item{tcol}{column name for time variable}
 
-\item{yname}{column name for count variable}
+\item{icol}{column name for count variable}
 
 \item{debug}{print debugging output?}
 }
@@ -41,6 +41,6 @@ cc <- bombay2$count
 ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 mean((1-ss/cc)^2)
 
-(f2 <- fitsir(harbin, type="death", xname="week", yname="Deaths"))
+(f2 <- fitsir(harbin, type="death", tcol="week", icol="Deaths"))
 }
 
