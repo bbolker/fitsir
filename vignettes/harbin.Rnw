@@ -1,0 +1,185 @@
+%\VignetteEngine{knitr::knitr}
+%\VignetteDepends{ggplot2}
+%\VignetteDepends{plyr}
+%\VignetteDepends{reshape2}
+%\VignetteIndexEntry{Simple SIR model fitting}
+\documentclass{article}
+\title{Basic SIR fitting}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{hyperref}
+\newcommand{\rzero}{{\cal R}_0}
+\newcommand{\code}[1]{{\tt #1}}
+\bibliographystyle{chicago}
+\date{\today}
+\begin{document}
+\maketitle
+
+<<opts,echo=FALSE>>=
+library("knitr")
+opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,message=FALSE,error=FALSE,warning=FALSE)
+@
+
+\section{Harbin}
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[width=4in]{Dietz_harbin_sm.png}
+\end{center}
+\caption{Unnumbered figure (p. 102) from \cite{dietz_epidemics:_2009} showing the Harbin epidemic.}
+\label{fig:dietzfig}
+\end{figure}
+
+Figure~\ref{fig:dietzfig} shows a Kermack-Mckendrick model fit to Harbin plague data. Based on the equations  (\ref{eq:km}) and estimates (``$x_0 = 2985$, $\rzero=2.00$ and
+a mean infectious period of 11 days'') that \cite{dietz_epidemics:_2009} provides, we can compare how Kermack-Mckendrick model fit differs from SIR model fit based on maximum likelihood estimation.
+\begin{equation}
+\begin{split}
+\frac{dz}{dt} & = \frac{\gamma x_0}{2 \rzero^2} c_1 \text{sech}^2(c_1 \gamma t - c_2) , \\
+c_1 & = \sqrt{(\rzero-1)^2 + \frac{2 \rzero^2}{x_0}} \\
+c_2 & = \text{tanh}^{-1} \left(\frac{\rzero-1}{c_1}\right).
+\label{eq:km}
+\end{split}
+\end{equation}
+We note that the original equation provided by \cite{dietz_epidemics:_2009} contains a typo. $c_1 \gamma t$ after $\text{sech}^2$ in the first equation should be corrected to $c_1 \gamma t/2$ \citep{kermack1927contribution}.
+
+First, load the pacakge: 
+<<load>>==
+library(fitsir)
+@
+
+\noindent Since \code{fitsir} package lazy loads harbin data, \code{data(harbin)} syntax is unnecessary.
+<<harbin_head>>==
+head(harbin)
+@
+
+Then, we transform the parameters provided by \cite{dietz_epidemics:_2009} into \emph{unconstrained parameters} (\code{log.beta, log.gamma, log.N, logit.i}) so that they can be used as starting values for \code{fitsir}. Although \code{fitsir} expects a dataframe with column names \code{times} and \code{count}, 
+
+<<harbin_fit>>==
+dietz_harbin <- c(x0=2985,rzero=2,gamma=7/11)
+dietz_lpars <- with(as.list(dietz_harbin),
+      c(log.beta=log(rzero*gamma),
+        log.gamma=log(gamma),
+        log.N=log(x0),
+        logit.i=qlogis(1e-3)))
+(ff <- fitsir(harbin, start=dietz_lpars, type="death", 
+              tcol="week", icol="Deaths", method="BFGS"))
+@
+
+Plot it:
+<<harbin_plot, echo = TRUE, message = FALSE>>=
+plot(ff, main="SIR vs. KM comparison")
+times <- with(as.list(harbin), seq(min(week), max(week), by = 0.1)) 
+dpKM <- with(as.list(dietz_harbin), 
+        {
+           c1 <- sqrt((rzero-1)^2+2*rzero^2/x0)
+           c2 <- atanh((rzero-1)/c1)
+           gamma*x0/(2*rzero^2)*c1*
+               (1/cosh(c1*gamma*times/2-c2))^2
+        })
+lines(times,dpKM, col = 2)
+legend(x=2, y=275, legend=c("SIR","Dietz"), col=c("black", "red"), lty = 1)
+@
+
+Summarize it:
+<<harbin_summary>>=
+summary(ff)
+@
+
+MLE returns higher $\rzero$ and longer infectious period but estimates lower population size.
+
+Overdispersion?
+<<harbin_overd>>=
+(ff2 <- fitsir(harbin, dist="qpois", type="death", 
+              tcol="week", icol="Deaths", method="BFGS"))
+(ff3 <- fitsir(harbin, dist="nbinom", type="death", 
+              tcol="week", icol="Deaths"))
+plot(ff2, level=0.95, col.traj="red", col.conf="red")
+plot(ff3, level=0.95, add=TRUE, col.traj="blue", col.conf="blue")
+@
+
+Its also worth noting them negative binomial fits slightly better than Gaussian (we still need to deal with profiled parameters somehow...):
+
+<<harbin_AIC>>==
+AIC(ff3) - AIC(ff)
+summary(ff3)
+@
+
+\section{Philadelphia}
+
+<<phila_data>>==
+head(phila1918)
+@
+
+Transform...
+
+<<phila_trans>>==
+phila1918a <- data.frame(times=1:nrow(phila1918), count=phila1918$pim)
+@
+
+Naive fitting
+<<phila_fit>>==
+(philafit <- fitsir(phila1918a, method="BFGS", type="death"))
+plot(philafit, level=0.95)
+@
+
+Summarize it:
+
+<<>>==
+summary(philafit)
+@
+
+\noindent Does this look reasonable?
+
+We have to deal with overdispersion somehow...
+
+<<phila_over>>==
+(philaQP <- fitsir(phila1918a, dist="qpois", method="BFGS", type="death"))
+(philaNB <- fitsir(phila1918a, dist="nbinom",  type="death"))
+plot(philaNB, level=0.95, col.traj="red", col.conf="red", log="y")
+plot(philaQP, level=0.95, add=TRUE, col.traj="blue", col.conf="blue")
+@
+
+Negative binomial fits way better than Poisson. Can we look at mean-variance relationship?
+
+<<>>==
+library(dplyr)
+library(ggplot2); theme_set(theme_bw())
+mvrel <- function(fit) {
+    mean <- SIR.detsim(phila1918a$times, coef(fit, "trans"), type="death")
+    data.frame(
+        mean=mean,
+        var=(phila1918a$count-mean)^2
+    )
+}
+level <- seq(0, 600, by = 50)
+
+mvfun <- . %>%
+    mvrel %>%
+    mutate(group=cut(mean, breaks=level)) %>%
+    group_by(group) %>%
+    summarise(avgmean=mean(mean), avgvar=mean(var), n=length(var))
+
+mvtot <- list(QP=mvfun(philaQP), NB=mvfun(philaNB)) %>%
+    bind_rows(.id="dist")
+
+ggplot(mvtot, aes(avgmean, avgvar)) + 
+    geom_point(aes(size=n, col=dist))
+    
+@
+
+I don't think this really is a problem with over dispersion... Long tails are definitely affecting both quasipoisson and negative binomial fits..
+
+\subsection{Bombay}
+
+I want to explain multiple local minima here..
+
+<<bombay2>>==
+bombay2 <- setNames(bombay, c("times", "count"))
+(bb1 <- fitsir(bombay2, method="BFGS"))
+(bb3 <- fitsir(bombay2, dist="nbinom"))
+@
+
+Also, negative binomial fits way better but gets stuck in a weird place again and gives us bunch of warnings... I definitely need to reconsider 5 parameter fitting...
+
+\bibliography{plague}
+\end{document}
