@@ -5,7 +5,7 @@
 \title{Starting function}
 \usage{
 startfun(data = NULL, type = c("prevalence", "incidence", "death"),
-  xname = "times", yname = "count", log.beta = log(0.12),
+  tcol = "times", icol = "count", log.beta = log(0.12),
   log.gamma = log(0.09), log.N = log(10000), logit.i = qlogis(0.01),
   itmax = 100, relpeakcrit = 0.1)
 }
@@ -14,9 +14,9 @@ startfun(data = NULL, type = c("prevalence", "incidence", "death"),
 
 \item{type}{epidemic data type}
 
-\item{xname}{column name for time variable}
+\item{tcol}{column name for time variable}
 
-\item{yname}{column name for count variable}
+\item{icol}{column name for count variable}
 
 \item{log.beta}{log of per capita transmission rate}
 
