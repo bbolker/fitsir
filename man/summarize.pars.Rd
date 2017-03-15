@@ -2,9 +2,12 @@
 % Please edit documentation in R/fitSIR_funs.R
 \name{summarize.pars}
 \alias{summarize.pars}
+\alias{summarize.pars.jacobian}
 \title{Summarize parameters}
 \usage{
 summarize.pars(params)
+
+summarize.pars.jacobian(params)
 }
 \arguments{
 \item{params}{parameter vector (log.beta, log.gamma, logit.i)}

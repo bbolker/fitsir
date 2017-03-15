@@ -40,7 +40,5 @@ cc <- bombay2$count
 
 ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 mean((1-ss/cc)^2)
-
-(f2 <- fitsir(harbin, type="death", tcol="week", icol="Deaths"))
 }
 

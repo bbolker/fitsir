@@ -54,9 +54,10 @@ summarize.pars <- function(params) {
            N=exp(log.N)))
 }
 
-summarize.pars.deriv <- function(params) {
+##' @rdname summarize.pars
+summarize.pars.jacobian <- function(params) {
     with(as.list(params),{
-        list(
+        m <- list(
             R0.deriv=c(exp(log.beta-log.gamma), -exp(log.beta-log.gamma), 0, 0),
             r.deriv=c(exp(log.beta), -exp(log.gamma), 0, 0),
             infeper.deriv=c(0, -exp(-log.gamma), 0, 0),
@@ -65,6 +66,7 @@ summarize.pars.deriv <- function(params) {
             S0.deriv=c(0, 0, (1-plogis(logit.i))*exp(log.N), -plogis(logit.i)^2*exp(-logit.i)*exp(log.N)),
             N.deriv=c(0, 0, exp(log.N), 0)
         )
+        unname(do.call(rbind, m))
     })
 }
 
@@ -179,7 +181,7 @@ SIR.logLik  <- function(params, count, times=NULL,
     i.hat <- SIR.detsim(times,tpars,type)
     
     if (dist == "nbinom") {
-        size <- mle.size(count,i.hat)
+        size <- mlesize(count,i.hat)
     } else {
         size <- NULL
     }
@@ -352,12 +354,12 @@ minusloglfun <- function(x,mean,size=NULL,dist){
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
-mle.size <- function(x, mean){
+mlesize <- function(x, mean){
     nb <- function(x, mean, size) minusloglfun(x, mean, size, dist="nbinom")
     sol <- try(optim(
         par=list(size=1e2),
         fn=nb,
-        gr=grad.size,
+        gr=gradsize,
         x=x, mean=mean,
         method="BFGS",
         control=list(maxit=1e5)
@@ -367,7 +369,7 @@ mle.size <- function(x, mean){
 }
 
 ##' derivative of nbinom nll with respect to its dispersion parameter
-grad.size <- function(x, mean, size){
+gradsize <- function(x, mean, size){
     n <- length(x)
     p <- size/(size + mean)
     -sum(digamma(x+size) - digamma(size) - x/(size+mean) + log(size) + 1 - log(size+mean) - size/(size+mean))

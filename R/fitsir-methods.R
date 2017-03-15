@@ -97,7 +97,7 @@ setMethod("coef", "fitsir",
 setMethod("summary", "fitsir",
     function(object,...){
         cc <- object@coef
-        m <- unname(do.call(rbind, summarize.pars.deriv(cc)))
+        m <- summarize.pars.jacobian(cc)
         cc.vcov <- m %*% object@vcov %*% t(m)
         smat <- rbind(
             Estimate=summarize.pars(cc),
