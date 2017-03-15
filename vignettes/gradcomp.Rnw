@@ -37,7 +37,7 @@ Load packages:
 library(fitsir)
 library(deSolve)
 if (packageVersion("odeintr")<"1.5")
-    stop("need devel version: try devtools::github_install('thk686/odeintr')")
+    stop("need devel version: try devtools::install_github('thk686/odeintr')")
 library(odeintr)
 library(Rcpp)
 library(ggplot2); theme_set(theme_bw())
