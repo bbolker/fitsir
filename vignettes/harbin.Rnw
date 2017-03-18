@@ -89,12 +89,15 @@ MLE returns higher $\rzero$ and longer infectious period but estimates lower pop
 
 Overdispersion?
 <<harbin_overd>>=
-(ff2 <- fitsir(harbin, dist="qpois", type="death", 
+(ff2 <- fitsir(harbin, dist="quasipoisson", type="death", 
               tcol="week", icol="Deaths", method="BFGS"))
 (ff3 <- fitsir(harbin, dist="nbinom", type="death", 
               tcol="week", icol="Deaths"))
+(ff4 <- fitsir(harbin, dist="nbinom1", type="death", 
+              tcol="week", icol="Deaths", hessian.opts=list(r=6)))
 plot(ff2, level=0.95, col.traj="red", col.conf="red")
 plot(ff3, level=0.95, add=TRUE, col.traj="blue", col.conf="blue")
+plot(ff4, level=0.95, add=TRUE, col.traj="green", col.conf="green")
 @
 
 Its also worth noting them negative binomial fits slightly better than Gaussian (we still need to deal with profiled parameters somehow...):
@@ -176,7 +179,7 @@ I want to explain multiple local minima here..
 <<bombay2>>==
 bombay2 <- setNames(bombay, c("times", "count"))
 (bb1 <- fitsir(bombay2, method="BFGS"))
-(bb3 <- fitsir(bombay2, dist="nbinom"))
+(bb3 <- fitsir(bombay2, dist="nbinom1", start=coef(bb1), hessian.opts=list(d=1e-5,r=6)))
 @
 
 Also, negative binomial fits way better but gets stuck in a weird place again and gives us bunch of warnings... I definitely need to reconsider 5 parameter fitting...
