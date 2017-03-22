@@ -174,5 +174,14 @@ ggplot(mvtot, aes(mean2, var2)) +
     stat_function(fun=function(x) x + x^2/nb2k, linetype=2)
 @
 
+\noindent
+Clearly, we can see that the quadratic mean-variance relationship is not appropriate in this case. 
+
+Summarizing the best fit, we underestimate $\rzero$ as well as the population size but the estimate of the infectious period is very close to that provided by Dietz.
+
+<<harbin_nb1sum>>==
+summary(ff4)
+@
+
 \bibliography{plague}
 \end{document}
