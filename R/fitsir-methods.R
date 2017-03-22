@@ -18,32 +18,25 @@
 ##' ff <- fitsir(harbin2, type="death")
 ##' plot(ff)
 ##' 
-##' ff2 <- fitsir(harbin2, type="death", method="BFGS")
-##' ff3 <- fitsir(harbin2, type="death", dist="pois", method="BFGS")
-##' plot(ff2, level=0.95, col.traj="red", main="Normal error vs. Poisson error CIs")
+##' ff2 <- fitsir(harbin2, type="death", dist="nbinom")
+##' ff3 <- fitsir(harbin2, type="death", dist="quasipoisson")
+##' plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 ##' plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
-##' legend(2, 270, legend = c("Normal", "Poisson"), col=c("red", "blue"), lty=1)
-##' 
-##' ff4 <- fitsir(harbin2, type="death", dist="nbinom")
-##' ff5 <- fitsir(harbin2, type="death", dist="qpois")
-##' plot(ff4, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
-##' plot(ff5, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
-##' legend(2, 270, legend = c("Negative binomial", "Quasipoisson"), col=c("red", "blue"), lty=1)
+##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
              main, xlim, ylim, xlab, ylab, add=FALSE,
              col.traj="black",lty.traj=1,
              col.conf="red",lty.conf=4,
              ...){
-        times <- x@data$times
         count <- x@data$count
-        pars <- coef(x, "trans")
-        type <- x@data$type
-        i.hat <- SIR.detsim(times, pars, type)
+        pred <- predict(x,level)
+        times <- pred[["times"]]
+        i.hat <- pred[["mean"]]
         
-        if (missing(main)) main <- paste("fitsir result:", x@data$dist)
+        if (missing(main)) main <- "fitsir result"
         if (missing(xlab)) xlab <- "time"
-        if (missing(ylab)) ylab <- paste(type, "count")
+        if (missing(ylab)) ylab <- "count"
         if (missing(ylim)) {
             ymin <- min(i.hat, count)
             ymax <- 1.1 * max(i.hat, count)
@@ -61,16 +54,7 @@ setMethod("plot", signature(x="fitsir", y="missing"),
         }
         
         if (!missing(level)) {
-            nu <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
-            xvcov <- x@vcov
-            if(any(diag(xvcov < 0)))
-                warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate")
-            
-            ivcov <- nu %*% xvcov %*% t(nu)
-            ierr <- sqrt(diag(ivcov))
-            z <- -qnorm((1-level)/2)
-            conf.mat <- cbind(i.hat + z * ierr, i.hat - z * ierr)
-            matlines(times, conf.mat, col=col.conf, lty=lty.conf)
+            matlines(times, pred[,3:4], col=col.conf, lty=lty.conf)
         }
         
         invisible()
@@ -94,9 +78,36 @@ setMethod("coef", "fitsir",
     }
 )
 
+setMethod("predict", "fitsir",
+    function(object,level,times){
+        if(missing(times)) times <- object@data$times
+        type <- object@data$type
+        pars <- coef(object, "trans")
+        i.hat <- SIR.detsim(times, pars, type)
+        df <- data.frame(times=times,mean=i.hat)
+        
+        if(!missing(level)) {
+            nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
+            xvcov <- object@vcov
+            if(any(diag(xvcov < 0)))
+                warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
+            
+            ivcov <- nmat %*% xvcov %*% t(nmat)
+            ierr <- sqrt(diag(ivcov))
+            ll <- (1-level)/2
+            z <- -qnorm(ll)
+            cmat <- data.frame(i.hat + z * ierr, i.hat - z * ierr)
+            cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
+            df <- cbind(df, cmat)
+        }
+        df
+    }
+)
+
 setMethod("summary", "fitsir",
     function(object,...){
         cc <- object@coef
+        ss <- callNextMethod()
         m <- summarize.pars.jacobian(cc)
         cc.vcov <- m %*% object@vcov %*% t(m)
         smat <- rbind(
@@ -104,7 +115,7 @@ setMethod("summary", "fitsir",
             `Std. Error` = sqrt(diag(cc.vcov))
         )
         m2logL <- 2*object@min
-        new("summary-fitsir", call=object@call.orig, coef=cc, summary=smat, m2logL=m2logL)
+        new("summary-fitsir", call=object@call.orig, coef=ss@coef, summary=smat, m2logL=m2logL)
     }
 )
 

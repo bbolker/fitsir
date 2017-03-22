@@ -17,6 +17,6 @@ setClass("fitsir", contains="mle2")
 ##' @rdname summary-fitsir-class
 ##' @method show \code{signature(object="fitsir")}: Show object.
 setClass("summary-fitsir", representation(call="language",
-                                          coef="vector",
+                                          coef="matrix",
                                           summary="matrix",
                                           m2logL="numeric"))

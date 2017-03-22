@@ -178,7 +178,7 @@ SIR.detsim <- function(t, params,
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, times=NULL,
-                  dist=c("norm", "pois", "qpois", "nbinom"),
+                  dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                   type = c("prevalence", "incidence", "death"),
                   debug=FALSE) {
     dist <- match.arg(dist)
@@ -193,12 +193,12 @@ SIR.logLik  <- function(params, count, times=NULL,
     tpars <- trans.pars(params)
     i.hat <- SIR.detsim(times,tpars,type)
     
-    if (dist == "nbinom") {
-        size <- mlesize(count,i.hat)
+    if (dist %in% c("nbinom", "nbinom1")) {
+        dsp <- mledsp(count,i.hat,dist)
     } else {
-        size <- NULL
+        dsp <- NULL
     }
-    r <- minusloglfun(count,i.hat,size,dist)
+    r <- minusloglfun(count,i.hat,dsp,dist)
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -229,13 +229,14 @@ SIR.logLik  <- function(params, count, times=NULL,
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
 fitsir <- function(data, start=startfun(),
-                   dist=c("norm", "pois", "qpois", "nbinom"),
+                   dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
                    tcol = "times", icol = "count",
                    timescale=NULL, ## TODO: what is this?
-                   debug=FALSE) {
+                   debug=FALSE,
+                   ...) {
     dist <- match.arg(dist)
     type <- match.arg(type)
     method <- match.arg(method)
@@ -298,11 +299,12 @@ fitsir <- function(data, start=startfun(),
               method=method,
               control=control,
               gr=gradfun,
-              data=dataarg)
+              data=dataarg,
+              ...)
     
     m <- new("fitsir", m)
     
-    if (dist == "qpois") {
+    if (dist == "quasipoisson") {
         mean <- SIR.detsim(data$times, trans.pars(coef(m)), type = type)
         x <- data$count
         ss <- sum((x-mean)^2/mean)
@@ -322,7 +324,7 @@ fitsir <- function(data, start=startfun(),
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
 SIR.sensitivity <- function(params, count, times=NULL,
-                     dist = c("norm", "pois", "qpois", "nbinom"),
+                     dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                      type = c("prevalence", "incidence", "death"), 
                      debug = FALSE) {
     dist <- match.arg(dist)
@@ -336,54 +338,67 @@ SIR.sensitivity <- function(params, count, times=NULL,
         
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         
-        nll <- minusloglfun(count, i.hat, size, dist)
+        nll <- minusloglfun(count, i.hat, dsp, dist)
         
-        sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, size = size, nu, dist = dist)))
+        sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, dsp = dsp, nu, dist = dist)))
         
         return(sensitivity)
     })
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
-derivfun <- function(x,mean,size=NULL,nu,dist){
-    if (dist == "qpois") dist <- "pois"
+derivfun <- function(x,mean,dsp=NULL,nu,dist){
+    if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,
-        norm = {
+        gaussian = {
             n <- length(x)
             sigma2 <- sum((mean-x)^2)/(n-1)
-            sum((mean-x)/sigma2 * nu + (1/(2*sigma2) - ((mean - x)^2)/(2*sigma2^2)) * sum(2 * (mean - x)/(n-1) * nu))}, 
-        pois = sum((1 - x/mean) * nu)
+            diff <- mean-x
+            sum(diff/sigma2 * nu + (1/(2*sigma2) - (diff^2)/(2*sigma2^2)) * sum(2 * diff/(n-1) * nu))}, 
+        poisson = sum((1 - x/mean) * nu)
     )
 }
 
 ##' Negative log likelihood
-minusloglfun <- function(x,mean,size=NULL,dist){
-    if (dist == "qpois") dist <- "pois"
+minusloglfun <- function(x,mean,dsp,dist){
+    if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,
-        norm = -sum(dnorm2(x,mean,log=TRUE)),
-        pois = -sum(dpois(x,mean,log=TRUE)),
-        nbinom = -sum(dnbinom(x,mu=mean,size=size,log=TRUE))
+        gaussian = -sum(dnorm2(x,mean,log=TRUE)),
+        poisson = -sum(dpois(x,mean,log=TRUE)),
+        nbinom = -sum(dnbinom(x,mu=mean,size=dsp,log=TRUE)),
+        nbinom1 = -sum(dnbinom1(x,mu=mean,tau=dsp,log=TRUE))
     )
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
-mlesize <- function(x, mean){
-    nb <- function(x, mean, size) minusloglfun(x, mean, size, dist="nbinom")
+mledsp <- function(x,mean,dist){
+    start <- switch(dist,
+        "nbinom"=1e2,
+        "nbinom1"=2
+    )
+    
     sol <- try(optim(
-        par=list(size=1e2),
-        fn=nb,
-        gr=gradsize,
-        x=x, mean=mean,
-        method="BFGS",
+        par=list(dsp=start),
+        fn=minusloglfun,
+        gr=graddsp,
+        x=x, mean=pmax(mean, 1e-100),
+        method="BFGS", dist=dist,
         control=list(maxit=1e5)
     ))
-    
+    if(inherits(sol, "try-error")) {
+        browser()
+    }
     sol$par
 }
 
 ##' derivative of nbinom nll with respect to its dispersion parameter
-gradsize <- function(x, mean, size){
-    n <- length(x)
-    p <- size/(size + mean)
-    -sum(digamma(x+size) - digamma(size) - x/(size+mean) + log(size) + 1 - log(size+mean) - size/(size+mean))
+graddsp <- function(x,mean,dsp,dist){
+    switch(dist,
+        nbinom = {
+           -sum(digamma(x+dsp) - digamma(dsp) - x/(dsp+mean) + log(dsp) + 1 - log(dsp+mean) - dsp/(dsp+mean))
+        }, nbinom1 = {
+            k <- mean/(dsp-1)
+            -sum(mean/(dsp-1)^2 * (digamma(k) - digamma(x+k)-log(1/dsp)) + (x-mean)/(dsp*(dsp-1)))
+        }
+    )
 }
