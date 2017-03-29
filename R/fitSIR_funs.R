@@ -305,8 +305,9 @@ fitsir <- function(data, start=startfun(),
     m <- new("fitsir", m)
     
     if (dist == "quasipoisson") {
-        chi <- residuals(m)
-        m@vcov <- chi * m@vcov
+        rr <- residuals(m)
+        chisq <- sum(rr)/(length(rr)-1)
+        m@vcov <- chisq * m@vcov
     }
     
     return(m)
