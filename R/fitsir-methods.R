@@ -2,7 +2,7 @@
 ##' 
 ##' @name plot.fitsir
 ##' @rdname plot.fitsir
-##' @param x An object of class \code{fitsir}
+##' @param x a fitsir object
 ##' @param level the confidence level required
 ##' @param main main title
 ##' @param xlab x label
@@ -44,14 +44,11 @@ setMethod("plot", signature(x="fitsir", y="missing"),
         }
         if (missing(xlim)) xlim <- c(min(times), max(times))
         
-        if (!add) {
-            plot(times, i.hat, type="l",
-                 col=col.traj, lty=lty.traj, xlim=xlim, ylim=ylim,
-                 xlab=xlab, ylab=ylab, main=main, ...)
-            points(times, count)
-        } else {
-            lines(times, i.hat, col=col.traj, lty=lty.traj, ...)
-        }
+        if (!add) plot(times, count, xlim=xlim, ylim=ylim,
+                       xlab=xlab, ylab=ylab, main=main, ...)
+        
+        
+        lines(times, i.hat, col=col.traj, lty=lty.traj)
         
         if (!missing(level)) {
             matlines(times, pred[,3:4], col=col.conf, lty=lty.conf)
@@ -61,11 +58,16 @@ setMethod("plot", signature(x="fitsir", y="missing"),
     }
 )
 
-##' Coef method for fitsir objects
+##' S4 coef method for fitsir objects
 ##' @name coef.fitsir
 ##' @rdname coef.fitsir
-##' @param object An object of class \code{fitsir}
+##' @param object a fitsir object
 ##' @param type types of returned parameters
+##' @examples 
+##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
+##' coef(ff)
+##' coef(ff,"trans")
+##' coef(ff,"summary")
 setMethod("coef", "fitsir", 
     function(object,type=c("raw","trans","summary")){
         type <- match.arg(type)
@@ -78,6 +80,15 @@ setMethod("coef", "fitsir",
     }
 )
 
+##' S4 predict method for fitsir objects
+##' @name predict.fitsir
+##' @rdname predict.fitsir
+##' @param object a fitsir object
+##' @param level the confidence level required
+##' @param times new time vector
+##' @examples
+##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
+##' predict(ff, level=0.95)
 setMethod("predict", "fitsir",
     function(object,level,times){
         if(missing(times)) times <- object@data$times
@@ -96,13 +107,57 @@ setMethod("predict", "fitsir",
             ierr <- sqrt(diag(ivcov))
             ll <- (1-level)/2
             z <- -qnorm(ll)
-            cmat <- data.frame(i.hat + z * ierr, i.hat - z * ierr)
+            cmat <- data.frame(i.hat - z * ierr, i.hat + z * ierr)
             cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
             df <- cbind(df, cmat)
         }
         df
     }
 )
+
+##' S4 residuals method for fitsir objects
+##' @name residuals.fitsir
+##' @rdname residuals.fitsir
+##' @param object a fitsir object
+##' @param type type of residuals
+##' @examples
+##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
+##' residuals(ff)
+setMethod("residuals", "fitsir",
+    function(object,type=c("pearson", "raw")){
+        type <- match.arg(type)
+        pred <- predict(object)
+        mean <- pred$mean
+        count <- object@data$count
+        dd <- mean-count
+        var <- dd^2
+        
+        switch(type,
+            pearson=var/mean,
+            raw=dd
+        )
+    }
+)
+
+setMethod("sigma", "fitsir",
+    function(object,dist=c("quasipoisson", "nbinom", "nbinom1")){
+        dist <- match.arg(dist)
+        pred <- predict(object)
+        mean <- pred$mean
+        count <- object@data$count
+        n <- length(count)
+        var <- (mean - count)^2
+        if(dist != "quasipoisson")
+            dsp <- unname(mledsp(count,mean,dist))
+          
+        switch(type,
+            quasipoisson=sum(var/mean)/(n-1),
+            nbinom=1/dsp,
+            nbinom1=dsp
+        )
+    }
+)
+
 
 setMethod("summary", "fitsir",
     function(object,...){
@@ -115,11 +170,11 @@ setMethod("summary", "fitsir",
             `Std. Error` = sqrt(diag(cc.vcov))
         )
         m2logL <- 2*object@min
-        new("summary-fitsir", call=object@call.orig, coef=ss@coef, summary=smat, m2logL=m2logL)
+        new("summary.fitsir", call=object@call.orig, coef=ss@coef, summary=smat, m2logL=m2logL)
     }
 )
 
-setMethod("show", "summary-fitsir",
+setMethod("show", "summary.fitsir",
     function(object){
         cat("Maximum likelihood estimation\n\nCall:\n")
         print(object@call)

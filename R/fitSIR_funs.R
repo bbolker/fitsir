@@ -305,10 +305,8 @@ fitsir <- function(data, start=startfun(),
     m <- new("fitsir", m)
     
     if (dist == "quasipoisson") {
-        mean <- SIR.detsim(data$times, trans.pars(coef(m)), type = type)
-        x <- data$count
-        ss <- sum((x-mean)^2/mean)
-        m@vcov <- ss/(length(x)-1) * m@vcov
+        chi <- residuals(m)
+        m@vcov <- chi * m@vcov
     }
     
     return(m)
@@ -383,7 +381,7 @@ mledsp <- function(x,mean,dist){
         gr=graddsp,
         x=x, mean=pmax(mean, 1e-100),
         method="BFGS", dist=dist,
-        control=list(maxit=1e5)
+        control=list(maxit=1e4)
     ))
     if(inherits(sol, "try-error")) {
         browser()
@@ -392,7 +390,7 @@ mledsp <- function(x,mean,dist){
 }
 
 ##' derivative of nbinom nll with respect to its dispersion parameter
-graddsp <- function(x,mean,dsp,dist){
+graddsp <- function(x,mean,dsp,dist) {
     switch(dist,
         nbinom = {
            -sum(digamma(x+dsp) - digamma(dsp) - x/(dsp+mean) + log(dsp) + 1 - log(dsp+mean) - dsp/(dsp+mean))

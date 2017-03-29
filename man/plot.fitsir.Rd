@@ -10,7 +10,7 @@
   lty.conf = 4, ...)
 }
 \arguments{
-\item{x}{An object of class \code{fitsir}}
+\item{x}{a fitsir object}
 
 \item{level}{the confidence level required}
 
@@ -40,16 +40,10 @@ harbin2 <- setNames(harbin, c("times", "count"))
 ff <- fitsir(harbin2, type="death")
 plot(ff)
 
-ff2 <- fitsir(harbin2, type="death", method="BFGS")
-ff3 <- fitsir(harbin2, type="death", dist="pois", method="BFGS")
-plot(ff2, level=0.95, col.traj="red", main="Normal error vs. Poisson error CIs")
+ff2 <- fitsir(harbin2, type="death", dist="nbinom")
+ff3 <- fitsir(harbin2, type="death", dist="quasipoisson")
+plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
-legend(2, 270, legend = c("Normal", "Poisson"), col=c("red", "blue"), lty=1)
-
-ff4 <- fitsir(harbin2, type="death", dist="nbinom")
-ff5 <- fitsir(harbin2, type="death", dist="qpois")
-plot(ff4, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
-plot(ff5, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
-legend(2, 270, legend = c("Negative binomial", "Quasipoisson"), col=c("red", "blue"), lty=1)
+legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
 }
 

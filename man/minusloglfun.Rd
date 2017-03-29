@@ -4,7 +4,7 @@
 \alias{minusloglfun}
 \title{Negative log likelihood}
 \usage{
-minusloglfun(x, mean, size = NULL, dist)
+minusloglfun(x, mean, dsp, dist)
 }
 \description{
 Negative log likelihood

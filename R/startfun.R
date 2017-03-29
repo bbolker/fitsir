@@ -142,10 +142,8 @@ startfun <- function(data = NULL,
             gamma <- beta - r
             N <- (beta + r)/c
             i0 <- iniI/beta/N
-        } else {
-            ## TODO: work on death startfun
-            
         }
+        
         x <- c(
             log.beta = log(beta),
             log.gamma = log(gamma),
