@@ -4,10 +4,11 @@
 \alias{fitsir}
 \title{fitting function}
 \usage{
-fitsir(data, start = startfun(), dist = c("norm", "pois", "qpois",
-  "nbinom"), type = c("prevalence", "incidence", "death"),
-  method = c("Nelder-Mead", "BFGS", "SANN"), control = list(maxit = 1e+05),
-  tcol = "times", icol = "count", timescale = NULL, debug = FALSE)
+fitsir(data, start = startfun(), dist = c("gaussian", "poisson",
+  "quasipoisson", "nbinom", "nbinom1"), type = c("prevalence", "incidence",
+  "death"), method = c("Nelder-Mead", "BFGS", "SANN"), control = list(maxit
+  = 1e+05), tcol = "times", icol = "count", timescale = NULL,
+  debug = FALSE, ...)
 }
 \arguments{
 \item{data}{data frame}

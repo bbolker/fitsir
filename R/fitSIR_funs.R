@@ -141,7 +141,7 @@ SIR.detsim <- function(t, params,
             if(type == "death"){
                 ## FIXME: type = "death", grad = TRUE sometimes returns an error
                 ## In log(odesol[,"S"]) : NaNs produced
-                ## possibly due to numerical imprecision... something like -1e-14
+                ## possibly due to underflow
                 odesol[,"logI"] <- exp(odesol[,"logI"])
                 odesol <- odesol[,which(names(odesol) %in% scol)] + odesol[,which(names(odesol) %in% icol)]
             }else if(type == "incidence"){
@@ -159,7 +159,7 @@ SIR.detsim <- function(t, params,
             if(!all(names(odesol) == icol))
                 names(odesol) <- icol
             
-            logSens <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
+            logSens <- c(beta, gamma, N, i0*(1-i0))
             odesol[,-1] <- sweep(odesol[,-1], 2, logSens, "*")
             return(odesol)
         }else{
@@ -193,12 +193,12 @@ SIR.logLik  <- function(params, count, times=NULL,
     tpars <- trans.pars(params)
     i.hat <- SIR.detsim(times,tpars,type)
     
-    if (dist %in% c("nbinom", "nbinom1")) {
-        dsp <- mledsp(count,i.hat,dist)
+    if (grepl("nbinom", dist)) {
+        log.dsp <- params[5]
     } else {
-        dsp <- NULL
+        log.dsp <- NULL
     }
-    r <- minusloglfun(count,i.hat,dsp,dist)
+    r <- minusloglfun(count,i.hat,log.dsp,dist)
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -243,12 +243,6 @@ fitsir <- function(data, start=startfun(),
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
     dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
-    if (method=="BFGS" & dist=="nbinom") {
-        message("Sensitivity equations are not available for negative binomial distribution.
-                \nReverting back to Nelder-Mead method.")
-        method <- "Nelder-Mead"
-    }
-    
     grad <- ifelse(method %in% c("Nelder-Mead", "SANN"), FALSE, TRUE)
     
     if (grad) {
@@ -291,7 +285,20 @@ fitsir <- function(data, start=startfun(),
         objfun <- SIR.logLik
         gradfun <- NULL
     }
-    attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
+    if (grepl("nbinom", dist)) {
+        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i","log.dsp")
+        if(length(start) < 5)
+            start <- c(start, 
+                log.dsp=switch(dist,
+                    "nbinom"=log(1e2),
+                    "nbinom1"=log(4)
+                )
+            )
+    } else {
+        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
+        start <- start[1:4]
+    }
+    
     
     m <- mle2(objfun,
               vecpar=TRUE,
@@ -305,10 +312,9 @@ fitsir <- function(data, start=startfun(),
     m <- new("fitsir", m)
     
     if (dist == "quasipoisson") {
-        mean <- SIR.detsim(data$times, trans.pars(coef(m)), type = type)
-        x <- data$count
-        ss <- sum((x-mean)^2/mean)
-        m@vcov <- ss/(length(x)-1) * m@vcov
+        rr <- residuals(m)
+        chisq <- sum(rr)/(length(rr)-1)
+        m@vcov <- chisq * m@vcov
     }
     
     return(m)
@@ -332,22 +338,30 @@ SIR.sensitivity <- function(params, count, times=NULL,
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
+    if (grepl("nbinom", dist)) {
+        log.dsp <- params[5]
+    } else {
+        log.dsp <- NULL
+    }
     
     with(as.list(c(tpars, r)), {
         i.hat <- exp(logI)
         
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         
-        nll <- minusloglfun(count, i.hat, dsp, dist)
+        nll <- minusloglfun(count, i.hat, log.dsp, dist)
         
-        sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, dsp = dsp, nu, dist = dist)))
+        sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, log.dsp = log.dsp, nu, dist = dist)))
+        
+        if (grepl("nbinom", dist))
+            sensitivity <- c(sensitivity, graddsp(count,i.hat,log.dsp,dist))
         
         return(sensitivity)
     })
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
-derivfun <- function(x,mean,dsp=NULL,nu,dist){
+derivfun <- function(x,mean,log.dsp=NULL,nu,dist){
     if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,
         gaussian = {
@@ -355,35 +369,43 @@ derivfun <- function(x,mean,dsp=NULL,nu,dist){
             sigma2 <- sum((mean-x)^2)/(n-1)
             diff <- mean-x
             sum(diff/sigma2 * nu + (1/(2*sigma2) - (diff^2)/(2*sigma2^2)) * sum(2 * diff/(n-1) * nu))}, 
-        poisson = sum((1 - x/mean) * nu)
+        poisson = sum((1 - x/mean) * nu),
+        nbinom = {
+            dsp <- exp(log.dsp)
+            sum(-(x/mean - (dsp+x)/(dsp+mean)) * nu)
+        },
+        nbinom1 = {
+            dsp <- exp(log.dsp)
+            sum(-1/(dsp-1) * (digamma(mean/(dsp-1) + x) - digamma(mean/(dsp-1)) - log(dsp)) * nu)
+        }
     )
 }
 
 ##' Negative log likelihood
-minusloglfun <- function(x,mean,dsp,dist){
+minusloglfun <- function(x,mean,log.dsp,dist){
     if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,
         gaussian = -sum(dnorm2(x,mean,log=TRUE)),
         poisson = -sum(dpois(x,mean,log=TRUE)),
-        nbinom = -sum(dnbinom(x,mu=mean,size=dsp,log=TRUE)),
-        nbinom1 = -sum(dnbinom1(x,mu=mean,tau=dsp,log=TRUE))
+        nbinom = -sum(dnbinom(x,mu=mean,size=exp(log.dsp),log=TRUE)),
+        nbinom1 = -sum(dnbinom1(x,mu=mean,tau=exp(log.dsp),log=TRUE))
     )
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
 mledsp <- function(x,mean,dist){
     start <- switch(dist,
-        "nbinom"=1e2,
-        "nbinom1"=2
+        "nbinom"=log(1e2),
+        "nbinom1"=log(2)
     )
     
     sol <- try(optim(
-        par=list(dsp=start),
+        par=list(log.dsp=start),
         fn=minusloglfun,
         gr=graddsp,
         x=x, mean=pmax(mean, 1e-100),
         method="BFGS", dist=dist,
-        control=list(maxit=1e5)
+        control=list(maxit=1e4)
     ))
     if(inherits(sol, "try-error")) {
         browser()
@@ -392,13 +414,14 @@ mledsp <- function(x,mean,dist){
 }
 
 ##' derivative of nbinom nll with respect to its dispersion parameter
-graddsp <- function(x,mean,dsp,dist){
+graddsp <- function(x,mean,log.dsp,dist) {
+    dsp <- exp(log.dsp)
     switch(dist,
         nbinom = {
-           -sum(digamma(x+dsp) - digamma(dsp) - x/(dsp+mean) + log(dsp) + 1 - log(dsp+mean) - dsp/(dsp+mean))
+           -sum(digamma(x+dsp) - digamma(dsp) - x/(dsp+mean) + log(dsp) + 1 - log(dsp+mean) - dsp/(dsp+mean)) * dsp
         }, nbinom1 = {
             k <- mean/(dsp-1)
-            -sum(mean/(dsp-1)^2 * (digamma(k) - digamma(x+k)-log(1/dsp)) + (x-mean)/(dsp*(dsp-1)))
+            -sum(mean/(dsp-1)^2 * (digamma(k) - digamma(x+k)-log(1/dsp)) + (x-mean)/(dsp*(dsp-1))) * dsp
         }
     )
 }

@@ -95,11 +95,12 @@ summary(ff)
 \noindent
 MLE returns slightly higher $\rzero$ and longer infectious period but lower population size.
 
-In fact, this is not the best fit. By looking at the Pearson residual, we can see that the data is over dispersed
+\subsection{Overdispersion}
+
+In fact, this is not the best fit. By looking at the sum of Pearson residuals divided by the mean (given by \code{sigma}), we can see that the data is over dispersed
 
 <<harbin_test>>==
-pp <- predict(ff)
-(pr <- sum((harbin$Deaths-pp$mean)^2/pp$mean)/(nrow(harbin)-1))
+sigma(ff)
 @
 
 \noindent
@@ -113,13 +114,13 @@ harbin2 <- setNames(harbin, c("times", "count"))
 Then, we can fit:
 
 <<harbin_dispersion>>=
-ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", method="BFGS")
-ff3 <- fitsir(harbin2, dist="nbinom", type="death")
-ff4 <- fitsir(harbin2, dist="nbinom1", type="death", hessian.opts=list(r=6))
+ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", method="BFGS", start=dietz_lpars)
+ff3 <- fitsir(harbin2, dist="nbinom", type="death", method="BFGS", start=dietz_lpars)
+ff4 <- fitsir(harbin2, dist="nbinom1", type="death", method="BFGS", start=dietz_lpars)
 @
 
 \noindent
-For \code{nbinom1}, \code{hessian.opts=list(r=6)} was used because default Hessian calculation is not stable.
+If you run the code, you will notice that \code{nbinom} and \code{nbinom1} estimate 5 parameters rather than 4. The last parameter \code{log.dsp} is the log of dispersion parameter. For NB2 (\code{nbinom}), \code{log.dsp} is log of the size parameter, whereas for NB1 (\code{nbinom1}), \code{log.dsp} is the log of $\tau$, where $\mu = \tau \mathrm{Var}$.
 
 Again, we can plot these three fits to compare:
 
@@ -137,7 +138,7 @@ hfits <- list(QP=ff2, NB2=ff3, NB1=ff4)
 lapply(hfits, logLik)
 @
 
-To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson).  
+To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson due to its high log likelihood value).
 
 <<mean-variance, echo=FALSE>>==
 library(dplyr)
@@ -162,8 +163,8 @@ mvtot <- hfits %>%
     bind_rows(.id="dist") %>%
     filter(dist != "QP")
 
-nb1k <- fitsir:::mledsp(harbin2$count, predict(ff4)$mean, "nbinom1")
-nb2k <- fitsir:::mledsp(harbin2$count, predict(ff3)$mean, "nbinom")
+nb1k <- sigma(ff4, "nbinom1")
+nb2k <- sigma(ff3, "nbinom")
 
 ggplot(mvtot, aes(mean2, var2)) + 
     geom_point(aes(size=n, col=dist), pch=1) +
@@ -171,7 +172,7 @@ ggplot(mvtot, aes(mean2, var2)) +
     scale_y_continuous(lim=c(0, 600), expand = c(0, 0), name="variance") +
     scale_size_continuous(range = c(5, 20), guide=FALSE) +
     geom_abline(intercept=0,slope=nb1k) + 
-    stat_function(fun=function(x) x + x^2/nb2k, linetype=2)
+    stat_function(fun=function(x) x + x^2*nb2k, linetype=2)
 @
 
 \noindent
@@ -181,6 +182,138 @@ Summarizing the best fit, we underestimate $\rzero$ as well as the population si
 
 <<harbin_nb1sum>>==
 summary(ff4)
+@
+
+\subsection{Autocorrelation}
+
+We notice that all three models (quasipoisson, NB1, and NB2) provide extremely similar trajectories as well as confidence intervals. So we can test for auto correlation:
+
+<<harbin_acf>>=
+acf(residuals(ff4, "raw"))
+@
+This doesn't seem like they're autocorrelated...
+\section{1918 Philadelphia Flu}
+
+Another data set provided by the \code{fitsir} package is 1918 philadelphia flu data.
+
+<<phila_head>>==
+head(phila1918)
+@
+
+Notice that the first column is in the \code{Date} format. Since \code{fitsir} expects a time column to be a numeric vector, we can either add a new column or create a new data frame. Here, we create a new data frame to avoid using \code{tcol} and \code{icol} argument.
+
+<<phila_newdata>>==
+phila1918a <- with(phila1918, data.frame(times=seq_along(date), count=pim)) 
+plot(phila1918a, log="y")
+@
+
+Notice that this data doesn't exactly follow the typical SIR trajectory. Due to its long tail, most models other than Gaussian fail. First, we can try to fit SIR model naively:
+
+<<phila_fit>>==
+(pfit <- fitsir(phila1918a, type="death"))
+plot(pfit, log="y")
+@
+
+We get a decent fit. However, this is actually a local minima. To avoid falling in a local minima, we can either use a different starting point or try different method. Here, we present how using different starting values can yield different results.
+
+\subsection{Starting values}
+
+\code{fitsir} provides a function (\code{startfun}) that automatically finds a reasonable starting value:
+
+<<phila_start>>==
+(pstart <- startfun(phila1918a, type="death"))
+plot(phila1918a, log="y")
+lines(SIR.detsim(phila1918a$times, trans.pars(pstart), type="death"))
+@
+
+Using this starting function, we can get a better fit:
+
+<<phila_start2>>==
+(pfit2 <- fitsir(phila1918a, type="death", start=pstart))
+@
+
+Yet, this is still not the best fit. We can further explore different starting values using Latin hypercube sampling.
+
+<<phila_LHS>>===
+set.seed(123)
+lhsfun <- function(param, size=0.5, length.out=20) {
+    seq((1-size)*param, (1+size)*param, length.out=length.out)
+}
+
+ltab <- sapply(pstart, lhsfun)
+ltab <- apply(ltab,2, sample)
+plist <- apply(ltab, 1, function(x) fitsir(phila1918a, type="death", start=x))
+(pLik <- sapply(plist, logLik))
+@
+
+We can explore the parameter space
+
+<<phila_param>>==
+ppars <- as.data.frame(t(sapply(plist, coef)))
+col <- c("black", "blue", "red")
+ccol <- col[cut(pLik, breaks=c(-900, -600, -520, -500))]
+
+plot(ppars, col=ccol)
+@
+
+We can see that the best fits (red points) converge to a single point. We get some fits that are not optimal but are close to the best fits (blue points). Then, there are fits that fail (black points).
+
+<<phila_traj>>==
+ppred <- plist %>%
+    lapply(predict) %>%
+    bind_rows(.id="sim") 
+
+ppred$logLik <- rep(pLik, each=length(phila1918a$times))
+
+ggplot(ppred) +
+    geom_line(aes(times, mean, group=sim, col=logLik)) +
+    geom_point(data=phila1918a, aes(times, count))
+@
+
+Looking at the best fit...
+
+<<phila_best>>===
+pbest <- plist[[which.max(pLik)]]
+summary(pbest) ## Nelder-Mead being unstable
+pbest2 <- fitsir(phila1918a, type="death", start=coef(pbest), method="BFGS")
+summary(pbest2)
+@
+
+\section{Bombay}
+
+In this section, we are going to be demonstrating some pathologies that might be associated with SIR fitting.
+
+<<bombay_set>>==
+bombay2 <- setNames(bombay, c("times", "count"))
+bb <- fitsir(bombay2, type="death", dist="nbinom", start=startfun(bombay2, type="death"))
+@
+
+Multiple local minimas:
+
+<<bombay_lm>>==
+blist <- apply(ltab, 1, function(x) fitsir(bombay2, type="death", start=x, method="BFGS"))
+bpars <- as.data.frame(t(sapply(blist, coef)))
+bLik <- sapply(blist, logLik)
+mle <- max(bLik)
+
+goodfits <- which(1.001 * mle < bLik)
+
+gpars <- bpars[goodfits,]
+
+plot(gpars)
+@
+
+Difference is not noticeable:
+
+<<bombay_lm_traj>>==
+plot(bombay2)
+l <- lapply(blist[goodfits], function(x) plot(x, add=TRUE))
+@
+
+Autocorrelation:
+
+<<bombay_acf>>==
+acf(residuals(bb, "raw"))
 @
 
 \bibliography{plague}
