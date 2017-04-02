@@ -1,3 +1,6 @@
+##' @import methods
+NULL
+
 ##' S4 plot method for fitsir objects
 ##' 
 ##' @name plot.fitsir
@@ -13,13 +16,14 @@
 ##' @param col.conf color for trajectories based on confidence intervals
 ##' @param lty.conf line type for trajectories based on confidence intervals
 ##' @param ... additional arguments
+##' @importFrom bbmle plot
 ##' @examples
 ##' harbin2 <- setNames(harbin, c("times", "count"))
-##' ff <- fitsir(harbin2, type="death")
+##' ff <- fitsir(harbin2, type="death", method="BFGS")
 ##' plot(ff)
 ##' 
-##' ff2 <- fitsir(harbin2, type="death", dist="nbinom")
-##' ff3 <- fitsir(harbin2, type="death", dist="quasipoisson")
+##' ff2 <- fitsir(harbin2, type="death", dist="nbinom", method="BFGS")
+##' ff3 <- fitsir(harbin2, type="death", dist="quasipoisson", method="BFGS")
 ##' plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 ##' plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 ##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
@@ -63,6 +67,7 @@ setMethod("plot", signature(x="fitsir", y="missing"),
 ##' @rdname coef.fitsir
 ##' @param object a fitsir object
 ##' @param type types of returned parameters
+##' @importFrom bbmle coef
 ##' @examples 
 ##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' coef(ff)
@@ -86,6 +91,7 @@ setMethod("coef", "fitsir",
 ##' @param object a fitsir object
 ##' @param level the confidence level required
 ##' @param times new time vector
+##' @importFrom bbmle predict
 ##' @examples
 ##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' predict(ff, level=0.95)
@@ -99,7 +105,7 @@ setMethod("predict", "fitsir",
         
         if(!missing(level)) {
             nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
-            xvcov <- object@vcov
+            xvcov <- object@vcov[1:4,1:4]
             if(any(diag(xvcov < 0)))
                 warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
             
@@ -120,6 +126,7 @@ setMethod("predict", "fitsir",
 ##' @rdname residuals.fitsir
 ##' @param object a fitsir object
 ##' @param type type of residuals
+##' @importFrom bbmle residuals
 ##' @examples
 ##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' residuals(ff)
@@ -139,6 +146,8 @@ setMethod("residuals", "fitsir",
     }
 )
 
+##' @exportMethod sigma
+setGeneric("sigma", function(object, ...) standardGeneric("sigma"))
 setMethod("sigma", "fitsir",
     function(object,dist=c("quasipoisson", "nbinom", "nbinom1")){
         dist <- match.arg(dist)
@@ -148,23 +157,23 @@ setMethod("sigma", "fitsir",
         n <- length(count)
         var <- (mean - count)^2
         if(dist != "quasipoisson")
-            dsp <- unname(mledsp(count,mean,dist))
+            log.dsp <- unname(mledsp(count,mean,dist))
           
-        switch(type,
+        switch(dist,
             quasipoisson=sum(var/mean)/(n-1),
-            nbinom=1/dsp,
-            nbinom1=dsp
+            nbinom=1/exp(log.dsp),
+            nbinom1=exp(log.dsp)
         )
     }
 )
 
-
+##' @importFrom bbmle summary
 setMethod("summary", "fitsir",
     function(object,...){
         cc <- object@coef
         ss <- callNextMethod()
         m <- summarize.pars.jacobian(cc)
-        cc.vcov <- m %*% object@vcov %*% t(m)
+        cc.vcov <- m %*% object@vcov[1:4,1:4] %*% t(m)
         smat <- rbind(
             Estimate=summarize.pars(cc),
             `Std. Error` = sqrt(diag(cc.vcov))

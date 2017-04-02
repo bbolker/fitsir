@@ -97,11 +97,10 @@ MLE returns slightly higher $\rzero$ and longer infectious period but lower popu
 
 \subsection{Overdispersion}
 
-In fact, this is not the best fit. By looking at the Pearson residual, we can see that the data is over dispersed
+In fact, this is not the best fit. By looking at the sum of Pearson residuals divided by the mean (given by \code{sigma}), we can see that the data is over dispersed
 
 <<harbin_test>>==
-pp <- predict(ff)
-(pr <- sum((harbin$Deaths-pp$mean)^2/pp$mean)/(nrow(harbin)-1))
+sigma(ff)
 @
 
 \noindent
@@ -115,13 +114,13 @@ harbin2 <- setNames(harbin, c("times", "count"))
 Then, we can fit:
 
 <<harbin_dispersion>>=
-ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", method="BFGS")
-ff3 <- fitsir(harbin2, dist="nbinom", type="death")
-ff4 <- fitsir(harbin2, dist="nbinom1", type="death", hessian.opts=list(r=6))
+ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", method="BFGS", start=dietz_lpars)
+ff3 <- fitsir(harbin2, dist="nbinom", type="death", method="BFGS", start=dietz_lpars)
+ff4 <- fitsir(harbin2, dist="nbinom1", type="death", method="BFGS", start=dietz_lpars)
 @
 
 \noindent
-For \code{nbinom1}, \code{hessian.opts=list(r=6)} was used because default Hessian calculation is not stable.
+If you run the code, you will notice that \code{nbinom} and \code{nbinom1} estimate 5 parameters rather than 4. The last parameter \code{log.dsp} is the log of dispersion parameter. For NB2 (\code{nbinom}), \code{log.dsp} is log of the size parameter, whereas for NB1 (\code{nbinom1}), \code{log.dsp} is the log of $\tau$, where $\mu = \tau \mathrm{Var}$.
 
 Again, we can plot these three fits to compare:
 
@@ -139,7 +138,7 @@ hfits <- list(QP=ff2, NB2=ff3, NB1=ff4)
 lapply(hfits, logLik)
 @
 
-To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson).  
+To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson due to its high log likelihood value).
 
 <<mean-variance, echo=FALSE>>==
 library(dplyr)
@@ -164,8 +163,8 @@ mvtot <- hfits %>%
     bind_rows(.id="dist") %>%
     filter(dist != "QP")
 
-nb1k <- fitsir:::mledsp(harbin2$count, predict(ff4)$mean, "nbinom1")
-nb2k <- fitsir:::mledsp(harbin2$count, predict(ff3)$mean, "nbinom")
+nb1k <- sigma(ff4, "nbinom1")
+nb2k <- sigma(ff3, "nbinom")
 
 ggplot(mvtot, aes(mean2, var2)) + 
     geom_point(aes(size=n, col=dist), pch=1) +
@@ -173,7 +172,7 @@ ggplot(mvtot, aes(mean2, var2)) +
     scale_y_continuous(lim=c(0, 600), expand = c(0, 0), name="variance") +
     scale_size_continuous(range = c(5, 20), guide=FALSE) +
     geom_abline(intercept=0,slope=nb1k) + 
-    stat_function(fun=function(x) x + x^2/nb2k, linetype=2)
+    stat_function(fun=function(x) x + x^2*nb2k, linetype=2)
 @
 
 \noindent
@@ -187,14 +186,12 @@ summary(ff4)
 
 \subsection{Autocorrelation}
 
-This doesn't seem like they're autocorrelated...
+We notice that all three models (quasipoisson, NB1, and NB2) provide extremely similar trajectories as well as confidence intervals. So we can test for auto correlation:
 
 <<harbin_acf>>=
-hh <- harbin2$count-predict(ff4)$mean
-acf(hh)
-plot(hh[-length(hh)], hh[-1])
+acf(residuals(ff4, "raw"))
 @
-
+This doesn't seem like they're autocorrelated...
 \section{1918 Philadelphia Flu}
 
 Another data set provided by the \code{fitsir} package is 1918 philadelphia flu data.
@@ -316,7 +313,7 @@ l <- lapply(blist[goodfits], function(x) plot(x, add=TRUE))
 Autocorrelation:
 
 <<bombay_acf>>==
-acf(bombay$mort-predict(bb)$mean)
+acf(residuals(bb, "raw"))
 @
 
 \bibliography{plague}

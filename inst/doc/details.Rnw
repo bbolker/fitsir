@@ -1,0 +1,73 @@
+%\VignetteEngine{knitr::knitr}
+%\VignetteDepends{ggplot2}
+%\VignetteDepends{plyr}
+%\VignetteDepends{reshape2}
+%\VignetteIndexEntry{Simple SIR model fitting}
+\documentclass{article}
+\title{Basic SIR fitting - Details}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{hyperref}
+\newcommand{\rzero}{{\cal R}_0}
+\newcommand{\code}[1]{{\tt #1}}
+\bibliographystyle{chicago}
+\date{\today}
+\begin{document}
+\maketitle
+
+<<opts,echo=FALSE>>=
+library("knitr")
+opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,message=FALSE,error=FALSE,warning=FALSE)
+@
+
+This vignette provides technical details of the \code{fitsir} package.
+
+\section{Sensitivity equations}
+
+Let $x_i(t,\theta)$ be the states of the SIR model and $\theta_{j,u}$ and $\theta_{j,c}$ be unconstrained and constrained parameters of the model. In order to employ gradient-based optimizatino algorithms (e.g. \code{BFGS}), we must solve for $d x_i(t,\theta)/d \theta_{j, u}$. To find the sensitivity equations, \code{fitsir} integrates the following set of differential equations along with the basic SIR model:
+$$
+\begin{aligned}
+\frac{d}{dt} \frac{d x_i(t,\theta)}{d \theta_{j, u}} &=  \left(\frac{d}{dt} \frac{d x_i(t,\theta)}{d \theta_{j, c}}\right) \frac{d \theta_{j, c}}{d \theta_{j, u}}\\
+&= \left(\frac{\partial f_x}{\partial \theta_{j, c}} + \sum_{i} \frac{\partial f_x}{\partial x_i} \frac{d x_i(t,\theta)}{d \theta_{j, c}} \right) \frac{d \theta_{j, c}}{d \theta_{j, u}}
+\end{aligned}
+$$
+Essentially, we integrate sensitivity equations with respect to constrained parameters for simplicity but multiply $d \theta_{j, c}/d \theta_{j, u}$ after to obtain sensitiviy equations with respect to unconstrained parameters because optimization is done using unconstrained parameters.
+
+For clarity, we write $\nu_{x_i, \theta_j}$ to represent sensitivity equations with respect to constrained parameters.
+Then, we write
+$$
+\nu_{x, \theta}(t; x, \theta) = \begin{bmatrix}
+\nu_{S, \beta} & \nu_{S, N} & \nu_{S, \gamma} & \nu_{S, I_0}\\
+\nu_{I, \beta} & \nu_{I, N} & \nu_{I, \gamma} & \nu_{I, I_0}\\
+\end{bmatrix}
+$$
+So the sensitivity equations of the SIR model is given by
+$$
+\frac{d}{dt} \nu_{x, \theta}(t; \cdot) = \begin{bmatrix}
+- \beta I/N & -\beta S/N\\
+\beta I/N & \beta S/N - \gamma
+\end{bmatrix} \nu_{x, \theta}(t; \cdot) + \begin{bmatrix}
+- SI/N & \beta S I/N^2 & 0 & 0\\
+SI /N & -\beta S I/N^2 & - I & 0
+\end{bmatrix}
+$$
+The following additional equations completes the sensitivity equations:
+$$
+\begin{aligned}
+\nu_{x, \theta}(0; x(0), \theta) &= \begin{bmatrix}
+0 & 1 - I_0 & 0 & -N\\
+0 & I_0 & 0 & N
+\end{bmatrix}\\
+\left[\frac{d \theta_{j, c}}{d \theta_{j, u}} \right]_{j=1,2,3,4} &= \begin{bmatrix}
+\beta & \gamma & N & (1-I0)I_0
+\end{bmatrix}
+\end{aligned}
+$$
+
+Using the sensitivity equations of the SIR model, we can now compute the sensitivity equations of negative log-likelihood functions with respect to the unconstrained parameters. Let $l(x; \theta)$
+
+
+
+\section{Starting function}
+
+\end{document}
