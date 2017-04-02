@@ -4,7 +4,7 @@
 \alias{graddsp}
 \title{derivative of nbinom nll with respect to its dispersion parameter}
 \usage{
-graddsp(x, mean, dsp, dist)
+graddsp(x, mean, log.dsp, dist)
 }
 \description{
 derivative of nbinom nll with respect to its dispersion parameter

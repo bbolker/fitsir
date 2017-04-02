@@ -37,11 +37,11 @@ S4 plot method for fitsir objects
 }
 \examples{
 harbin2 <- setNames(harbin, c("times", "count"))
-ff <- fitsir(harbin2, type="death")
+ff <- fitsir(harbin2, type="death", method="BFGS")
 plot(ff)
 
-ff2 <- fitsir(harbin2, type="death", dist="nbinom")
-ff3 <- fitsir(harbin2, type="death", dist="quasipoisson")
+ff2 <- fitsir(harbin2, type="death", dist="nbinom", method="BFGS")
+ff3 <- fitsir(harbin2, type="death", dist="quasipoisson", method="BFGS")
 plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)

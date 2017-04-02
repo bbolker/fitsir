@@ -4,7 +4,7 @@
 \alias{derivfun}
 \title{Derivative of negative log likelihood with respect to parameters}
 \usage{
-derivfun(x, mean, dsp = NULL, nu, dist)
+derivfun(x, mean, log.dsp = NULL, nu, dist)
 }
 \description{
 Derivative of negative log likelihood with respect to parameters
