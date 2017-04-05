@@ -20,6 +20,16 @@ library("knitr")
 opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,message=FALSE,error=FALSE,warning=FALSE)
 @
 
+\section{Preliminaries}
+
+Load packages:
+
+<<pkgs,message=FALSE>>=
+library(fitsir)
+library(dplyr)
+library(ggplot2); theme_set(theme_bw())
+@ 
+
 \section{Harbin}
 
 \begin{figure}[h!]
@@ -30,8 +40,8 @@ opts_chunk$set(fig.width=5,fig.height=5,tidy=FALSE,message=FALSE,error=FALSE,war
 \label{fig:dietzfig}
 \end{figure}
 
-Figure~\ref{fig:dietzfig} shows a Kermack-Mckendrick model fit to Harbin plague data. Based on the equations  (\ref{eq:km}) and estimates (``$x_0 = 2985$, $\rzero=2.00$ and
-a mean infectious period of 11 days'') that \cite{dietz_epidemics:_2009} provides, we can compare how Kermack-Mckendrick model fit differs from SIR model fit based on maximum likelihood estimation.
+Figure~\ref{fig:dietzfig} shows a Kermack-McKendrick model fit to Harbin plague data. Based on the equations (\ref{eq:km}) below and estimates (``$x_0 = 2985$, $\rzero=2.00$ and
+a mean infectious period of 11 days'') that \cite{dietz_epidemics:_2009} provides, we can compare the Kermack-McKendrick model to an SIR model fit based on maximum likelihood estimation.
 \begin{equation}
 \begin{split}
 \frac{dz}{dt} & = \frac{\gamma x_0}{2 \rzero^2} c_1 \text{sech}^2(c_1 \gamma t - c_2) , \\
@@ -40,20 +50,14 @@ c_2 & = \text{tanh}^{-1} \left(\frac{\rzero-1}{c_1}\right).
 \label{eq:km}
 \end{split}
 \end{equation}
-We note that the original equation provided by \cite{dietz_epidemics:_2009} contains a typo. $c_1 \gamma t$ after $\text{sech}^2$ in the first equation should be corrected to $c_1 \gamma t/2$ \citep{kermack1927contribution}.
+\footnote{The original equation provided by \cite{dietz_epidemics:_2009} contains a typo. $c_1 \gamma t$ after $\text{sech}^2$ in the first equation should be corrected to $c_1 \gamma t/2$ \citep{kermack1927contribution}.}
 
-First, load the pacakge: 
-<<load>>==
-library(fitsir)
-@
-
-\noindent 
-Since \code{fitsir} package lazy loads all data, \code{data(harbin)} is unnecessary.
+The \code{harbin} data set is built in:
 <<harbin_head>>==
 head(harbin)
 @
 
-Then, we transform the parameters provided by \cite{dietz_epidemics:_2009} into \emph{unconstrained parameters} (\code{log.beta, log.gamma, log.N, logit.i}) so that they can be used as starting parameters for MLE. Although \code{fitsir} expects a dataframe with column names \code{times} and \code{count}, we can specify a time column and a count column with \code{tcol} and \code{icol} arguments.
+We transform the parameters provided by \cite{dietz_epidemics:_2009} into \emph{unconstrained parameters} (\code{log.beta}, \code{log.gamma}, \code{log.N}, code{logit.i}) so that they can be used as starting parameters for MLE. Although \code{fitsir} expects a dataframe with column names \code{times} and \code{count}, we can specify a time column and a count column with \code{tcol} and \code{icol} arguments.
 
 <<harbin_fit>>==
 dietz_harbin <- c(x0=2985,rzero=2,gamma=7/11)
@@ -141,8 +145,6 @@ lapply(hfits, logLik)
 To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson due to its high log likelihood value).
 
 <<mean-variance, echo=FALSE>>==
-library(dplyr)
-library(ggplot2); theme_set(theme_bw())
 mvrel <- function(fit, data) {
     mean <- SIR.detsim(data$times, coef(fit, "trans"), type="death")
     data.frame(
@@ -234,7 +236,7 @@ Using this starting function, we can get a better fit:
 
 Yet, this is still not the best fit. We can further explore different starting values using Latin hypercube sampling.
 
-<<phila_LHS>>===
+<<phila_LHS,cache=TRUE>>===
 set.seed(123)
 lhsfun <- function(param, size=0.5, length.out=20) {
     seq((1-size)*param, (1+size)*param, length.out=length.out)
@@ -288,22 +290,20 @@ bombay2 <- setNames(bombay, c("times", "count"))
 bb <- fitsir(bombay2, type="death", dist="nbinom", start=startfun(bombay2, type="death"))
 @
 
-Multiple local minimas:
+Multiple local minima:
 
-<<bombay_lm>>==
-blist <- apply(ltab, 1, function(x) fitsir(bombay2, type="death", start=x, method="BFGS"))
+<<bombay_lm,cache=TRUE>>==
+blist <- apply(ltab, 1, fitsir,
+               data=bombay2, type="death", method="BFGS")
 bpars <- as.data.frame(t(sapply(blist, coef)))
 bLik <- sapply(blist, logLik)
 mle <- max(bLik)
-
 goodfits <- which(1.001 * mle < bLik)
-
 gpars <- bpars[goodfits,]
-
 plot(gpars)
 @
 
-Difference is not noticeable:
+The difference is not noticeable:
 
 <<bombay_lm_traj>>==
 plot(bombay2)
