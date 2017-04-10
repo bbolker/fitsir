@@ -29,12 +29,14 @@ NULL
 ##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
+             method=c("delta", "sample"),
              main, xlim, ylim, xlab, ylab, add=FALSE,
              col.traj="black",lty.traj=1,
              col.conf="red",lty.conf=4,
              ...){
+        method <- match.arg(method)
         count <- x@data$count
-        pred <- predict(x,level)
+        pred <- predict(x,level,method=method)
         times <- pred[["times"]]
         i.hat <- pred[["mean"]]
         
@@ -92,29 +94,53 @@ setMethod("coef", "fitsir",
 ##' @param level the confidence level required
 ##' @param times new time vector
 ##' @importFrom bbmle predict
+##' @importFrom MASS mvrnorm
 ##' @examples
 ##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' predict(ff, level=0.95)
 setMethod("predict", "fitsir",
-    function(object,level,times){
+    function(object,
+             level,times,
+             method=c("delta", "sample"),
+             debug=FALSE){
         if(missing(times)) times <- object@data$times
+        method <- match.arg(method)
         type <- object@data$type
         pars <- coef(object, "trans")
         i.hat <- SIR.detsim(times, pars, type)
         df <- data.frame(times=times,mean=i.hat)
         
-        if(!missing(level)) {
-            nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
-            xvcov <- object@vcov[1:4,1:4]
-            if(any(diag(xvcov < 0)))
-                warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
-            
-            ivcov <- nmat %*% xvcov %*% t(nmat)
-            ierr <- sqrt(diag(ivcov))
+        if (!missing(level)) {
             ll <- (1-level)/2
-            z <- -qnorm(ll)
-            cmat <- data.frame(i.hat - z * ierr, i.hat + z * ierr)
-            cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
+            
+            if (method=="delta") {
+                nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
+                xvcov <- object@vcov[1:4,1:4]
+                if(any(diag(xvcov < 0)))
+                    warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
+                
+                ivcov <- nmat %*% xvcov %*% t(nmat)
+                ierr <- sqrt(diag(ivcov))
+                z <- -qnorm(ll)
+                cmat <- data.frame(i.hat - z * ierr, i.hat + z * ierr)
+                cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
+            } else {
+                nsim <- 1000
+                simtraj <- matrix(NA,nrow=length(times),ncol=nsim)
+                simpars <- mvrnorm(nsim,mu=coef(object),
+                                   Sigma=vcov(object))
+                for (i in 1:nsim) {
+                    simtraj[,i] <- SIR.detsim(times, 
+                                              trans.pars(simpars[i,]),
+                                              type)
+                }
+                cmat <- t(apply(simtraj,1,quantile,
+                                c(ll,1-ll)))
+                if (debug) {
+                    matplot(times, simtraj, type="l",col=adjustcolor("black", alpha=0.1), lty=1)
+                    matlines(times, cmat, col=2, lty=1, lwd=2)
+                }
+            }
             df <- cbind(df, cmat)
         }
         df
