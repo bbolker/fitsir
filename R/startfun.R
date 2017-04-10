@@ -56,7 +56,7 @@ startfun <- function(data = NULL,
         }
         
         t.diff <- diff(times)
-        t.diff <- c(t.diff, t.diff[length(t.diff)])
+        t.diff <- c(t.diff[1], t.diff)
         
         if (type != "prevalence") {
             ## this should approximately be equal to the rates
