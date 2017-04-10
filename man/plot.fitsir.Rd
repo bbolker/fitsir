@@ -5,9 +5,9 @@
 \alias{plot.fitsir}
 \title{S4 plot method for fitsir objects}
 \usage{
-\S4method{plot}{fitsir,missing}(x, level, main, xlim, ylim, xlab, ylab,
-  add = FALSE, col.traj = "black", lty.traj = 1, col.conf = "red",
-  lty.conf = 4, ...)
+\S4method{plot}{fitsir,missing}(x, level, method = c("delta", "sample"), main,
+  xlim, ylim, xlab, ylab, add = FALSE, col.traj = "black", lty.traj = 1,
+  col.conf = "red", lty.conf = 4, ...)
 }
 \arguments{
 \item{x}{a fitsir object}
@@ -45,5 +45,7 @@ ff3 <- fitsir(harbin2, type="death", dist="quasipoisson", method="BFGS")
 plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
+
+plot(ff, level=0.5, col.traj="blue", col.conf="blue", method="sample")
 }
 

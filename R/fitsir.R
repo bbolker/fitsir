@@ -107,7 +107,7 @@ SIR.detsim <- function(t, params,
     with(as.list(params),{
             
         if(type %in% c("incidence", "death")){
-            t <- c(t, 2*t[length(t)] - t[length(t)-1])
+            t <- c(2*t[1]-t[2], t)
         }
         
         if (grad) {

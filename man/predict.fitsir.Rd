@@ -5,7 +5,8 @@
 \alias{predict.fitsir}
 \title{S4 predict method for fitsir objects}
 \usage{
-\S4method{predict}{fitsir}(object, level, times)
+\S4method{predict}{fitsir}(object, level, times, method = c("delta",
+  "sample"), debug = FALSE)
 }
 \arguments{
 \item{object}{a fitsir object}
