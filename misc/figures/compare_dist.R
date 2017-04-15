@@ -1,9 +1,10 @@
 library(dplyr)
-library(ggplot2)
+library(ggplot2); theme_set(theme_bw())
+library(gridExtra)
 library(fitsir)
 load("stochsim_data_fix.rda")
 
-save <- FALSE
+file.save <- FALSE
 
 nsim <- length(simlist)
 
@@ -11,10 +12,12 @@ targetpars <- names(fixedpars)
 
 testdist <- c("gaussian", "poisson", "quasipoisson", "nbinom")
 
-confint_summary <- function(x, level=0.95) {
+level <- 0.95
+ll <- (1-level)/2
+z <- qnorm(1-ll)
+
+confint_summary <- function(x, z=z) {
     ss <- summary(x)
-    ll <- (1-level)/2
-    z <- qnorm(1-ll)
     t(data.frame(lwr=ss@summary[1,]-z*ss@summary[2,], 
                upr=ss@summary[1,]+z*ss@summary[2,]))
 }
@@ -59,7 +62,7 @@ if(file.exists(filename)) {
         tmp <- summ %>% bind_rows(.id="dist")
         resList[[i]] <- tmp
         
-        if (save) save("fitList", "resList", file="compare_dist.rda")
+        if (file.save) save("fitList", "resList", file="compare_dist.rda")
         ## print(tmp)
     }
 }
@@ -70,17 +73,33 @@ combList <- resList %>%
 
 covList <- combList %>%
     mutate(coverage=ifelse(is.na(coverage), FALSE, coverage)) %>%
-    summarise(coverage=sum(coverage)/nsim)
+    summarise(value=sum(coverage)/nsim) %>%
+    mutate(key="coverage", 
+           lwr=value-z*sqrt(value*(1-value)/nsim),
+           upr=value+z*sqrt(value*(1-value)/nsim)) 
 
 covList %>% 
-    spread(dist, coverage) %>% 
+    select(dist, param, value) %>%
+    spread(dist, value) %>% 
     print
 
 mL <- combList %>%
     select(-coverage) %>%
     gather(key, value, -dist, -param, -sim)
 
-ggplot(mL) +
-    geom_boxplot(aes(x=param, y=value, group=interaction(dist, param), col=dist)) +
+g.base <- ggplot(mL, aes(x=param, y=value, group=interaction(dist, param), col = dist)) +
+    facet_wrap(~key, scale="free")
+
+g1 <- g.base +
+    geom_boxplot() +
     scale_y_log10() +
-    facet_wrap(~key)
+    theme(axis.title=element_blank())
+
+g2 <- g.base %+% covList +
+    geom_point(position=position_dodge((width=0.5))) +
+    geom_errorbar(aes(ymax=upr,ymin=lwr), position=position_dodge((width=0.5))) +
+    geom_hline(yintercept=level, lty=2) +
+    theme(legend.position="none",
+          axis.title.x=element_blank())
+
+grid.arrange(g2, g1, nrow = 1, widths=c(1,2.4))
