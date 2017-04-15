@@ -12,6 +12,10 @@ SIR.detsim(t, params, type = c("prevalence", "incidence", "death"),
 
 \item{params}{parameter vector (beta, gamma, N, i0)}
 
+\item{type}{type of count data}
+
+\item{grad}{(logical) return gradient with respect to unconstrained parameters}
+
 \item{func}{gradient function}
 }
 \description{

@@ -50,7 +50,7 @@ trans.pars <- function(params) {
 
 ##' Summarize parameters
 ##'
-##' Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0) from a set of epidemic parameters
+##' Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0)) from a set of epidemic parameters
 ##' 
 ##' @param params parameter vector (log.beta, log.gamma, logit.i)
 ##' @export
@@ -87,7 +87,9 @@ summarize.pars.jacobian <- function(params) {
 ##' @importFrom deSolve ode
 ##' @param t time vector
 ##' @param params parameter vector (beta, gamma, N, i0)
+##' @param type type of count data
 ##' @param func gradient function
+##' @param grad (logical) return gradient with respect to unconstrained parameters
 ##' @export
 ##' @useDynLib fitsir initmod
 ##' @examples
@@ -381,7 +383,11 @@ derivfun <- function(x,mean,log.dsp=NULL,nu,dist){
     )
 }
 
-##' Negative log likelihood
+##' Negative log likelihood functions
+##' @param x vector of quantiles
+##' @param mean vector of means
+##' @param log.dsp log of dispersion parameter
+##' @param dist conditional distribution of reported data
 minusloglfun <- function(x,mean,log.dsp,dist){
     if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,

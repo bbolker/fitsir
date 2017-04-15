@@ -5,9 +5,10 @@ library(dplyr)
 library(tidyr) #gather
 library(magrittr) ## %<>%
 library(tibble) ## add_column
+library(numDeriv)
 load("../LHSsim_full.rda")
 
-zero_margin <- theme(panel.margin=grid::unit(0,"lines"))
+zero_margin <- theme(panel.spacing=grid::unit(0,"lines"))
 no_legend <- theme(legend.position = "none")
 scale_colour_discrete <- function(...,palette="Dark2") scale_colour_brewer(...,palette=palette)
 
@@ -23,17 +24,20 @@ steps <- tibble(NM = getsteps(resList), BFGS = getsteps(resList.grad))
 
 steps2 <- steps %>% group_by(NM, BFGS) %>% summarize(rep = length(BFGS))
 
-## For some reason, Nelder-Mead gives us way more local minimas and get stuck in weird places...
-## For now, I'm just going to look at BFGS fits...
 ggplot(steps2, aes(NM, BFGS, size = rep)) + 
     geom_point() + 
     geom_abline(intercept = 0, slope = 1, col = 2, lty = 2)
 
-i <- steps$BFGS %>% which.max
+type <- "BFGS"
+ifelse(type == "BFGS", rL <- resList.grad, rL <- resList)
 
-start <- resList.grad[[i]]$start
-fits <- resList.grad[[i]]$fitted2
-data <- resList.grad[[i]]$data
+#set.seed(123)
+#i <- which(steps$NM == 5) %>% sample(1)
+i <- which.max(steps[[type]])
+
+start <- rL[[i]]$start
+fits <- rL[[i]]$fitted2
+data <- rL[[i]]$data
 
 fits2 <- fits %>%
     as_data_frame %>%
@@ -61,7 +65,7 @@ ex.fits <- fits2 %>%
 
 ex.sim <- ex.fits %>%
     apply(1, function(x){
-        tibble(tvec = data$tvec, count = SIR.detsim(data$tvec, trans.pars(x[1:4]), incidence = TRUE))
+        tibble(tvec = data$tvec, count = SIR.detsim(data$tvec, trans.pars(x[1:4]), type="incidence"))
     }) %>%
     bind_rows(.id = "run")
 
@@ -93,6 +97,31 @@ g.comb <- arrangeGrob(g.nll, g.traj, nrow = 2, heights = c(1, 2.5))
 
 ggsave("nll_steps.pdf", g.comb, width = 8, height = 6, dpi = 600)
 
+## testing local minimas
+ex.test <- ex.fits %>%
+    apply(1, function(x){
+        f <- fitsir(data, start = x[1:4], incidence = TRUE)
+        hess.m <- f@details$hessian
+        hess <- try(all(eigen(hess.m)$values > 0))
+        if(is(hess, "try-error")){
+            hess <- NA
+        }
+        c(coef(f), ll = logLik(f), conv = f@details$convergence, hessian = hess) %>% t %>% as_tibble
+    }) %>%
+    bind_rows(.id = "cc") %T>%
+    print
+
+## numeric hessian given by optim seems really unstable...
+ex.test %>%
+    apply(1, function(y){
+        pars <- unlist(y[2:5]) %>% as.numeric
+        names(pars) <- c("log.beta", "log.gamma", "log.N", "logit.i")
+        hess <- jacobian(fitsir:::findSens, x = pars, data = data, incidence = TRUE, sensOnly = TRUE)
+        try(all(eigen(hess)$values > 0))
+    })
+
+## trying some other plots
+
 summarize.pars2 <- . %>%
     apply(1, function(x){
         x[1:4] %>% summarize.pars %>% t %>% as_tibble
@@ -102,9 +131,8 @@ summarize.pars2 <- . %>%
 combList <- list(begin = start, end = fits2)
 
 combSum <- Map(summarize.pars2, combList) %>%
-    bind_rows(.id = "fit")
+    bind_rows(.id = "fit") %>%
+    add_column(cc = rep(fits2$cc, 2))
 
-ggplot(combSum) +
-    geom_point(aes(R0, r, col = fit)) +
-    scale_y_log10()
-
+ggplot(combSum %>% filter(cc %in% c(1:3))) +
+    geom_point(aes(R0, N, shape = fit, col = factor(cc)))

@@ -1,21 +1,8 @@
 ##' @import methods
 NULL
 
-##' S4 plot method for fitsir objects
-##' 
-##' @name plot.fitsir
-##' @rdname plot.fitsir
-##' @param x a fitsir object
-##' @param level the confidence level required
-##' @param main main title
-##' @param xlab x label
-##' @param ylab y label
-##' @param add (logical) add trajectories to an existing figure
-##' @param col.traj color for main trajectory
-##' @param lty.traj line type for main trajectory
-##' @param col.conf color for trajectories based on confidence intervals
-##' @param lty.conf line type for trajectories based on confidence intervals
-##' @param ... additional arguments
+##' @aliases plot,fitsir-class
+##' @describeIn fitsir plot deterministic trajectory
 ##' @importFrom bbmle plot
 ##' @examples
 ##' harbin2 <- setNames(harbin, c("times", "count"))
@@ -27,9 +14,10 @@ NULL
 ##' plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 ##' plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 ##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
+##' 
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
-             method=c("delta", "sample"),
+             method=c("delta", "mvrnorm"),
              main, xlim, ylim, xlab, ylab, add=FALSE,
              col.traj="black",lty.traj=1,
              col.conf="red",lty.conf=4,
@@ -64,17 +52,14 @@ setMethod("plot", signature(x="fitsir", y="missing"),
     }
 )
 
-##' S4 coef method for fitsir objects
-##' @name coef.fitsir
-##' @rdname coef.fitsir
-##' @param object a fitsir object
-##' @param type types of returned parameters
+##' @aliases coef,fitsir-class
+##' @describeIn fitsir extract coefficients
 ##' @importFrom bbmle coef
 ##' @examples 
-##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' coef(ff)
 ##' coef(ff,"trans")
 ##' coef(ff,"summary")
+##' 
 setMethod("coef", "fitsir", 
     function(object,type=c("raw","trans","summary")){
         type <- match.arg(type)
@@ -87,21 +72,17 @@ setMethod("coef", "fitsir",
     }
 )
 
-##' S4 predict method for fitsir objects
-##' @name predict.fitsir
-##' @rdname predict.fitsir
-##' @param object a fitsir object
-##' @param level the confidence level required
-##' @param times new time vector
+##' @aliases predict,fitsir-class
+##' @describeIn fitsir predict deterministic trajectory
 ##' @importFrom bbmle predict
 ##' @importFrom MASS mvrnorm
 ##' @examples
-##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' predict(ff, level=0.95)
+##' 
 setMethod("predict", "fitsir",
     function(object,
              level,times,
-             method=c("delta", "sample"),
+             method=c("delta", "mvrnorm"),
              debug=FALSE){
         if(missing(times)) times <- object@data$times
         method <- match.arg(method)
@@ -147,15 +128,13 @@ setMethod("predict", "fitsir",
     }
 )
 
-##' S4 residuals method for fitsir objects
-##' @name residuals.fitsir
-##' @rdname residuals.fitsir
-##' @param object a fitsir object
-##' @param type type of residuals
+
+##' @aliases residuals,fitsir-class
+##' @describeIn fitsir calculate residuals between data and deterministic trajectory
 ##' @importFrom bbmle residuals
 ##' @examples
-##' ff <- fitsir(harbin, type="death", method="BFGS", tcol="week", icol="Deaths")
 ##' residuals(ff)
+##' 
 setMethod("residuals", "fitsir",
     function(object,type=c("pearson", "raw")){
         type <- match.arg(type)
@@ -187,12 +166,14 @@ setMethod("sigma", "fitsir",
           
         switch(dist,
             quasipoisson=sum(var/mean)/(n-1),
-            nbinom=1/exp(log.dsp),
+            nbinom=exp(log.dsp),
             nbinom1=exp(log.dsp)
         )
     }
 )
 
+##' @aliases summary,fitsir-class
+##' @describeIn fitsir summarize fit using meaningful parameters
 ##' @importFrom bbmle summary
 setMethod("summary", "fitsir",
     function(object,...){

@@ -10,30 +10,30 @@
 ##' @param rfun function for generating random (observation) noise
 ##' @param rmean name of mean for \code{rfun}
 ##' @param rpars additional arguments for \code{rfun}
-simfun <- function(pars=c(beta=0.2,gamma=0.1,N=1000,i0=0.01),
+simfun <- function(pars=c(beta=0.2,gamma=0.1,N=10000,i0=0.01),
                    tmax=100,dt=1,
-                   rfun=rnorm,
-                   rmean="mean",
-                   rpars=list(sd=10),
-                   seed=NULL,
-                   drop.zeros=TRUE,
-                   incidence = FALSE
-                   ) {
+                   type="incidence",
+                   rfun=rnbinom,
+                   rmean="mu",
+                   rpars=list(size=10),
+                   seed=NULL) {
     if (!is.null(seed)) set.seed(seed)
-    tvec <- seq(0,tmax,by=dt)
-    ss <- SIR.detsim(tvec,pars, incidence = incidence)
+    times <- seq(0,tmax,by=dt)
+    ss <- SIR.detsim(times,pars,type)
     noiseArgs <- c(setNames(list(length(ss),ss),c("n",rmean)),
                    rpars)
     count <- do.call(rfun,noiseArgs)
-    ##
+    
     lastpos <- head(which(count <= 0),1)
-    return(data.frame(tvec,count)[1:(lastpos-1),])
+    if(length(lastpos)==0) lastpos <- length(ss)
+    
+    return(data.frame(times,count)[1:(lastpos-1),])
 }
 
 fitfun <- function(data) {
     t1 <- system.time(f1 <- fitsir(data))
                                    ## start=startfun(auto=TRUE,data=data)))
-    m1 <- glm(count~ns(tvec,df=3),family=gaussian(link="log"),data=data)
+    m1 <- glm(count~ns(times,df=3),family=gaussian(link="log"),data=data)
     res <- c(t=unname(t1["elapsed"]),coef(f1),coef(m1),
       nll.SIR=c(-logLik(f1)),nll.gam=c(-logLik(m1)))
     return(res)
@@ -64,7 +64,7 @@ fitfun2 <- function(data,
             stop("lhs not implemented yet")
         }
         fcoef <- coef(f1)
-        fpred <- SIR.detsim(nzdat$tvec,trans.pars(fcoef))
+        fpred <- SIR.detsim(nzdat$times,trans.pars(fcoef))
         mse <- mean((1-fpred/nzdat$count)^2)
         fitres[[s]] <- list(time=unname(t1["elapsed"]),fit=f1,coef=fcoef,
                             pred=fpred,mse=mse,nll=c(-logLik(f1)))
@@ -80,17 +80,17 @@ fitfun2 <- function(data,
         cm1 <- setNames(rep(NA,spline.df[i]),
                         c("intercept",paste0("beta",1:(spline.df[i]-1))))
         if (meth=="ss") {
-            t1 <- system.time(m1 <- smooth.spline(nzdat$tvec,log(nzdat$count),
+            t1 <- system.time(m1 <- smooth.spline(nzdat$times,log(nzdat$count),
                                 nknots=spline.df[i]-2))
             spred <- exp(fitted(m1))
             nll <- NA
 
         } else {  ## method == "ns"
             if (spline.var[i]=="log") {
-                t1 <- system.time(m1 <- lm(log(count)~ns(tvec,df=spline.df[i]-1),data=nzdat))
+                t1 <- system.time(m1 <- lm(log(count)~ns(times,df=spline.df[i]-1),data=nzdat))
                 nll <- c(-logLik(m1))+sum(1/nzdat$count)
             } else {
-                t1 <- system.time(m1 <- glm(count~ns(tvec,df=spline.df[i]-1),
+                t1 <- system.time(m1 <- glm(count~ns(times,df=spline.df[i]-1),
                                             data=nzdat,
                                             family=gaussian(link="log")))
                 nll <- c(-logLik(m1))
@@ -105,8 +105,8 @@ fitfun2 <- function(data,
                                mse=mean((1-spred/nzdat$count)^2))
     }
     ## if (plot.it) {
-    ##     plot(data$tvec,data$count,xlab="time",ylab="count",type="l",...)
-    ##     matpoints(nzdat$tvec,cbind(fpred,spred1),col=c(2,4),pch=1:2)
+    ##     plot(data$times,data$count,xlab="time",ylab="count",type="l",...)
+    ##     matpoints(nzdat$times,cbind(fpred,spred1),col=c(2,4),pch=1:2)
     ##     legend("topright",
     ##            c("data","fitsir","spline"),
     ##            col=c(1,2,4),lty=1)

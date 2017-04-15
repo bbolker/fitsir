@@ -3,9 +3,6 @@
 ##' 
 ##' @name fitsir-class
 ##' @rdname fitsir-class
-##' @method coef \code{signature(object="fitsir")}: Extract coefficients.
-##' @method plot \code{signature(signature(x="fitsir", y="missing"))}: Plot fitted trajectory.
-##' @method summary \code{signature(object="fitsir")}: Summarize result.
 ##' @seealso \code{\link{mle2-class}}
 ##' @exportClass fitsir
 setClass("fitsir", contains="mle2")
