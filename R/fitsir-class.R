@@ -15,7 +15,8 @@ setClass("fitsir", contains="mle2")
 ##' @rdname summary.fitsir-class
 ##' @method show \code{signature(object="fitsir")}: Show object.
 ##' @exportClass summary.fitsir
-setClass("summary.fitsir", representation(call="language",
-                                          coef="matrix",
-                                          summary="matrix",
-                                          m2logL="numeric"))
+setClass("summary.fitsir", contains="summary.mle2",
+         slots= c(call="language",
+                  coef="matrix",
+                  summary="matrix",
+                  m2logL="numeric"))
