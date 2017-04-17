@@ -2,11 +2,20 @@
 % Please edit documentation in R/fitsir.R
 \name{minusloglfun}
 \alias{minusloglfun}
-\title{Negative log likelihood}
+\title{Negative log likelihood functions}
 \usage{
 minusloglfun(x, mean, log.dsp, dist)
 }
+\arguments{
+\item{x}{vector of quantiles}
+
+\item{mean}{vector of means}
+
+\item{log.dsp}{log of dispersion parameter}
+
+\item{dist}{conditional distribution of reported data}
+}
 \description{
-Negative log likelihood
+Negative log likelihood functions
 }
 

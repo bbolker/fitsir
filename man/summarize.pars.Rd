@@ -13,6 +13,6 @@ summarize.pars.jacobian(params)
 \item{params}{parameter vector (log.beta, log.gamma, logit.i)}
 }
 \description{
-Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0) from a set of epidemic parameters
+Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0)) from a set of epidemic parameters
 }
 
