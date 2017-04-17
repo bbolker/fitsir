@@ -190,6 +190,8 @@ setMethod("summary", "fitsir",
     }
 )
 
+##' @aliases show,summary.fitsir-class
+##' @describeIn summary.fitsir pretty-prints \code{object}
 setMethod("show", "summary.fitsir",
     function(object){
         cat("Maximum likelihood estimation\n\nCall:\n")
