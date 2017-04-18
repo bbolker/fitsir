@@ -204,10 +204,6 @@ SIR.logLik  <- function(params, count, times=NULL,
     if (debug) cat(" ",r,"\n")
     return(r)
 }
-    
-## parnames() specification required in order to use
-## functions with parameters specified as a
-##  vector (rather than a list) with mle2
 
 ##' fitting function
 ##' @param data data frame
