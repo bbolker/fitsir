@@ -50,7 +50,7 @@ trans.pars <- function(params) {
 
 ##' Summarize parameters
 ##'
-##' Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0) from a set of epidemic parameters
+##' Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0)) from a set of epidemic parameters
 ##' 
 ##' @param params parameter vector (log.beta, log.gamma, logit.i)
 ##' @export
@@ -87,7 +87,9 @@ summarize.pars.jacobian <- function(params) {
 ##' @importFrom deSolve ode
 ##' @param t time vector
 ##' @param params parameter vector (beta, gamma, N, i0)
+##' @param type type of count data
 ##' @param func gradient function
+##' @param grad (logical) return gradient with respect to unconstrained parameters
 ##' @export
 ##' @useDynLib fitsir initmod
 ##' @examples
@@ -107,7 +109,7 @@ SIR.detsim <- function(t, params,
     with(as.list(params),{
             
         if(type %in% c("incidence", "death")){
-            t <- c(t, 2*t[length(t)] - t[length(t)-1])
+            t <- c(2*t[1]-t[2], t)
         }
         
         if (grad) {
@@ -202,10 +204,6 @@ SIR.logLik  <- function(params, count, times=NULL,
     if (debug) cat(" ",r,"\n")
     return(r)
 }
-    
-## parnames() specification required in order to use
-## functions with parameters specified as a
-##  vector (rather than a list) with mle2
 
 ##' fitting function
 ##' @param data data frame
@@ -381,7 +379,11 @@ derivfun <- function(x,mean,log.dsp=NULL,nu,dist){
     )
 }
 
-##' Negative log likelihood
+##' Negative log likelihood functions
+##' @param x vector of quantiles
+##' @param mean vector of means
+##' @param log.dsp log of dispersion parameter
+##' @param dist conditional distribution of reported data
 minusloglfun <- function(x,mean,log.dsp,dist){
     if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,
