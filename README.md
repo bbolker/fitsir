@@ -1,6 +1,8 @@
 fitsir
 ======
 
+[![Build Status](https://travis-ci.org/bbolker/fitsir.svg?branch=master)](https://travis-ci.org/bbolker/fitsir)
+
 Epidemic model fitting tools
 
 *To install*:
