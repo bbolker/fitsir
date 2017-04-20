@@ -28,9 +28,12 @@ figure/
 .Rproj.user
 *_cache/
 *_files/
+vignettes/*.pdf
+vignettes/*.tex
 
 # TeX stuff
 *.bbl
 *.blg
 *.aux
 *.out
+

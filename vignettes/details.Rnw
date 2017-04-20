@@ -2,7 +2,7 @@
 %\VignetteDepends{ggplot2}
 %\VignetteDepends{plyr}
 %\VignetteDepends{reshape2}
-%\VignetteIndexEntry{Simple SIR model fitting}
+%\VignetteIndexEntry{SIR fitting - details}
 \documentclass{article}
 \title{Basic SIR fitting - Details}
 \usepackage{amsmath}
@@ -35,13 +35,16 @@ Essentially, we integrate sensitivity equations with respect to constrained para
 
 For clarity, we write $\nu_{x_i, \theta_j}$ to represent sensitivity equations with respect to constrained parameters.
 Then, we write
+
 $$
 \nu_{x, \theta}(t; x, \theta) = \begin{bmatrix}
 \nu_{S, \beta} & \nu_{S, N} & \nu_{S, \gamma} & \nu_{S, I_0}\\
 \nu_{I, \beta} & \nu_{I, N} & \nu_{I, \gamma} & \nu_{I, I_0}\\
 \end{bmatrix}
 $$
-So the sensitivity equations of the SIR model is given by
+
+So the sensitivity equations of the SIR model are given by
+
 $$
 \frac{d}{dt} \nu_{x, \theta}(t; \cdot) = \begin{bmatrix}
 - \beta I/N & -\beta S/N\\
@@ -51,7 +54,9 @@ $$
 SI /N & -\beta S I/N^2 & - I & 0
 \end{bmatrix}
 $$
-The following additional equations completes the sensitivity equations:
+
+The following additional equations complete the sensitivity equations:
+
 $$
 \begin{aligned}
 \nu_{x, \theta}(0; x(0), \theta) &= \begin{bmatrix}
