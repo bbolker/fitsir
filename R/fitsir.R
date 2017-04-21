@@ -205,6 +205,8 @@ SIR.logLik  <- function(params, count, times=NULL,
     return(r)
 }
 
+ordered.pars <- c("log.beta","log.gamma","log.N","logit.i")
+  
 ##' fitting function
 ##' @param data data frame
 ##' @param start starting parameters
@@ -284,7 +286,7 @@ fitsir <- function(data, start=startfun(),
         gradfun <- NULL
     }
     if (grepl("nbinom", dist)) {
-        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i","log.dsp")
+        attr(objfun, "parnames") <- c(ordered.pars,"log.dsp")
         if(length(start) < 5)
             start <- c(start, 
                 log.dsp=switch(dist,
@@ -293,7 +295,7 @@ fitsir <- function(data, start=startfun(),
                 )
             )
     } else {
-        attr(objfun, "parnames") <- c("log.beta","log.gamma","log.N","logit.i")
+        attr(objfun, "parnames") <- ordered.pars
         start <- start[1:4]
     }
     
@@ -322,11 +324,19 @@ fitsir <- function(data, start=startfun(),
 
 ##' Gradient of negative log likelihood with respect to each parameters
 ##' 
-##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
+##' @param params parameter vector (log.N, logit.i, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
 ##' @param times time vector
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
+##' @examples
+##' fitsir:::SIR.sensitivity(c(log.beta=2,log.gamma=0,logit.i=-3,log.N=4),
+##'                  count=c(1,2,4,7,3),
+##'                  times=1:5,
+##'                  dist="gaussian",
+##'                  type="prevalence")
+##' 
+##' @export
 SIR.sensitivity <- function(params, count, times=NULL,
                      dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                      type = c("prevalence", "incidence", "death"), 
@@ -342,20 +352,18 @@ SIR.sensitivity <- function(params, count, times=NULL,
         log.dsp <- NULL
     }
     
-    with(as.list(c(tpars, r)), {
+    res <- with(as.list(c(tpars, r)), {
         i.hat <- exp(logI)
-        
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
-        
         nll <- minusloglfun(count, i.hat, log.dsp, dist)
-        
         sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, log.dsp = log.dsp, nu, dist = dist)))
-        
+        names(sensitivity) <- c("value",ordered.pars)
         if (grepl("nbinom", dist))
-            sensitivity <- c(sensitivity, graddsp(count,i.hat,log.dsp,dist))
-        
+            sensitivity <- c(sensitivity,
+                             log.dsp=unname(graddsp(count,i.hat,log.dsp,dist)))
         return(sensitivity)
     })
+    return(res)
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
