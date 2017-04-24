@@ -9,7 +9,7 @@ SIR.sensitivity(params, count, times = NULL, dist = c("gaussian", "poisson",
   "death"), debug = FALSE)
 }
 \arguments{
-\item{params}{parameter vector (log.N0, logit.i0, log.beta, log.gamma)}
+\item{params}{parameter vector (log.N, logit.i, log.beta, log.gamma)}
 
 \item{count}{data (epidemic counts for each time period)}
 
@@ -21,5 +21,13 @@ SIR.sensitivity(params, count, times = NULL, dist = c("gaussian", "poisson",
 }
 \description{
 Gradient of negative log likelihood with respect to each parameters
+}
+\examples{
+fitsir:::SIR.sensitivity(c(log.beta=2,log.gamma=0,logit.i=-3,log.N=4),
+                 count=c(1,2,4,7,3),
+                 times=1:5,
+                 dist="gaussian",
+                 type="prevalence")
+
 }
 
