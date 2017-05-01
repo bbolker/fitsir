@@ -107,7 +107,7 @@ setMethod("predict", "fitsir",
         if (!missing(level)) {
             ll <- (1-level)/2
             
-            nsim <- 5000
+            nsim <- 2000
             
             if (method != "delta") {
                 simtraj <- matrix(NA,nrow=length(times),ncol=nsim)
@@ -139,7 +139,6 @@ setMethod("predict", "fitsir",
                     ierr <- sqrt(diag(ivcov))
                     z <- -qnorm(ll)
                     cmat <- data.frame(i.hat - z * ierr, i.hat + z * ierr)
-                    cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
                     cmat
                 },
                 mvrnorm={
@@ -149,18 +148,23 @@ setMethod("predict", "fitsir",
                 wmvrnorm={
                     traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, dist=dist, type=type)
                     ##FIXME: vcov not symmetric for low tolerance?
-                    sample.logLik <- dmvnorm(simpars, coef(object), round(vcov(object), digits=5), log=TRUE)
+                    i <- 10
+                    while(!isSymmetric(round(vcov(object), i))) i <- i - 1
+                    sample.logLik <- dmvnorm(simpars, coef(object), round(vcov(object), i), log=TRUE)
                     ww <- exp(traj.logLik-sample.logLik)
                     cmat <- t(apply(simtraj, 1, wquant, weights=ww, probs=c(ll, 1-ll)))
                     cmat
                 },
                 sobol={
                     traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, dist=dist, type=type)
-                    ## King et al does this but it doesn't work... we get infinity for a lot of values...
-                    ## ww <- exp(traj.logLik-mean(traj.logLik))
-                    cmat <- t(apply(simtraj, 1, wquant, weights=-traj.logLik, probs=c(ll, 1-ll)))
+                    cc <- which(traj.logLik > max(traj.logLik) - 100)
+                    traj.logLik <- traj.logLik[cc]
+                    ww <- exp(traj.logLik-mean(traj.logLik))
+                    cmat <- t(apply(simtraj[,cc], 1, wquant, weights=ww, probs=c(ll, 1-ll)))
                     cmat
                 })
+            
+            cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
             
             if (debug & method != "delta") {
                 matplot(times, simtraj, type="l",col=adjustcolor("black", alpha=0.1), lty=1)
