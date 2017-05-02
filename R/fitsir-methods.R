@@ -17,7 +17,7 @@ NULL
 ##' 
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
-             method=c("delta", "mvrnorm"),
+             method=c("delta", "mvrnorm", "wmvrnorm", "sobol"),
              main, xlim, ylim, xlab, ylab, add=FALSE,
              col.traj="black",lty.traj=1,
              col.conf="red",lty.conf=4,
@@ -76,52 +76,101 @@ setMethod("coef", "fitsir",
 ##' @describeIn fitsir predict deterministic trajectory
 ##' @importFrom bbmle predict
 ##' @importFrom MASS mvrnorm
+##' @importFrom mvtnorm dmvnorm
 ##' @examples
 ##' predict(ff, level=0.95)
+##'
 ##' 
 setMethod("predict", "fitsir",
     function(object,
              level,times,
-             method=c("delta", "mvrnorm"),
+             method=c("delta", "mvrnorm", "wmvrnorm", "sobol"),
              debug=FALSE){
         if(missing(times)) times <- object@data$times
         method <- match.arg(method)
         type <- object@data$type
+        dist <- object@data$dist
         pars <- coef(object, "trans")
         i.hat <- SIR.detsim(times, pars, type)
         df <- data.frame(times=times,mean=i.hat)
         
+        ## wquant from King et al.
+        wquant <- function (x, weights, probs = c(0.025, 0.975)) {
+            idx <- order(x)
+            x <- x[idx]
+            weights <- weights[idx]
+            w <- cumsum(weights)/sum(weights)
+            rval <- approx(w,x,probs,rule=1)
+            rval$y
+        }
+        
         if (!missing(level)) {
             ll <- (1-level)/2
             
-            if (method=="delta") {
-                nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
-                xvcov <- object@vcov[1:4,1:4]
-                if(any(diag(xvcov < 0)))
-                    warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
-                
-                ivcov <- nmat %*% xvcov %*% t(nmat)
-                ierr <- sqrt(diag(ivcov))
-                z <- -qnorm(ll)
-                cmat <- data.frame(i.hat - z * ierr, i.hat + z * ierr)
-                cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
-            } else {
-                nsim <- 1000
+            nsim <- 2000
+            
+            if (method != "delta") {
                 simtraj <- matrix(NA,nrow=length(times),ncol=nsim)
-                simpars <- mvrnorm(nsim,mu=coef(object),
-                                   Sigma=vcov(object))
+                if (method == "sobol") {
+                    ranges <- confint(object)
+                    simpars <- sobolDesign(lower=ranges[,1],
+                                           upper=ranges[,2],
+                                           nseq=nsim)
+                } else {
+                    simpars <- mvrnorm(nsim,mu=coef(object),
+                                       Sigma=vcov(object))
+                }
+                
                 for (i in 1:nsim) {
                     simtraj[,i] <- SIR.detsim(times, 
                                               trans.pars(simpars[i,]),
                                               type)
                 }
-                cmat <- t(apply(simtraj,1,quantile,
-                                c(ll,1-ll)))
-                if (debug) {
-                    matplot(times, simtraj, type="l",col=adjustcolor("black", alpha=0.1), lty=1)
-                    matlines(times, cmat, col=2, lty=1, lwd=2)
-                }
             }
+            
+            cmat <- switch(method,
+                delta={
+                    nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
+                    xvcov <- object@vcov[1:4,1:4]
+                    if(any(diag(xvcov < 0)))
+                        warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
+                    
+                    ivcov <- nmat %*% xvcov %*% t(nmat)
+                    ierr <- sqrt(diag(ivcov))
+                    z <- -qnorm(ll)
+                    cmat <- data.frame(i.hat - z * ierr, i.hat + z * ierr)
+                    cmat
+                },
+                mvrnorm={
+                    cmat <- t(apply(simtraj,1,quantile,c(ll,1-ll)))
+                    cmat
+                },
+                wmvrnorm={
+                    traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, dist=dist, type=type)
+                    ##FIXME: vcov not symmetric for low tolerance?
+                    i <- 10
+                    while(!isSymmetric(round(vcov(object), i))) i <- i - 1
+                    sample.logLik <- dmvnorm(simpars, coef(object), round(vcov(object), i), log=TRUE)
+                    ww <- exp(traj.logLik-sample.logLik)
+                    cmat <- t(apply(simtraj, 1, wquant, weights=ww, probs=c(ll, 1-ll)))
+                    cmat
+                },
+                sobol={
+                    traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, dist=dist, type=type)
+                    cc <- which(traj.logLik > max(traj.logLik) - 100)
+                    traj.logLik <- traj.logLik[cc]
+                    ww <- exp(traj.logLik-mean(traj.logLik))
+                    cmat <- t(apply(simtraj[,cc], 1, wquant, weights=ww, probs=c(ll, 1-ll)))
+                    cmat
+                })
+            
+            cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
+            
+            if (debug & method != "delta") {
+                matplot(times, simtraj, type="l",col=adjustcolor("black", alpha.f=0.1), lty=1)
+                matlines(times, cmat, col=2, lty=1, lwd=2)
+            }
+            
             df <- cbind(df, cmat)
         }
         df
@@ -151,9 +200,12 @@ setMethod("residuals", "fitsir",
     }
 )
 
-##' @exportMethod sigma
-setGeneric("sigma", function(object, ...) standardGeneric("sigma"))
-setMethod("sigma", "fitsir",
+setGeneric("dispersion", function(object, ...) standardGeneric("dispersion"))
+
+##' @aliases dispersion,fitsir-class
+##' @describeIn fitsir calculate dispersion parameter
+##' @exportMethod dispersion
+setMethod("dispersion", "fitsir",
     function(object,dist=c("quasipoisson", "nbinom", "nbinom1")){
         dist <- match.arg(dist)
         pred <- predict(object)

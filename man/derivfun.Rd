@@ -6,6 +6,17 @@
 \usage{
 derivfun(x, mean, log.dsp = NULL, nu, dist)
 }
+\arguments{
+\item{x}{vector of quantiles}
+
+\item{mean}{vector of means}
+
+\item{log.dsp}{log of dispersion parameter}
+
+\item{nu}{sensitivity w.r.t. unconstrained parameters}
+
+\item{dist}{conditional distribution of reported data}
+}
 \description{
 Derivative of negative log likelihood with respect to parameters
 }

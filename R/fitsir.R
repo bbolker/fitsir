@@ -12,7 +12,7 @@ dnorm2 <- function(x,mean,log=FALSE) {
 ##' @details 
 ##' Variance is \code{tau * mu}
 ##' @param x numeric value
-##' @param mean mu of distribution
+##' @param mu mean of the distribution
 ##' @param tau numeric value
 ##' @param log (logical) return log-likelihood
 ##' @return likelihood or log-likelihood vector
@@ -88,7 +88,6 @@ summarize.pars.jacobian <- function(params) {
 ##' @param t time vector
 ##' @param params parameter vector (beta, gamma, N, i0)
 ##' @param type type of count data
-##' @param func gradient function
 ##' @param grad (logical) return gradient with respect to unconstrained parameters
 ##' @export
 ##' @useDynLib fitsir initmod
@@ -234,7 +233,6 @@ fitsir <- function(data, start=startfun(),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
                    control=list(maxit=1e5),
                    tcol = "times", icol = "count",
-                   timescale=NULL, ## TODO: what is this?
                    debug=FALSE,
                    ...) {
     dist <- match.arg(dist)
@@ -329,6 +327,7 @@ fitsir <- function(data, start=startfun(),
 ##' @param times time vector
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
+##' @param debug print debugging output?
 ##' @examples
 ##' fitsir:::SIR.sensitivity(c(log.beta=2,log.gamma=0,logit.i=-3,log.N=4),
 ##'                  count=c(1,2,4,7,3),
@@ -339,8 +338,8 @@ fitsir <- function(data, start=startfun(),
 ##' @export
 SIR.sensitivity <- function(params, count, times=NULL,
                      dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
-                     type = c("prevalence", "incidence", "death"), 
-                     debug = FALSE) {
+                     type = c("prevalence", "incidence", "death"),
+                     debug=FALSE) {
     dist <- match.arg(dist)
     type <- match.arg(type)
     if (is.null(times)) times <- seq(length(count))
@@ -367,6 +366,12 @@ SIR.sensitivity <- function(params, count, times=NULL,
 }
 
 ##' Derivative of negative log likelihood with respect to parameters
+##' 
+##' @param x vector of quantiles
+##' @param mean vector of means
+##' @param log.dsp log of dispersion parameter
+##' @param nu sensitivity w.r.t. unconstrained parameters
+##' @param dist conditional distribution of reported data
 derivfun <- function(x,mean,log.dsp=NULL,nu,dist){
     if (dist == "quasipoisson") dist <- "poisson"
     switch(dist,
@@ -388,7 +393,7 @@ derivfun <- function(x,mean,log.dsp=NULL,nu,dist){
 }
 
 ##' Negative log likelihood functions
-##' @param x vector of quantiles
+##' @param x vector of observations
 ##' @param mean vector of means
 ##' @param log.dsp log of dispersion parameter
 ##' @param dist conditional distribution of reported data

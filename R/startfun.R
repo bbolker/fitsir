@@ -1,7 +1,7 @@
 ##' Fit a spline to an epidemic data
 ##' @param count data (epidemic counts for each time period)
 ##' @param times time vector
-##' @param maxit maximum number of iterations
+##' @param itmax maximum number of iterations
 ##' @param relpeakcrit critical relative peak value to test for single peak
 smooth.spline2 <- function(times, count, itmax=100,relpeakcrit=0.1){
     single_peak <- FALSE
@@ -96,12 +96,12 @@ startfun <- function(data = NULL,
             ss.int <- transform(ss.data, int = count * t.diff)
             ss.int <- ss.int[times<ss.tmax, ]
             
-            d0 <- sum(ss.int[,3]) - iniI
+            d0 <- sum(ss.int[,3])
             
             if (type == "prevalence") {
                 while(r - c * d0 < 0){
                     ss.int <- ss.int[-nrow(ss.int),]
-                    d0 <- sum(ss.int[,3]) - iniI
+                    d0 <- sum(ss.int[,3])
                 }
                 
                 gamma <- c * Ip/(r - c * d0)

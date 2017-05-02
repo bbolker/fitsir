@@ -4,17 +4,17 @@ context("basic tests")
 test_that("bombay fits", {
     bombay2 <- setNames(bombay,c("times","count"))
     ss0 <- startfun(data=bombay2)
-    oldval <- structure(c(1.0309058069171, 0.346654710263127, 0.0891544410103143, 
-                          2.2990741991925e-06, 4.0426380952539, 1758372.47982203, 1758376.52246012
+    oldval <- structure(c(1.02925789958946, 0.346654710263133, 0.0844006982257594, 
+                          2.0637347682551e-06, 4.0426380952539, 1958890.17062942, 1958894.21326752
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
 
     expect_equal(summarize.pars(ss0),
                  oldval,
                      tolerance=1e-6)
     f1 <- fitsir(bombay2,start=ss0)
-    oldval <- structure(c(1.03291670446211, 0.379613660510302, 0.086711064132579, 
-2.72670847076781e-06, 4.58863236589658, 1682842.11650311, 1682846.70513547
-), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
+    oldval <- structure(c(1.03113679902073, 0.379386262686271, 0.0820714983201187, 
+                          2.45380854127156e-06, 4.60163685763881, 1875299.35148014, 1875303.953117
+                          ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
 
     expect_equal(summarize.pars(coef(f1)),
                  oldval,
@@ -24,8 +24,8 @@ test_that("bombay fits", {
 test_that("philadelphia fits", {
     phila1918a <- with(phila1918, data.frame(times=seq_along(date), count=pim))
     ss0 <- startfun(data=phila1918a, type="death")
-    oldval <- structure(c(1.15432056672458, 0.200572186303702, 0.769401628254234, 
-                          6.04738321959361e-06, 0.270409668445559, 44714.8830089917, 44715.1534186602
+    oldval <- structure(c(1.15431358642151, 0.200572186303702, 0.769366826304856, 
+                          6.04687272169963e-06, 0.270409668445559, 44718.6580167848, 44718.9284264533
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(ss0),
@@ -33,8 +33,8 @@ test_that("philadelphia fits", {
                  tolerance=1e-6)
     
     suppressWarnings(f1 <- fitsir(phila1918a,start=ss0,type="death", method="BFGS"))
-    oldval <- structure(c(2.30212921317221, 0.316802420552837, 4.11022494998596, 
-                          3.51779353016634e-06, 0.0529188458970781, 15043.1397652272, 15043.1926840731
+    oldval <- structure(c(2.30220287763808, 0.316806675649932, 4.11040226651347, 
+                          3.51750401083138e-06, 0.0529137267886822, 15042.9226239687, 15042.9755376955
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(coef(f1)),
@@ -45,17 +45,17 @@ test_that("philadelphia fits", {
 
 test_that("harbin fits", {
     ss0 <- startfun(data=harbin, tcol="week", icol="Deaths", type="death")
-    oldval <- structure(c(1.9397042255199, 0.781494541260066, 1.20244502796493, 
-                         0.000107170076053567, 0.158254392786069, 1476.50760807211, 1476.66586246489
-                         ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
+    oldval <- structure(c(1.93949639324649, 0.781494541260066, 1.20217908589824, 
+                          0.000107134155201887, 0.158254392786069, 1477.00271717458, 1477.16097156737
+                          ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(ss0),
                  oldval,
                  tolerance=1e-6)
     
     suppressWarnings(f1 <- fitsir(harbin,start=ss0,type="death",method="BFGS",dist="nbinom1",tcol="week",icol="Deaths"))
-    oldval <- structure(c(1.86307149474402, 0.79799269531904, 1.08155312674755, 
-                          0.000351206271779594, 0.700632329574636, 1994.23051176552, 1994.93114409509
+    oldval <- structure(c(1.86308516264076, 0.797994657946513, 1.0815675945272, 
+                          0.000351208521589494, 0.700632731269682, 1994.2188757669, 1994.91950849817
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(coef(f1)),

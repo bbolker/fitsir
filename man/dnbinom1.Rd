@@ -9,11 +9,11 @@ dnbinom1(x, mu, tau, log = FALSE)
 \arguments{
 \item{x}{numeric value}
 
+\item{mu}{mean of the distribution}
+
 \item{tau}{numeric value}
 
 \item{log}{(logical) return log-likelihood}
-
-\item{mean}{mu of distribution}
 }
 \value{
 likelihood or log-likelihood vector

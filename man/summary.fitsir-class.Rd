@@ -21,10 +21,10 @@ Summary of SIR model fit
 \section{Slots}{
 
 \describe{
-\item{\code{call}}{Objecto of class "\code{language}". 
+\item{\code{call}}{Objecto of class "\code{language}".
 The call that generated the "fitsir" object.}
 
-\item{\code{coef}}{Object of class "\code{matrix}". 
+\item{\code{coef}}{Object of class "\code{matrix}".
 Estimated coefficients and standard errors.}
 
 \item{\code{summary}}{Object of class "\code{matrix}".

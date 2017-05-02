@@ -4,6 +4,8 @@
 \name{fitsir-class}
 \alias{coef,fitsir-class}
 \alias{coef,fitsir-method}
+\alias{dispersion,fitsir-class}
+\alias{dispersion,fitsir-method}
 \alias{fitsir-class}
 \alias{plot,fitsir,missing-method}
 \alias{plot,fitsir-class}
@@ -16,16 +18,19 @@
 \title{Class "fitsir". 
 Result of SIR model fitting based on Maximum Likelihood Estimation}
 \usage{
-\S4method{plot}{fitsir,missing}(x, level, method = c("delta", "mvrnorm"),
-  main, xlim, ylim, xlab, ylab, add = FALSE, col.traj = "black",
-  lty.traj = 1, col.conf = "red", lty.conf = 4, ...)
+\S4method{plot}{fitsir,missing}(x, level, method = c("delta", "mvrnorm",
+  "wmvrnorm", "sobol"), main, xlim, ylim, xlab, ylab, add = FALSE,
+  col.traj = "black", lty.traj = 1, col.conf = "red", lty.conf = 4, ...)
 
 \S4method{coef}{fitsir}(object, type = c("raw", "trans", "summary"))
 
 \S4method{predict}{fitsir}(object, level, times, method = c("delta",
-  "mvrnorm"), debug = FALSE)
+  "mvrnorm", "wmvrnorm", "sobol"), debug = FALSE)
 
 \S4method{residuals}{fitsir}(object, type = c("pearson", "raw"))
+
+\S4method{dispersion}{fitsir}(object, dist = c("quasipoisson", "nbinom",
+  "nbinom1"))
 
 \S4method{summary}{fitsir}(object, ...)
 }
@@ -42,6 +47,8 @@ Result of SIR model fitting based on Maximum Likelihood Estimation
 \item \code{predict}: predict deterministic trajectory
 
 \item \code{residuals}: calculate residuals between data and deterministic trajectory
+
+\item \code{dispersion}: calculate dispersion parameter
 
 \item \code{summary}: summarize fit using meaningful parameters
 }}
@@ -61,6 +68,7 @@ coef(ff,"trans")
 coef(ff,"summary")
 
 predict(ff, level=0.95)
+
 
 residuals(ff)
 

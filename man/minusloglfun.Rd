@@ -7,7 +7,7 @@
 minusloglfun(x, mean, log.dsp, dist)
 }
 \arguments{
-\item{x}{vector of quantiles}
+\item{x}{vector of observations}
 
 \item{mean}{vector of means}
 
