@@ -96,12 +96,12 @@ startfun <- function(data = NULL,
             ss.int <- transform(ss.data, int = count * t.diff)
             ss.int <- ss.int[times<ss.tmax, ]
             
-            d0 <- sum(ss.int[,3]) - iniI
+            d0 <- sum(ss.int[,3])
             
             if (type == "prevalence") {
                 while(r - c * d0 < 0){
                     ss.int <- ss.int[-nrow(ss.int),]
-                    d0 <- sum(ss.int[,3]) - iniI
+                    d0 <- sum(ss.int[,3])
                 }
                 
                 gamma <- c * Ip/(r - c * d0)
