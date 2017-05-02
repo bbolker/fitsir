@@ -167,7 +167,7 @@ setMethod("predict", "fitsir",
             cmat <- setNames(cmat, c(paste(100*ll, "%"), paste(100*(1-ll), "%")))
             
             if (debug & method != "delta") {
-                matplot(times, simtraj, type="l",col=adjustcolor("black", alpha=0.1), lty=1)
+                matplot(times, simtraj, type="l",col=adjustcolor("black", alpha.f=0.1), lty=1)
                 matlines(times, cmat, col=2, lty=1, lwd=2)
             }
             
@@ -200,9 +200,12 @@ setMethod("residuals", "fitsir",
     }
 )
 
-##' @exportMethod sigma
-setGeneric("sigma", function(object, ...) standardGeneric("sigma"))
-setMethod("sigma", "fitsir",
+setGeneric("dispersion", function(object, ...) standardGeneric("dispersion"))
+
+##' @aliases dispersion,fitsir-class
+##' @describeIn fitsir calculate dispersion parameter
+##' @exportMethod dispersion
+setMethod("dispersion", "fitsir",
     function(object,dist=c("quasipoisson", "nbinom", "nbinom1")){
         dist <- match.arg(dist)
         pred <- predict(object)

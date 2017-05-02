@@ -12,9 +12,9 @@ setClass("fitsir", contains="mle2")
 ##' 
 ##' @name summary.fitsir-class
 ##' @rdname summary.fitsir-class
-##' @slot call Objecto of class "\code{language}". 
+##' @slot call Objecto of class "\code{language}".
 ##' The call that generated the "fitsir" object.
-##' @slot coef Object of class "\code{matrix}". 
+##' @slot coef Object of class "\code{matrix}".
 ##' Estimated coefficients and standard errors.
 ##' @slot summary Object of class "\code{matrix}".
 ##' Summary of estimated coefficients and standard errors.

@@ -4,6 +4,8 @@
 \name{fitsir-class}
 \alias{coef,fitsir-class}
 \alias{coef,fitsir-method}
+\alias{dispersion,fitsir-class}
+\alias{dispersion,fitsir-method}
 \alias{fitsir-class}
 \alias{plot,fitsir,missing-method}
 \alias{plot,fitsir-class}
@@ -27,6 +29,9 @@ Result of SIR model fitting based on Maximum Likelihood Estimation}
 
 \S4method{residuals}{fitsir}(object, type = c("pearson", "raw"))
 
+\S4method{dispersion}{fitsir}(object, dist = c("quasipoisson", "nbinom",
+  "nbinom1"))
+
 \S4method{summary}{fitsir}(object, ...)
 }
 \description{
@@ -42,6 +47,8 @@ Result of SIR model fitting based on Maximum Likelihood Estimation
 \item \code{predict}: predict deterministic trajectory
 
 \item \code{residuals}: calculate residuals between data and deterministic trajectory
+
+\item \code{dispersion}: calculate dispersion parameter
 
 \item \code{summary}: summarize fit using meaningful parameters
 }}

@@ -11,9 +11,9 @@ smooth.spline2(times, count, itmax = 100, relpeakcrit = 0.1)
 
 \item{count}{data (epidemic counts for each time period)}
 
-\item{relpeakcrit}{critical relative peak value to test for single peak}
+\item{itmax}{maximum number of iterations}
 
-\item{maxit}{maximum number of iterations}
+\item{relpeakcrit}{critical relative peak value to test for single peak}
 }
 \description{
 Fit a spline to an epidemic data

@@ -18,6 +18,8 @@ SIR.sensitivity(params, count, times = NULL, dist = c("gaussian", "poisson",
 \item{dist}{conditional distribution of reported data}
 
 \item{type}{type of reported data}
+
+\item{debug}{print debugging output?}
 }
 \description{
 Gradient of negative log likelihood with respect to each parameters

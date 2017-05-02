@@ -1,7 +1,7 @@
 ##' Fit a spline to an epidemic data
 ##' @param count data (epidemic counts for each time period)
 ##' @param times time vector
-##' @param maxit maximum number of iterations
+##' @param itmax maximum number of iterations
 ##' @param relpeakcrit critical relative peak value to test for single peak
 smooth.spline2 <- function(times, count, itmax=100,relpeakcrit=0.1){
     single_peak <- FALSE
