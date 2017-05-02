@@ -77,6 +77,7 @@ setMethod("coef", "fitsir",
 ##' @importFrom bbmle predict
 ##' @importFrom MASS mvrnorm
 ##' @importFrom mvtnorm dmvnorm
+##' @importFrom stats qnorm vcov
 ##' @examples
 ##' predict(ff, level=0.95)
 ##'
