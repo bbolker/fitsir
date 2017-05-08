@@ -195,11 +195,11 @@ SIR.logLik  <- function(params, count, times=NULL,
     i.hat <- SIR.detsim(times,tpars,type)
     
     if (grepl("nbinom", dist)) {
-        log.dsp <- params[5]
+        par <- params[5]
     } else {
-        log.dsp <- NULL
+        par <- NULL
     }
-    r <- minusloglfun(count,i.hat,log.dsp,dist)
+    r <- minusloglfun(count,i.hat,par,dist)
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -241,9 +241,7 @@ fitsir <- function(data, start=startfun(),
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
     dataarg <- c(data,list(debug=debug, type = type, dist = dist))
     
-    grad <- ifelse(method %in% c("Nelder-Mead", "SANN"), FALSE, TRUE)
-    
-    if (grad) {
+    if (method=="BFGS") {
         f.env <- new.env()
         ## set initial values
         assign("oldnll",NULL,f.env)
@@ -288,7 +286,7 @@ fitsir <- function(data, start=startfun(),
         if(length(start) < 5)
             start <- c(start, 
                 log.dsp=switch(dist,
-                    "nbinom"=log(1e2),
+                    "nbinom"=log(100),
                     "nbinom1"=log(4)
                 )
             )
@@ -341,70 +339,41 @@ SIR.sensitivity <- function(params, count, times=NULL,
                      type = c("prevalence", "incidence", "death"),
                      debug=FALSE) {
     dist <- match.arg(dist)
+    if (dist == "quasipoisson") dist <- "poisson"
     type <- match.arg(type)
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
     if (grepl("nbinom", dist)) {
-        log.dsp <- params[5]
+        par <- params[5]
     } else {
-        log.dsp <- NULL
+        par <- NULL
     }
     
     res <- with(as.list(c(tpars, r)), {
         i.hat <- exp(logI)
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
-        nll <- minusloglfun(count, i.hat, log.dsp, dist)
-        sensitivity <- c(nll, sapply(nu.list, function(nu) derivfun(count, i.hat, log.dsp = log.dsp, nu, dist = dist)))
+        nll <- minusloglfun(count, i.hat, par, dist)
+        model_s <- get(paste0("loglik_", dist, "_s"))
+        sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model_s,count,i.hat,par,param=NULL,nu=nu)$param)))
         names(sensitivity) <- c("value",ordered.pars)
         if (grepl("nbinom", dist))
             sensitivity <- c(sensitivity,
-                             log.dsp=unname(graddsp(count,i.hat,log.dsp,dist)))
+                             log.dsp=-sum(grad(model_s,count,i.hat,par,param=NULL,nu=NULL)[[2]]))
         return(sensitivity)
     })
     return(res)
 }
 
-##' Derivative of negative log likelihood with respect to parameters
-##' 
-##' @param x vector of quantiles
-##' @param mean vector of means
-##' @param log.dsp log of dispersion parameter
-##' @param nu sensitivity w.r.t. unconstrained parameters
-##' @param dist conditional distribution of reported data
-derivfun <- function(x,mean,log.dsp=NULL,nu,dist){
-    if (dist == "quasipoisson") dist <- "poisson"
-    switch(dist,
-        gaussian = {
-            n <- length(x)
-            sigma2 <- sum((mean-x)^2)/(n-1)
-            diff <- mean-x
-            sum(diff/sigma2 * nu + (1/(2*sigma2) - (diff^2)/(2*sigma2^2)) * sum(2 * diff/(n-1) * nu))}, 
-        poisson = sum((1 - x/mean) * nu),
-        nbinom = {
-            dsp <- exp(log.dsp)
-            sum(-(x/mean - (dsp+x)/(dsp+mean)) * nu)
-        },
-        nbinom1 = {
-            dsp <- exp(log.dsp)
-            sum(-1/(dsp-1) * (digamma(mean/(dsp-1) + x) - digamma(mean/(dsp-1)) - log(dsp)) * nu)
-        }
-    )
-}
-
 ##' Negative log likelihood functions
 ##' @param x vector of observations
 ##' @param mean vector of means
-##' @param log.dsp log of dispersion parameter
+##' @param par additional parameter
 ##' @param dist conditional distribution of reported data
-minusloglfun <- function(x,mean,log.dsp,dist){
+minusloglfun <- function(x,mean,par,dist){
     if (dist == "quasipoisson") dist <- "poisson"
-    switch(dist,
-        gaussian = -sum(dnorm2(x,mean,log=TRUE)),
-        poisson = -sum(dpois(x,mean,log=TRUE)),
-        nbinom = -sum(dnbinom(x,mu=mean,size=exp(log.dsp),log=TRUE)),
-        nbinom1 = -sum(dnbinom1(x,mu=mean,tau=exp(log.dsp),log=TRUE))
-    )
+    model <- get(paste0("loglik_", dist))
+    -sum(Eval(model, x, mean, par))
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter

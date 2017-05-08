@@ -54,8 +54,8 @@ test_that("harbin fits", {
                  tolerance=1e-6)
     
     suppressWarnings(f1 <- fitsir(harbin,start=ss0,type="death",method="BFGS",dist="nbinom1",tcol="week",icol="Deaths"))
-    oldval <- structure(c(1.86308516264076, 0.797994657946513, 1.0815675945272, 
-                          0.000351208521589494, 0.700632731269682, 1994.2188757669, 1994.91950849817
+    oldval <- structure(c(1.86314856710119, 0.798000576653338, 1.08163902678, 
+                          0.000351228569926503, 0.700653196234115, 1994.16325090112, 1994.86390409736
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(coef(f1)),
