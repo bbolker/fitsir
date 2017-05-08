@@ -1,26 +1,3 @@
-##' Normal distribution with profiled sd
-##' @param x numeric value
-##' @param mean mean of distribution
-##' @param log (logical) return log-likelihood
-##' @return likelihood or log-likelihood vector
-dnorm2 <- function(x,mean,log=FALSE) {
-    rmse <- sqrt(sum((x-mean)^2)/(length(x)-1))
-    return(dnorm(x,mean,sd=rmse,log=log))
-}
-
-##' Reparameterized negative binomial with linear mean-variance relationship
-##' @details 
-##' Variance is \code{tau * mu}
-##' @param x numeric value
-##' @param mu mean of the distribution
-##' @param tau numeric value
-##' @param log (logical) return log-likelihood
-##' @return likelihood or log-likelihood vector
-dnbinom1 <- function(x, mu, tau, log = FALSE) {
-    k <- mu/(tau - 1)
-    dnbinom(x, mu = mu, size = k, log = log)
-}
-
 ##' additive log-ratio transformation and inverse
 ##' @param x value to transform (or inverse-transform)
 alrinv <- function(x) {
