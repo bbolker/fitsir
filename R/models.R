@@ -209,7 +209,7 @@ setMethod(
 .sensfun <- function(x, mean) mean
 
 ##' @importFrom Deriv drule
-drule[[".sensfun"]] <- alist(x=nu, mean=NULL)
+drule[[".sensfun"]] <- alist(x=nu, mean=1)
 
 loglik_gaussian <- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
