@@ -4,14 +4,14 @@
 \alias{minusloglfun}
 \title{Negative log likelihood functions}
 \usage{
-minusloglfun(x, mean, log.dsp, dist)
+minusloglfun(x, mean, par, dist)
 }
 \arguments{
 \item{x}{vector of observations}
 
 \item{mean}{vector of means}
 
-\item{log.dsp}{log of dispersion parameter}
+\item{par}{additional parameter}
 
 \item{dist}{conditional distribution of reported data}
 }

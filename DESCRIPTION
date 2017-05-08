@@ -10,7 +10,7 @@ LazyData: yes
 Depends:
     bbmle
 Imports:
-    deSolve, methods, MASS, mvtnorm
+    deSolve, methods, MASS, mvtnorm, Deriv
 Suggests:
     knitr,
     ggplot2,

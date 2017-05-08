@@ -76,7 +76,6 @@ setMethod("coef", "fitsir",
 ##' @describeIn fitsir predict deterministic trajectory
 ##' @importFrom bbmle predict
 ##' @importFrom MASS mvrnorm
-##' @importFrom mvtnorm dmvnorm
 ##' @importFrom stats qnorm vcov
 ##' @examples
 ##' predict(ff, level=0.95)
@@ -151,7 +150,7 @@ setMethod("predict", "fitsir",
                     ##FIXME: vcov not symmetric for low tolerance?
                     i <- 10
                     while(!isSymmetric(round(vcov(object), i))) i <- i - 1
-                    sample.logLik <- dmvnorm(simpars, coef(object), round(vcov(object), i), log=TRUE)
+                    sample.logLik <- mvtnorm::dmvnorm(simpars, coef(object), round(vcov(object), i), log=TRUE)
                     ww <- exp(traj.logLik-sample.logLik)
                     cmat <- t(apply(simtraj, 1, wquant, weights=ww, probs=c(ll, 1-ll)))
                     cmat
