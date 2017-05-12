@@ -332,7 +332,7 @@ SIR.sensitivity <- function(params, count, times=NULL,
         i.hat <- exp(logI)
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         nll <- -sum(Eval(model, count, i.hat, par))
-        sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model,count,i.hat,par,param=NULL,nu=nu, var="param")[[1]])))
+        sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model,count,i.hat,par,param=NULL,nu=nu,var="param")[[1]])))
         names(sensitivity) <- c("value",ordered.pars)
         if (grepl("nbinom", dist))
             sensitivity <- c(sensitivity,
@@ -343,7 +343,7 @@ SIR.sensitivity <- function(params, count, times=NULL,
 }
 
 ##' Select likelihood model
-##' @param dist conditional distribution of reported datazzzzzzzzzzzzz
+##' @param dist conditional distribution of reported data
 ##' @export
 select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
     dist <- match.arg(dist)
@@ -363,35 +363,30 @@ minusloglfun <- function(x,mean,par,dist){
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
-mledsp <- function(x,mean,dist){
+mledsp <- function(x,mean,dist=c("nbinom", "nbinom1")){
+    dist <- match.arg(dist)
+    model <- get(paste0("loglik_", dist))
+    
     start <- switch(dist,
         "nbinom"=log(1e2),
         "nbinom1"=log(2)
     )
     
+    fn <- function(x, mean, par) -sum(Eval(model,x,mean, par))
+    
+    gr <- function(x, mean, par) -sum(grad(model,x,mean,par,param=NULL,nu=NULL,var=2)[[1]])
+    
     sol <- try(optim(
-        par=list(log.dsp=start),
-        fn=minusloglfun,
-        gr=graddsp,
+        par=list(par=start),
+        fn=fn,
+        gr=gr,
         x=x, mean=pmax(mean, 1e-100),
-        method="BFGS", dist=dist,
+        method="BFGS",
         control=list(maxit=1e4)
     ))
+    
     if(inherits(sol, "try-error")) {
         browser()
     }
     sol$par
-}
-
-##' derivative of nbinom nll with respect to its dispersion parameter
-graddsp <- function(x,mean,log.dsp,dist) {
-    dsp <- exp(log.dsp)
-    switch(dist,
-        nbinom = {
-           -sum(digamma(x+dsp) - digamma(dsp) - x/(dsp+mean) + log(dsp) + 1 - log(dsp+mean) - dsp/(dsp+mean)) * dsp
-        }, nbinom1 = {
-            k <- mean/(dsp-1)
-            -sum(mean/(dsp-1)^2 * (digamma(k) - digamma(x+k)-log(1/dsp)) + (x-mean)/(dsp*(dsp-1))) * dsp
-        }
-    )
 }
