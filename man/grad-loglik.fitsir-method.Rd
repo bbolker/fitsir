@@ -6,7 +6,7 @@
 \title{the gradients w.r.t. to parameters
 compute the gradient of the model as a function of the parameters}
 \usage{
-\S4method{grad}{loglik.fitsir}(object, count, mean, par, ...)
+\S4method{grad}{loglik.fitsir}(object, count, mean, par, var, ...)
 }
 \arguments{
 \item{par}{a named vector (or list) of parameters to compute the derivatives}

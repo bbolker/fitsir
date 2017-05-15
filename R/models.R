@@ -67,7 +67,7 @@ setMethod(
     "loglik.fitsir",
     definition = function(object, count, mean, par=NULL, ...) {
         frame <- list(count, mean, par)
-        names(frame) <- c(object@count, object@mean, object@par)
+        names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
         frame <- append(frame, list(...))
         eval(object@expr, frame)
     }
@@ -93,11 +93,11 @@ setGeneric(
 setMethod(
     "grad",
     "loglik.fitsir",
-    definition <- function(object, count, mean, par, ...) {
+    definition <- function(object, count, mean, par, var, ...) {
         frame <- list(count, mean, par)
         names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
         frame <- append(frame, list(...))
-        var <- c(object@mean, object@par)
+        if (missing(var)) var <- c(object@mean, object@par)
         l <- lapply(object@grad[var], function(deriv) { eval(deriv, frame)})
         l
     }
@@ -211,28 +211,30 @@ setMethod(
 ##' @importFrom Deriv drule
 drule[[".sensfun"]] <- alist(x=nu, mean=1)
 
+##' @export
 loglik_gaussian <- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
                        mean="mu", par="sigma")
 loglik_gaussian <- Transform(loglik_gaussian,
     transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1)))
 )
-
-loglik_gaussian_s <- Transform(
+loglik_gaussian <- Transform(
     loglik_gaussian,
     transforms = list(mu~.sensfun(param, mu)), 
     par="param"
 )
 
+##' @export
 loglik_poisson <- new("loglik.fitsir", "poisson", 
                       LL ~ X*log(lambda) - lambda - lgamma(X+1), 
                       mean = "lambda", par = c())
-loglik_poisson_s <- Transform(
+loglik_poisson <- Transform(
     loglik_poisson,
     transforms = list(lambda~.sensfun(param, lambda)),
     par="param"
 )
 
+##' @export
 loglik_nbinom <- new ("loglik.fitsir", "nbinom",
                       LL ~ lgamma(ll.k+X) - lgamma(ll.k) - lgamma(X+1) +
                           ll.k*log(ll.k) - ll.k*log(ll.k+mu) + X*log(mu) - 
@@ -243,7 +245,7 @@ loglik_nbinom <- Transform(
     loglik_nbinom,
     transforms = list(ll.k ~ exp(ll.k))
 )
-loglik_nbinom_s <- Transform(
+loglik_nbinom <- Transform(
     loglik_nbinom,
     transforms = list(mu~.sensfun(param, mu)),
     par=c("ll.k", "param")
@@ -265,7 +267,7 @@ loglik_nbinom1 <- Transform(
     loglik_nbinom1,
     transforms = list(ll.phi ~ exp(ll.phi))
 )
-loglik_nbinom1_s <- Transform(
+loglik_nbinom1 <- Transform(
     loglik_nbinom1,
     transforms = list(mu~.sensfun(param, mu)),
     par=c("ll.phi", "param")

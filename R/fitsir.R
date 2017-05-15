@@ -156,10 +156,11 @@ SIR.detsim <- function(t, params,
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, times=NULL,
-                  dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
-                  type = c("prevalence", "incidence", "death"),
-                  debug=FALSE) {
+                        dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
+                        type = c("prevalence", "incidence", "death"),
+                        debug=FALSE) {
     dist <- match.arg(dist)
+    model <- select_model(dist)
     type <- match.arg(type)
     ## HACK: nloptr appears to strip names from parameters
     ## if (is.null(params)) return(NA_real_) ## why ???
@@ -176,7 +177,7 @@ SIR.logLik  <- function(params, count, times=NULL,
     } else {
         par <- NULL
     }
-    r <- minusloglfun(count,i.hat,par,dist)
+    r <- -sum(Eval(model, count, i.hat, par))
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -216,7 +217,7 @@ fitsir <- function(data, start=startfun(),
     type <- match.arg(type)
     method <- match.arg(method)
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
-    dataarg <- c(data,list(debug=debug, type = type, dist = dist))
+    dataarg <- c(data,list(debug=debug, type = type, dist=dist))
     
     if (method=="BFGS") {
         f.env <- new.env()
@@ -312,11 +313,11 @@ fitsir <- function(data, start=startfun(),
 ##' 
 ##' @export
 SIR.sensitivity <- function(params, count, times=NULL,
-                     dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
-                     type = c("prevalence", "incidence", "death"),
-                     debug=FALSE) {
+                            dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
+                            type = c("prevalence", "incidence", "death"),
+                            debug=FALSE) {
     dist <- match.arg(dist)
-    if (dist == "quasipoisson") dist <- "poisson"
+    model <- select_model(dist)
     type <- match.arg(type)
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
@@ -330,16 +331,24 @@ SIR.sensitivity <- function(params, count, times=NULL,
     res <- with(as.list(c(tpars, r)), {
         i.hat <- exp(logI)
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
-        nll <- minusloglfun(count, i.hat, par, dist)
-        model_s <- get(paste0("loglik_", dist, "_s"))
-        sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model_s,count,i.hat,par,param=NULL,nu=nu)$param)))
+        nll <- -sum(Eval(model, count, i.hat, par))
+        sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model,count,i.hat,par,param=NULL,nu=nu,var="param")[[1]])))
         names(sensitivity) <- c("value",ordered.pars)
         if (grepl("nbinom", dist))
             sensitivity <- c(sensitivity,
-                             log.dsp=-sum(grad(model_s,count,i.hat,par,param=NULL,nu=NULL)[[2]]))
+                             log.dsp=-sum(grad(model,count,i.hat,par,param=NULL,nu=NULL,var=2)[[1]]))
         return(sensitivity)
     })
     return(res)
+}
+
+##' Select likelihood model
+##' @param dist conditional distribution of reported data
+##' @export
+select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
+    dist <- match.arg(dist)
+    if (dist == "quasipoisson") dist <- "poisson"
+    get(paste0("loglik_", dist))
 }
 
 ##' Negative log likelihood functions
@@ -354,35 +363,30 @@ minusloglfun <- function(x,mean,par,dist){
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
-mledsp <- function(x,mean,dist){
+mledsp <- function(x,mean,dist=c("nbinom", "nbinom1")){
+    dist <- match.arg(dist)
+    model <- get(paste0("loglik_", dist))
+    
     start <- switch(dist,
         "nbinom"=log(1e2),
         "nbinom1"=log(2)
     )
     
+    fn <- function(x, mean, par) -sum(Eval(model,x,mean, par))
+    
+    gr <- function(x, mean, par) -sum(grad(model,x,mean,par,param=NULL,nu=NULL,var=2)[[1]])
+    
     sol <- try(optim(
-        par=list(log.dsp=start),
-        fn=minusloglfun,
-        gr=graddsp,
+        par=list(par=start),
+        fn=fn,
+        gr=gr,
         x=x, mean=pmax(mean, 1e-100),
-        method="BFGS", dist=dist,
+        method="BFGS",
         control=list(maxit=1e4)
     ))
+    
     if(inherits(sol, "try-error")) {
         browser()
     }
     sol$par
-}
-
-##' derivative of nbinom nll with respect to its dispersion parameter
-graddsp <- function(x,mean,log.dsp,dist) {
-    dsp <- exp(log.dsp)
-    switch(dist,
-        nbinom = {
-           -sum(digamma(x+dsp) - digamma(dsp) - x/(dsp+mean) + log(dsp) + 1 - log(dsp+mean) - dsp/(dsp+mean)) * dsp
-        }, nbinom1 = {
-            k <- mean/(dsp-1)
-            -sum(mean/(dsp-1)^2 * (digamma(k) - digamma(x+k)-log(1/dsp)) + (x-mean)/(dsp*(dsp-1))) * dsp
-        }
-    )
 }
