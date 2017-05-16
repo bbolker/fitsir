@@ -1,0 +1,145 @@
+---
+title: "Optimization method"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pkgs}
+library(optimx)
+library(devtools)
+library(GGally)
+library(ggplot2); theme_set(theme_bw())
+load_all("..")
+```
+
+```{r}
+bombay2 <- setNames(bombay, c("tvec", "count"))
+inip <- startfun(data = bombay2, auto = TRUE)
+
+optimfun <- function(data, start,
+                     incidence = FALSE,
+                     nll = FALSE){
+    
+    fnfun <- function(params){
+        return(findSens(data, params, incidence = incidence, nll = nll)[1])
+    }
+    
+    grfun <- function(params){
+        return(findSens(data, params, incidence = incidence, nll = nll)[-1])
+    }
+    
+    fit <- optimx(start, fnfun, gr = grfun,
+                  control = list(all.methods = TRUE, trace = 2))
+    return(fit)
+}
+
+fn <- "optimx.rda"
+
+if(file.exists(fn)){
+    load(fn)
+}else{
+    fit <- optimfun(bombay2, inip)
+    fit.incidence <- optimfun(bombay2, inip, incidence = TRUE)
+    
+    save("fit", "fit.incidence", file = fn)
+}
+summary(fit, order = "value")
+```
+
+Which fit gives us the lowest SSQ?
+
+```{r min}
+(goodfit <- which(fit$value < 1e5))
+which.min(fit$value) 
+```
+
+ucminf gives us the lowest SSQ
+
+```{r minpar}
+fit[8,1:4] 
+```
+
+It also gives us a really bad parameter set... 
+
+```{r}
+fit[which(fit$convcode == 0),]
+```
+
+Checking hessian:
+
+```{r hess, cache = TRUE}
+kkt2_true <- unlist(sapply(1:14, function(i){
+    tmp <- try(eigen(findHess(bombay2, fit[i,1:4])))
+    if(!is(tmp,"try-error")){
+        return(all(tmp$values>0))
+    }else{
+        return(FALSE)
+    }
+}))
+
+kkt2 <- fit[,"kkt2"]
+
+rbind(kkt2_true,kkt2)
+```
+
+Looking at a bad fit from LHS
+
+```{r LHS}
+load("stochsim_swp.rda")
+source("stochsim_funs.R")
+
+badfit <- with(res.fitsir.optim, which(fit_nll - truefit_nll > 1))
+
+fn2 <- "optimx2.rda"
+
+if(file.exists(fn2)){
+    load(fn2)
+}else{
+    fit.stoch <- lapply(badfit, function(i){
+        p <- lhs_df[i,]
+        p2 <- c(beta=unname(p["R0"]*p["gamma"]),
+            p[2:3],
+            i0=unname(p["I0"]/p["N"]))
+        true.pars <- with(as.list(p2),
+                          c(log.beta=log(beta),log.gamma=log(gamma),
+                            log.N=log(N),logit.i=qlogis(i0)))
+        d <- simfun(pars=p2,tmax=100,dt=1,rpars=list(size=3),seed=101)
+        auto <- startfun(data = d,  auto = TRUE)
+        fit <- optimfun(d, auto)
+        return(fit)
+    })
+    
+    save("fit.stoch", file = fn2)
+}
+```
+
+```{r goodfits}
+good.methods <- unlist(lapply(fit.stoch, function(x){
+    lim <- min(x$value) * 1.01
+    return(which(x$value < lim))
+}))
+
+table(good.methods)
+
+good.methods2 <- c(4, 6, 8, 11, 12)
+(rgood <- rownames(fit.stoch[[1]][good.methods2,]))
+ind <- c("", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
+
+df <- do.call("rbind",
+              lapply(1:12, function(i) data.frame(run = i ,fit.stoch[[i]])))
+
+df[,"run"] <- factor(df[,"run"])
+df.good <- subset(df, row.names(df) %in% sapply(rgood, function(x)paste0(x, ind)))
+ggpairs(df.good, mapping = aes(color = run), columns = c(2,3))
+```
+
+Sort out the ones that converge:
+
+```{r converge}
+df.good2 <- df.good[df.good$convcode == 0, ]
+
+table(gsub('[[:digit:]]+', '', row.names(df.good2)))
+```
