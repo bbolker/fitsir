@@ -48,7 +48,25 @@ Effects of misspecification: e.g. fitting NBinom with Gaussian model etc.
 \section*{To do}
 
 \begin{itemize}
-\item what shall we use as a case study? sims; but also some real data set (pref. *not* Bombay data set, because of \cite{bacaer_model_2012} ...)
+\item use  Harbin as a case study
+\item re-check optimizer choice in our new world (e.g. re-try/update optimMethod.rmd)
+\item recommended strategy:
+\begin{itemize}
+\item auto-start, use (probably) nlminb (with sensitivity equations) and/or bobyqa
+\item use Sobol' and/or LHS to test for local vs global minimum (SANN??? NLOPT global optimizers?)
+\item confidence intervals on parameters:
+  \begin{itemize}
+    \item Wald
+    \item profile confidence intervals
+  \end{itemize}
+\item confidence intervals on curves:
+  \begin{itemize}
+  \item delta method
+  \item mvrnorm
+  \item wmvrnorm (Sobol? but worse)
+  \end{itemize}
+\end{itemize}
+
 \item \url{http://sherrytowers.com/2013/01/29/neiu-lecture-vi-fitting-the-parameters-of-an-sir-model-to-influenza-data/}
 \end{itemize}
 
