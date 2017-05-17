@@ -87,7 +87,12 @@ startfun <- function(data = NULL,
         ## Qp.alt <- unname(2*coef(m4)[3])
         Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
         if(Qp.alt > 0){
-            stop("second derivative larger than 0")
+            i <- 1
+            while(Qp.alt > 0) {
+                j <- ceiling(i/2) * (-1)^i
+                Qp.alt <- predict(ss, ss.tmax+j, deriv=2)$y
+                i <- i+1
+            }
         }
         Ip <- exp(max(predict(ss,times)$y))
         c <- -Qp.alt/Ip
