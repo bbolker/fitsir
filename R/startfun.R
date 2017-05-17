@@ -87,7 +87,12 @@ startfun <- function(data = NULL,
         ## Qp.alt <- unname(2*coef(m4)[3])
         Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
         if(Qp.alt > 0){
-            stop("second derivative larger than 0")
+            i <- 1
+            while(Qp.alt > 0) {
+                j <- ceiling(i/2) * (-1)^i
+                Qp.alt <- predict(ss, ss.tmax+j, deriv=2)$y
+                i <- i+1
+            }
         }
         Ip <- exp(max(predict(ss,times)$y))
         c <- -Qp.alt/Ip
@@ -129,7 +134,7 @@ startfun <- function(data = NULL,
                 N <- (beta + r)/c
                 (finalsize/N - (1 - exp(-R0 * finalsize/N)))^2
             }
-            betavec <- seq(1.1 * r, 10*r, r/10)
+            betavec <- seq(1.1 * r, 50*r, r/10)
             sizevec <- sizefun(betavec)
             
             ## FIXME: come up with a better method...

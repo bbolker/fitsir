@@ -26,7 +26,7 @@ setMethod(
         .Object@mean <- mean
         .Object@par <- par <- as.character(par)
         # compute the gradient
-        vars <- c(mean, par)
+        vars <- c(par)
         deriv <- function(expr) {
             d <- lapply(vars, function(p){Deriv::Deriv(expr, p)})
             names(d) <- vars
@@ -97,7 +97,7 @@ setMethod(
         frame <- list(count, mean, par)
         names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
         frame <- append(frame, list(...))
-        if (missing(var)) var <- c(object@mean, object@par)
+        if (missing(var)) var <- c(object@par)
         l <- lapply(object@grad[var], function(deriv) { eval(deriv, frame)})
         l
     }
@@ -123,10 +123,11 @@ setGeneric(
 setMethod(
     "hessian",
     "loglik.fitsir",
-    definition <- function(object, data=NULL, par, ...) {
+    definition <- function(object, data=NULL, par, var, ...) {
         frame <- list(count, mean, par)
-        names(frame) <- c(object@count, object@mean, object@par)
-        var <- c(object@mean, object@par)
+        names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
+        frame <- append(frame, list(...))
+        if (missing(var)) var <- c(object@par)
         l <- lapply(object@hessian[var], function(dd) { 
             sapply(dd[var], function(e) eval(e, frame))})
         n <- length(l)
@@ -149,7 +150,10 @@ setGeneric(
 setMethod(
     "Transform",
     "loglik.fitsir",
-    definition <- function(object, transforms=NULL, count="X", mean, par) {
+    definition <- function(object, transforms=NULL, count="X", 
+                           mean, par,
+                           keep_grad=TRUE,
+                           keep_hessian=FALSE) {
         trans <- function(formulae, allvars) {
             # extract vars from an expression
             vars <- function(e) {
@@ -201,52 +205,75 @@ setMethod(
         if (missing(mean)) mean <- object@mean
         if (missing(par)) par <- object@par
         
-        new("loglik.fitsir", object@name, f, count, mean=mean, par=par)
+        new("loglik.fitsir", object@name, f, count, mean=mean, par=par, keep_grad=keep_grad, keep_hessian=keep_hessian)
     }
 )
 
 ## Trying to get partial derivatives to work...
 .sensfun <- function(x, mean) mean
+.sensfun2 <- function(x, y, mean) mean
+.sensfun3 <- function(x, y, z) z
+.sensfun_hessian <- function(x, y, hessianfun) hessianfun(x, y)
+.trans <- function(x, transfun, invfun, invfun2) transfun(x)
+.inv <- function(x, invfun, invfun2) invfun(x)
+.inv2 <- function(x, invfun2) invfun2(x)
+
+.sensfun2 <- function(beta, gamma, N, i0, mean) mean
+.nu_beta <- function(beta, gamma, N, i0, nu_beta) nu_beta
+.nu_gamma <- function(beta, gamma, N, i0, nu_gamma) nu_gamma
+.nu_N <- function(beta, gamma, N, i0, nu_N) nu_N
+.nu_i0 <- function(beta, gamma, N, i0, nu_i0) nu_i0
 
 ##' @importFrom Deriv drule
 drule[[".sensfun"]] <- alist(x=nu, mean=1)
+drule[[".sensfun2"]] <- alist(x=.sensfun3(x, y, nu_x), y=.sensfun3(y, x, nu_y))
+drule[[".sensfun3"]] <- alist(x=.sensfun_hessian(x, x), y=.sensfun_hessian(x, y))
+drule[[".trans"]] <- alist(x=.inv(x, invfun, invfun2))
+drule[[".inv"]] <- alist(x=.inv2(x, invfun2))
 
-##' @export
-loglik_gaussian <- new("loglik.fitsir", "gaussian",
+drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0,nu_beta))
+drule[[".nu_beta"]]
+
+loglik_gaussian_base<- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
                        mean="mu", par="sigma")
-loglik_gaussian <- Transform(loglik_gaussian,
+
+loglik_gaussian_base <- Transform(loglik_gaussian_base,
     transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1)))
 )
+
+##' @export
 loglik_gaussian <- Transform(
-    loglik_gaussian,
+    loglik_gaussian_base,
     transforms = list(mu~.sensfun(param, mu)), 
     par="param"
 )
 
-##' @export
-loglik_poisson <- new("loglik.fitsir", "poisson", 
+loglik_poisson_base <- new("loglik.fitsir", "poisson", 
                       LL ~ X*log(lambda) - lambda - lgamma(X+1), 
                       mean = "lambda", par = c())
+
+##' @export
 loglik_poisson <- Transform(
-    loglik_poisson,
+    loglik_poisson_base,
     transforms = list(lambda~.sensfun(param, lambda)),
     par="param"
 )
 
-##' @export
-loglik_nbinom <- new ("loglik.fitsir", "nbinom",
+loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
                       LL ~ lgamma(ll.k+X) - lgamma(ll.k) - lgamma(X+1) +
                           ll.k*log(ll.k) - ll.k*log(ll.k+mu) + X*log(mu) - 
                           X*log(ll.k+mu),
                       mean="mu",
                       par = "ll.k")
-loglik_nbinom <- Transform(
-    loglik_nbinom,
+loglik_nbinom_base <- Transform(
+    loglik_nbinom_base,
     transforms = list(ll.k ~ exp(ll.k))
 )
+
+##' @export
 loglik_nbinom <- Transform(
-    loglik_nbinom,
+    loglik_nbinom_base,
     transforms = list(mu~.sensfun(param, mu)),
     par=c("ll.k", "param")
 )
@@ -256,19 +283,21 @@ loglik_nbinom <- Transform(
 # v=mu*(1+mu/k), k>0
 # v=mu*(1+phi), phi>0
 # i.e. mu/k=phi -> k=mu/phi
-#' @export
-loglik_nbinom1 <- new ("loglik.fitsir", "nbinom",
+
+loglik_nbinom1_base <- new ("loglik.fitsir", "nbinom",
                        LL ~ lgamma(mu/ll.phi+X) - lgamma(mu/ll.phi) - lgamma(X+1) +
                            mu/ll.phi*log(mu/ll.phi) - mu/ll.phi*log(mu/ll.phi+mu) + X*log(mu) - 
                            X*log(mu/ll.phi+mu),
                        mean = "mu",
                        par = "ll.phi")
-loglik_nbinom1 <- Transform(
-    loglik_nbinom1,
+loglik_nbinom1_base <- Transform(
+    loglik_nbinom1_base,
     transforms = list(ll.phi ~ exp(ll.phi))
 )
+
+##' @export
 loglik_nbinom1 <- Transform(
-    loglik_nbinom1,
+    loglik_nbinom1_base,
     transforms = list(mu~.sensfun(param, mu)),
     par=c("ll.phi", "param")
 )

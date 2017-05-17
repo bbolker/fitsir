@@ -336,7 +336,7 @@ SIR.sensitivity <- function(params, count, times=NULL,
         names(sensitivity) <- c("value",ordered.pars)
         if (grepl("nbinom", dist))
             sensitivity <- c(sensitivity,
-                             log.dsp=-sum(grad(model,count,i.hat,par,param=NULL,nu=NULL,var=2)[[1]]))
+                             log.dsp=-sum(grad(model,count,i.hat,par,param=NULL,nu=NULL,var=1)[[1]]))
         return(sensitivity)
     })
     return(res)
@@ -374,7 +374,7 @@ mledsp <- function(x,mean,dist=c("nbinom", "nbinom1")){
     
     fn <- function(x, mean, par) -sum(Eval(model,x,mean, par))
     
-    gr <- function(x, mean, par) -sum(grad(model,x,mean,par,param=NULL,nu=NULL,var=2)[[1]])
+    gr <- function(x, mean, par) -sum(grad(model,x,mean,par,param=NULL,nu=NULL,var=1)[[1]])
     
     sol <- try(optim(
         par=list(par=start),
