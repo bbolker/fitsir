@@ -4,7 +4,8 @@
 \alias{findHess}
 \title{find Hessian}
 \usage{
-findHess(data, params, dist = c("norm", "pois"))
+findHess(data, params, dist = c("gaussian", "poisson", "quasipoisson",
+  "nbinom", "nbinom1"))
 }
 \arguments{
 \item{data}{data frame with tvec/count}

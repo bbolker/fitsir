@@ -12,39 +12,22 @@ library(optimx)
 library(devtools)
 library(GGally)
 library(ggplot2); theme_set(theme_bw())
-load_all("..")
+library(fitsir)
 ```
 
 ```{r}
-bombay2 <- setNames(bombay, c("tvec", "count"))
-inip <- startfun(data = bombay2, auto = TRUE)
+harbin2 <- setNames(harbin, c("times", "count"))
+inip <- c(startfun(data = harbin2, type="death"), log.dsp=5)
 
-optimfun <- function(data, start,
-                     incidence = FALSE,
-                     nll = FALSE){
-    
-    fnfun <- function(params){
-        return(findSens(data, params, incidence = incidence, nll = nll)[1])
-    }
-    
-    grfun <- function(params){
-        return(findSens(data, params, incidence = incidence, nll = nll)[-1])
-    }
-    
-    fit <- optimx(start, fnfun, gr = grfun,
-                  control = list(all.methods = TRUE, trace = 2))
-    return(fit)
-}
 
 fn <- "optimx.rda"
 
 if(file.exists(fn)){
     load(fn)
 }else{
-    fit <- optimfun(bombay2, inip)
-    fit.incidence <- optimfun(bombay2, inip, incidence = TRUE)
+    fit <- optimfun(harbin2, start=inip, dist="nbinom", type="death")
     
-    save("fit", "fit.incidence", file = fn)
+    save("fit", file = fn)
 }
 summary(fit, order = "value")
 ```

@@ -36,7 +36,7 @@ if(file.exists(filename)) {
         fitList[[i]] <- Map(fitsir, dist=testdist, MoreArgs=list(data=df, type="incidence", method="BFGS"))
     }
     
-    if (file.save) save("fitList", file="compare_dist.rda")
+    if (file.save) save("fitList", file=filename)
 }
 
 if(!exists("resList")) {
@@ -64,7 +64,7 @@ if(!exists("resList")) {
         tmp <- summ %>% bind_rows(.id="dist")
         resList[[i]] <- tmp
         
-        if (file.save) save("fitList", "resList", file="compare_dist.rda")
+        if (file.save) save("fitList", "resList", file=filename)
         ## print(tmp)
     }
 }

@@ -55,6 +55,7 @@ setMethod("plot", signature(x="fitsir", y="missing"),
 ##' @aliases coef,fitsir-class
 ##' @describeIn fitsir extract coefficients
 ##' @importFrom bbmle coef
+##' @importFrom bbmle vcov
 ##' @examples 
 ##' coef(ff)
 ##' coef(ff,"trans")
@@ -75,8 +76,8 @@ setMethod("coef", "fitsir",
 ##' @aliases predict,fitsir-class
 ##' @describeIn fitsir predict deterministic trajectory
 ##' @importFrom bbmle predict
+##' @importFrom pomp sobolDesign
 ##' @importFrom MASS mvrnorm
-##' @importFrom stats qnorm vcov
 ##' @examples
 ##' predict(ff, level=0.95)
 ##'

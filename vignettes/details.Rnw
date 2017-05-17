@@ -194,7 +194,9 @@ lines(times, SIR.detsim(times, unlist(death.pars)[c(3, 4, 2, 1)], type="death"),
 
 \subsection{Incidence}
 
-\section{}
+\section{Confidence intervals}
+
+
 
 
 \end{document}

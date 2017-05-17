@@ -6,7 +6,7 @@
 \title{the hessian w.r.t. to parameters
 compute the hessian of the model as a function of the parameters}
 \usage{
-\S4method{hessian}{loglik.fitsir}(object, data = NULL, par, ...)
+\S4method{hessian}{loglik.fitsir}(object, data = NULL, par, var, ...)
 }
 \arguments{
 \item{data}{a dataframe object holding inut values, if NULL, take from ...}

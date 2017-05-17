@@ -129,7 +129,7 @@ startfun <- function(data = NULL,
                 N <- (beta + r)/c
                 (finalsize/N - (1 - exp(-R0 * finalsize/N)))^2
             }
-            betavec <- seq(1.1 * r, 10*r, r/10)
+            betavec <- seq(1.1 * r, 50*r, r/10)
             sizevec <- sizefun(betavec)
             
             ## FIXME: come up with a better method...

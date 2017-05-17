@@ -4,7 +4,7 @@
 \alias{mledsp}
 \title{Maximum likelihood estimate of negative binomial dispersion parameter}
 \usage{
-mledsp(x, mean, dist)
+mledsp(x, mean, dist = c("nbinom", "nbinom1"))
 }
 \description{
 Maximum likelihood estimate of negative binomial dispersion parameter
