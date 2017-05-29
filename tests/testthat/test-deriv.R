@@ -2,21 +2,21 @@ stopifnot(require("testthat"), require("fitsir"))
 
 context("derivative test")
 test_that("sensitivity", {
-    ss <- startfun()
+    ss <- startfun(harbin, tcol="week", icol="Deaths")
     
     SIR.detsim2 <- function(t, params, type) SIR.detsim(t, trans.pars(params), type)
     
     for (type in c("prevalence", "incidence", "death")) {
         expect_equal(
-            numDeriv::jacobian(SIR.detsim2, startfun(), t=1:10, type=type),
-            unname(as.matrix(SIR.detsim(1:10, trans.pars(startfun()), grad=TRUE, type=type)[,-1])),
+            numDeriv::jacobian(SIR.detsim2, ss, t=1:10, type=type),
+            unname(as.matrix(SIR.detsim(1:10, trans.pars(ss), grad=TRUE, type=type)[,-1])),
             tolerance=1e-5
         )
     }
 })
 
 test_that("likelihood", {
-    ss <- startfun()
+    ss <- startfun(harbin, tcol="week", icol="Deaths")
     
     for (type in c("prevalence", "incidence", "death")) {
         for(dist in c("gaussian", "poisson")) {
@@ -27,7 +27,7 @@ test_that("likelihood", {
         }
     }
     
-    ss <- c(startfun(), 5)
+    ss <- c(ss, 5)
     
     for (type in c("prevalence", "incidence", "death")) {
         for(dist in c("nbinom", "nbinom1")) {

@@ -232,7 +232,7 @@ drule[[".trans"]] <- alist(x=.inv(x, invfun, invfun2))
 drule[[".inv"]] <- alist(x=.inv2(x, invfun2))
 
 drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0,nu_beta))
-drule[[".nu_beta"]]
+## drule[[".nu_beta"]]
 
 loglik_gaussian_base<- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
@@ -261,11 +261,21 @@ loglik_poisson <- Transform(
 )
 
 loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
-                      LL ~ lgamma(ll.k+X) - lgamma(ll.k) - lgamma(X+1) +
-                          ll.k*log(ll.k) - ll.k*log(ll.k+mu) + X*log(mu) - 
-                          X*log(ll.k+mu),
+                      LL ~ -lbeta(ll.k, X) - log(X) + ll.k * (-log1p(mu/ll.k)) + 
+                          X * log(mu) - X * log(ll.k + mu),
                       mean="mu",
                       par = "ll.k")
+
+# negative binomial '1' likelihood
+# var proportional to mean
+# v=mu*(1+mu/k), k>0
+# v=mu*(1+phi), phi>0
+# i.e. mu/k=phi -> k=mu/phi
+loglik_nbinom1_base <- Transform(
+    loglik_nbinom_base,
+    transforms=list(ll.k~mu/ll.phi)
+)
+
 loglik_nbinom_base <- Transform(
     loglik_nbinom_base,
     transforms = list(ll.k ~ exp(ll.k))
@@ -278,18 +288,6 @@ loglik_nbinom <- Transform(
     par=c("ll.k", "param")
 )
 
-# negative binomial '1' likelihood
-# var proportional to mean
-# v=mu*(1+mu/k), k>0
-# v=mu*(1+phi), phi>0
-# i.e. mu/k=phi -> k=mu/phi
-
-loglik_nbinom1_base <- new ("loglik.fitsir", "nbinom",
-                       LL ~ lgamma(mu/ll.phi+X) - lgamma(mu/ll.phi) - lgamma(X+1) +
-                           mu/ll.phi*log(mu/ll.phi) - mu/ll.phi*log(mu/ll.phi+mu) + X*log(mu) - 
-                           X*log(mu/ll.phi+mu),
-                       mean = "mu",
-                       par = "ll.phi")
 loglik_nbinom1_base <- Transform(
     loglik_nbinom1_base,
     transforms = list(ll.phi ~ exp(ll.phi))
