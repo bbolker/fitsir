@@ -3,23 +3,27 @@
 \docType{methods}
 \name{hessian,loglik.fitsir-method}
 \alias{hessian,loglik.fitsir-method}
-\title{the hessian w.r.t. to parameters
-compute the hessian of the model as a function of the parameters}
+\title{Evaluate the hessian of a model}
 \usage{
 \S4method{hessian}{loglik.fitsir}(object, data = NULL, par, var, ...)
 }
 \arguments{
-\item{data}{a dataframe object holding inut values, if NULL, take from ...}
+\item{object}{object to be evaluated}
 
-\item{par}{a named vector (or list) of parameters to compute the hessians}
+\item{par}{additional parameters}
 
-\item{...}{the input values and parameter values}
+\item{var}{character vector specifying names of partial derivative parameters}
+
+\item{...}{other values if required}
+
+\item{count}{observations}
+
+\item{mean}{mean values}
 }
 \value{
-a dataframe with each column as a partial derivative values
+a list with each element as a partial derivative values
 }
 \description{
-the hessian w.r.t. to parameters
-compute the hessian of the model as a function of the parameters
+Evaluate the hessian of a model
 }
 

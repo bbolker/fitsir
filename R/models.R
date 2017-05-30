@@ -1,3 +1,13 @@
+##' Class representing log-likelihood models used to fit the SIR model
+##' 
+##' @slot name name of the distribution
+##' @slot expr an expressioin specifying the model
+##' @slot count observation variable name
+##' @slot mean mean variable name
+##' @slot par additional parameter names
+##' @slot grad the gradient with respect to the parameters
+##' @slot hessian the Hessian of the model with respect 
+##' @exportClass loglik.fitsir
 setClass(
     "loglik.fitsir",
     slots = c(
@@ -11,6 +21,17 @@ setClass(
     )
 )
 
+##' the initializer for loglik.fitsir
+##' 
+##' @param name name of the distribution
+##' @param model the formula specifying the model
+##' @param count observation variable name
+##' @param mean mean variable name
+##' @param par additional parameter names
+##' @param keep_grad maintain the gradient as part of the model
+##' @param keep_hessian maintain the hessian as part of the model
+##' @docType methods
+##' @export
 setMethod(
     "initialize",
     "loglik.fitsir",
@@ -56,9 +77,11 @@ setGeneric(
 )
 
 ##' Evaluate a model
-##' @param data a dataframe object holding inut values, if NULL, take from ...
-##' @param par a named vector (or list) of parameter values, if NULL, take from ...
-##' @param ... the input values and parameter values
+##' @param object object to be evaluated
+##' @param count observations
+##' @param mean mean values
+##' @param par additional parameters
+##' @param ... other values if required
 ##' @return numeric
 ##' @docType methods
 ##' @export
@@ -82,12 +105,14 @@ setGeneric(
     }
 )
 
-##' the gradients w.r.t. to parameters
-##' compute the gradient of the model as a function of the parameters
-##' @param data a dataframe object holding inut values, if NULL, take from ...
-##' @param par a named vector (or list) of parameters to compute the derivatives
-##' @param ... the input values and parameter values
-##' @return a dataframe with each column as a partial derivative values
+##' Evaluate the gradient of a model
+##' @param object object to be evaluated
+##' @param count observations
+##' @param mean mean values
+##' @param par additional parameters
+##' @param var character vector specifying names of partial derivative parameters
+##' @param ... other values if required
+##' @return a list with each element as a partial derivative values
 ##' @docType methods
 ##' @export
 setMethod(
@@ -112,12 +137,14 @@ setGeneric(
     }
 )
 
-##' the hessian w.r.t. to parameters
-##' compute the hessian of the model as a function of the parameters
-##' @param data a dataframe object holding inut values, if NULL, take from ...
-##' @param par a named vector (or list) of parameters to compute the hessians
-##' @param ... the input values and parameter values
-##' @return a dataframe with each column as a partial derivative values
+##' Evaluate the hessian of a model
+##' @param object object to be evaluated
+##' @param count observations
+##' @param mean mean values
+##' @param par additional parameters
+##' @param var character vector specifying names of partial derivative parameters
+##' @param ... other values if required
+##' @return a list with each element as a partial derivative values
 ##' @docType methods
 ##' @export
 setMethod(
@@ -138,8 +165,8 @@ setMethod(
     }
 )
 
-#' @docType methods
-#' @export
+##' @docType methods
+##' @export
 setGeneric(
     "Transform",
     def = function(object, ...) {
@@ -147,6 +174,17 @@ setGeneric(
     }
 )
 
+##' Transform the model
+##' @param object object
+##' @param transforms list of formulas specifying transformations
+##' @param count observation variable name
+##' @param mean mean variable name
+##' @param par additional parameter names
+##' @param keep_grad maintain the gradient as part of the model
+##' @param keep_hessian maintain the hessian as part of the model
+##' @return loglik.fitsir object
+##' @docType methods
+##' @export
 setMethod(
     "Transform",
     "loglik.fitsir",
@@ -234,6 +272,7 @@ drule[[".inv"]] <- alist(x=.inv2(x, invfun2))
 drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0,nu_beta))
 ## drule[[".nu_beta"]]
 
+##' gaussian log-likelihood base model
 loglik_gaussian_base<- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
                        mean="mu", par="sigma")
@@ -242,6 +281,7 @@ loglik_gaussian_base <- Transform(loglik_gaussian_base,
     transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1)))
 )
 
+##' gaussian log-liklihood model with sensitivity
 ##' @export
 loglik_gaussian <- Transform(
     loglik_gaussian_base,
@@ -249,10 +289,12 @@ loglik_gaussian <- Transform(
     par="param"
 )
 
+##' poisson log-liklihood base model
 loglik_poisson_base <- new("loglik.fitsir", "poisson", 
                       LL ~ X*log(lambda) - lambda - lgamma(X+1), 
                       mean = "lambda", par = c())
 
+##' poisson log-liklihood model with sensitivity
 ##' @export
 loglik_poisson <- Transform(
     loglik_poisson_base,
@@ -260,6 +302,7 @@ loglik_poisson <- Transform(
     par="param"
 )
 
+##' negative binomial log-liklihood base model
 loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
                       LL ~ -lbeta(ll.k, X) - log(X) + ll.k * (-log1p(mu/ll.k)) + 
                           X * log(mu) - X * log(ll.k + mu),
@@ -271,6 +314,7 @@ loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
 # v=mu*(1+mu/k), k>0
 # v=mu*(1+phi), phi>0
 # i.e. mu/k=phi -> k=mu/phi
+##' negative binomial 1 log-liklihood base model
 loglik_nbinom1_base <- Transform(
     loglik_nbinom_base,
     transforms=list(ll.k~mu/ll.phi)
@@ -281,6 +325,7 @@ loglik_nbinom_base <- Transform(
     transforms = list(ll.k ~ exp(ll.k))
 )
 
+##' negative binomial log-liklihood model with sensitivity
 ##' @export
 loglik_nbinom <- Transform(
     loglik_nbinom_base,
@@ -293,6 +338,7 @@ loglik_nbinom1_base <- Transform(
     transforms = list(ll.phi ~ exp(ll.phi))
 )
 
+##' negative binomial 1 log-liklihood model with sensitivity
 ##' @export
 loglik_nbinom1 <- Transform(
     loglik_nbinom1_base,

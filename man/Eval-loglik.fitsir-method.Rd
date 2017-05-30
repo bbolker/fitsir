@@ -8,11 +8,15 @@
 \S4method{Eval}{loglik.fitsir}(object, count, mean, par = NULL, ...)
 }
 \arguments{
-\item{par}{a named vector (or list) of parameter values, if NULL, take from ...}
+\item{object}{object to be evaluated}
 
-\item{...}{the input values and parameter values}
+\item{count}{observations}
 
-\item{data}{a dataframe object holding inut values, if NULL, take from ...}
+\item{mean}{mean values}
+
+\item{par}{additional parameters}
+
+\item{...}{other values if required}
 }
 \value{
 numeric
