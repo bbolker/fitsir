@@ -3,23 +3,27 @@
 \docType{methods}
 \name{grad,loglik.fitsir-method}
 \alias{grad,loglik.fitsir-method}
-\title{the gradients w.r.t. to parameters
-compute the gradient of the model as a function of the parameters}
+\title{Evaluate the gradient of a model}
 \usage{
 \S4method{grad}{loglik.fitsir}(object, count, mean, par, var, ...)
 }
 \arguments{
-\item{par}{a named vector (or list) of parameters to compute the derivatives}
+\item{object}{object to be evaluated}
 
-\item{...}{the input values and parameter values}
+\item{count}{observations}
 
-\item{data}{a dataframe object holding inut values, if NULL, take from ...}
+\item{mean}{mean values}
+
+\item{par}{additional parameters}
+
+\item{var}{character vector specifying names of partial derivative parameters}
+
+\item{...}{other values if required}
 }
 \value{
-a dataframe with each column as a partial derivative values
+a list with each element as a partial derivative values
 }
 \description{
-the gradients w.r.t. to parameters
-compute the gradient of the model as a function of the parameters
+Evaluate the gradient of a model
 }
 

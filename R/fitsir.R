@@ -182,7 +182,7 @@ SIR.logLik  <- function(params, count, times=NULL,
     return(r)
 }
 
-ordered.pars <- c("log.beta","log.gamma","log.N","logit.i")
+.fitsir.pars <- c("log.beta","log.gamma","log.N","logit.i")
   
 ##' fitting function
 ##' @param data data frame
@@ -194,18 +194,19 @@ ordered.pars <- c("log.beta","log.gamma","log.N","logit.i")
 ##' @param tcol column name for time variable
 ##' @param icol column name for count variable
 ##' @param debug print debugging output?
+##' @seealso startfun
 ##' @export
 ##' @importFrom bbmle mle2
 ##' @examples
 ##' bombay2 <- setNames(bombay,c("times","count"))
-##' (f1 <- fitsir(bombay2, type="death"))
+##' (f1 <- fitsir(bombay2, start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)), type="death"))
 ##' plot(f1)
 ##' ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
 ##' cc <- bombay2$count
 ##' 
 ##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
 ##' mean((1-ss/cc)^2)
-fitsir <- function(data, start=startfun(),
+fitsir <- function(data, start,
                    dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
                    method=c("Nelder-Mead", "BFGS", "SANN"),
@@ -218,6 +219,18 @@ fitsir <- function(data, start=startfun(),
     method <- match.arg(method)
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
     dataarg <- c(data,list(debug=debug, type = type, dist=dist))
+    
+    model <- select_model(dist)
+    parnames <- c(.fitsir.pars, model@par[model@par != "param"])
+    
+    if(missing(start) | length(start) != length(parnames)) {
+        stop.msg <- paste0("'start' must be a named vector with following parameters:\n", paste(parnames, collapse = ', '))
+        stop(stop.msg)
+    } else if (!all(parnames %in% names(start))) {
+        stop.msg2 <- paste0("names of 'start' does not match names of the parameters (", paste(parnames, collapse = ', '), ").
+                           \n")
+        stop(stop.msg2)
+    }
     
     if (method=="BFGS") {
         f.env <- new.env()
@@ -259,20 +272,7 @@ fitsir <- function(data, start=startfun(),
         objfun <- SIR.logLik
         gradfun <- NULL
     }
-    if (grepl("nbinom", dist)) {
-        attr(objfun, "parnames") <- c(ordered.pars,"log.dsp")
-        if(length(start) < 5)
-            start <- c(start, 
-                log.dsp=switch(dist,
-                    "nbinom"=log(100),
-                    "nbinom1"=log(4)
-                )
-            )
-    } else {
-        attr(objfun, "parnames") <- ordered.pars
-        start <- start[1:4]
-    }
-    
+    attr(objfun, "parnames") <- parnames
     
     m <- mle2(objfun,
               vecpar=TRUE,
@@ -322,6 +322,7 @@ SIR.sensitivity <- function(params, count, times=NULL,
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
+    ## FIXME: Make this more general
     if (grepl("nbinom", dist)) {
         par <- params[5]
     } else {
@@ -333,10 +334,13 @@ SIR.sensitivity <- function(params, count, times=NULL,
         nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
         nll <- -sum(Eval(model, count, i.hat, par))
         sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model,count,i.hat,par,param=NULL,nu=nu,var="param")[[1]])))
-        names(sensitivity) <- c("value",ordered.pars)
-        if (grepl("nbinom", dist))
+        names(sensitivity) <- c("value",.fitsir.pars)
+        if (grepl("nbinom", dist)) {
             sensitivity <- c(sensitivity,
-                             log.dsp=-sum(grad(model,count,i.hat,par,param=NULL,nu=NULL,var=1)[[1]]))
+                             -sum(grad(model,count,i.hat,par,param=NULL,nu=NULL,var=1)[[1]]))
+            names(sensitivity)[-c(1:5)] <- model@par[model@par != "param"]
+        }
+            
         return(sensitivity)
     })
     return(res)

@@ -5,7 +5,13 @@ test_that("convergence", {
     harbin2 <- setNames(harbin,c("times","count"))
     
     for (dist in c("gaussian", "nbinom", "nbinom1", "poisson")) {
-        f1 <- fitsir(harbin2, type="death", start=startfun(harbin2), dist=dist)
+        ss <- startfun(harbin2)
+        
+        if(dist=="nbinom") ss <- c(ss, ll.k=5)
+        
+        if(dist=="nbinom1") ss <- c(ss, ll.phi=5)    
+        
+        f1 <- fitsir(harbin2, type="death", start=ss, dist=dist)
         f2 <- fitsir(harbin2, type="death", method="BFGS", start=coef(f1), dist=dist)
         f3 <- fitsir(harbin2, type="death", start=coef(f2), dist=dist)
         f4 <- fitsir(harbin2, type="death", method="BFGS", start=coef(f3), dist=dist)
