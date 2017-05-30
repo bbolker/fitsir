@@ -31,7 +31,7 @@ setClass(
 ##' @param keep_grad maintain the gradient as part of the model
 ##' @param keep_hessian maintain the hessian as part of the model
 ##' @docType methods
-##' @export
+##' @exportMethod initialize
 setMethod(
     "initialize",
     "loglik.fitsir",
@@ -67,8 +67,6 @@ setMethod(
     }
 )
 
-##' @docType methods
-##' @export
 setGeneric(
     "Eval",
     def = function(object, ...) {
@@ -84,7 +82,7 @@ setGeneric(
 ##' @param ... other values if required
 ##' @return numeric
 ##' @docType methods
-##' @export
+##' @exportMethod Eval
 setMethod(
     "Eval",
     "loglik.fitsir",
@@ -96,8 +94,6 @@ setMethod(
     }
 )
 
-##' @docType methods
-##' @export
 setGeneric(
     "grad",
     def = function(object, ...) {
@@ -114,7 +110,7 @@ setGeneric(
 ##' @param ... other values if required
 ##' @return a list with each element as a partial derivative values
 ##' @docType methods
-##' @export
+##' @exportMethod grad
 setMethod(
     "grad",
     "loglik.fitsir",
@@ -128,8 +124,6 @@ setMethod(
     }
 )
 
-#' @docType methods
-#' @export
 setGeneric(
     "hessian",
     def = function(object, ...) {
@@ -146,7 +140,7 @@ setGeneric(
 ##' @param ... other values if required
 ##' @return a list with each element as a partial derivative values
 ##' @docType methods
-##' @export
+##' @exportMethod hessian
 setMethod(
     "hessian",
     "loglik.fitsir",
@@ -165,8 +159,6 @@ setMethod(
     }
 )
 
-##' @docType methods
-##' @export
 setGeneric(
     "Transform",
     def = function(object, ...) {
@@ -184,7 +176,7 @@ setGeneric(
 ##' @param keep_hessian maintain the hessian as part of the model
 ##' @return loglik.fitsir object
 ##' @docType methods
-##' @export
+##' @exportMethod Transform
 setMethod(
     "Transform",
     "loglik.fitsir",
