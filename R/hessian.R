@@ -1,4 +1,5 @@
 ##' initialize the hessian model
+##' @export
 initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
     dist <- match.arg(dist)
     if (dist=="quasipoisson") dist <- "poisson"
@@ -60,6 +61,7 @@ SIR.detsim.hessian <- function(t, params){
 ##' find Hessian
 ##' @param data data frame with tvec/count
 ##' @param params parameter vector
+##' @export
 SIR.hessian <- function(data, params, 
                      dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                      tcol = "times", icol = "count") {
@@ -70,27 +72,22 @@ SIR.hessian <- function(data, params,
     tpars <- trans.pars(params)
     r <- SIR.detsim.hessian(times, tpars)
     
-    with(as.list(c(tpars, r)),{
-        parVec <- c(beta, gamma, N, i0)
-        
-        sensVec <- c(beta, gamma, N, i0^2*exp(-qlogis(i0)))
-        
-        sensVec2 <- c(1, 1, 1, 2*i0*exp(-qlogis(i0)) - i0^2 * exp(-qlogis(i0)) * 1/(i0-i0^2))
-        
-        derVec <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
-        
-        hess <- hessian(model, count=count, mean=exp(r$logI), par=as.list(params),
-                nu_I_i0=nu_I_i)
-        
-        n <- length(params)
-        
-        m <- matrix(0, n, n)
-        
-        for(i in 1:n) {
-            m[i,] <- -colSums(hess[,,i])
-        }
-        
-        return(m)
-    })
+    attach(as.list(r))
+    attach(as.list(params))
+    
+    hess <- hessian(model, count=count, mean=exp(r$logI), par=as.list(params))
+    
+    n <- length(params)
+    
+    m <- matrix(0, n, n)
+    
+    for(i in 1:n) {
+        m[i,] <- -colSums(hess[,,i])
+    }
+     
+    detach(as.list(r))
+    detach(as.list(params))
+       
+    return(m)
     
 }

@@ -5,8 +5,8 @@
 \alias{Transform,loglik.fitsir-method}
 \title{Transform the model}
 \usage{
-\S4method{Transform}{loglik.fitsir}(object, transforms = NULL, count = "X",
-  mean, par, keep_grad = TRUE, keep_hessian = FALSE)
+\S4method{Transform}{loglik.fitsir}(object, transforms = NULL, name,
+  count = "X", mean, par, keep_grad = TRUE, keep_hessian = FALSE)
 }
 \arguments{
 \item{object}{object}
