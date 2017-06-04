@@ -58,7 +58,7 @@ setMethod(
         } else .Object@grad <- list()
         
         if(keep_hessian) {
-            .Object@hessian <- lapply(.Object@grad, function(d) Deriv::Deriv(d))
+            .Object@hessian <- lapply(.Object@grad, function(d) deriv(d))
             names(.Object@hessian) <- vars
         } else .Object@hessian <- list()
         
@@ -182,7 +182,9 @@ setGeneric(
 setMethod(
     "Transform",
     "loglik.fitsir",
-    definition <- function(object, transforms=NULL, count="X", 
+    definition <- function(object, transforms=NULL, 
+                           name,
+                           count="X", 
                            mean, par,
                            keep_grad=TRUE,
                            keep_hessian=FALSE) {
@@ -234,10 +236,11 @@ setMethod(
         f <- c(as.symbol("~"), as.symbol("LL"), subst(object@expr[[1]]))
         f <- as.formula(as.call(f))
         
+        if (missing(name)) name <- object@name
         if (missing(mean)) mean <- object@mean
         if (missing(par)) par <- object@par
         
-        new("loglik.fitsir", object@name, f, count, mean=mean, par=par, keep_grad=keep_grad, keep_hessian=keep_hessian)
+        new("loglik.fitsir", name, f, count, mean=mean, par=par, keep_grad=keep_grad, keep_hessian=keep_hessian)
     }
 )
 
@@ -249,7 +252,6 @@ setMethod(
 .nu_gamma <- function(beta, gamma, N, i0, nu_I_g) nu_I_g
 .nu_N <- function(beta, gamma, N, i0, nu_I_N) nu_I_N
 .nu_i <- function(beta, gamma, N, i0, nu_I_i) nu_I_i
-
 
 ## use Taylor expansion of digamma(a+b) for a>>b
 ## discontinuity in second derivative, but ... probably OK
@@ -283,25 +285,19 @@ drule[["lbeta"]] <- drule[["w_lbeta"]] <- alist(a=dfun(a,b),
 drule[["dfun"]] <- alist(x=dfun2(x,y),
                          y=dfun2(y,x))
 
-##' @export
 drule[[".sensfun"]] <- alist(x=nu, mean=1)
 
-##' @export
 drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0, nu_I_b),
                               gamma=.nu_gamma(beta,gamma,N,i0, nu_I_g),
                               N=.nu_N(beta,gamma,N,i0, nu_I_N),
                               i0=.nu_i(beta,gamma,N,i0, nu_I_i))
 
-##' @export
 drule[[".nu_beta"]] <- alist(beta=nu_I_bb, gamma=nu_I_bg, N=nu_I_bN, i0=nu_I_bi)
 
-##' @export
 drule[[".nu_gamma"]] <- alist(beta=nu_I_bg, gamma=nu_I_gg, N=nu_I_gN, i0=nu_I_gi)
 
-##' @export
 drule[[".nu_N"]] <- alist(beta=nu_I_bN, gamma=nu_I_gN, N=nu_I_NN, i0=nu_I_Ni)
 
-##' @export
 drule[[".nu_i"]] <- alist(beta=nu_I_bi, gamma=nu_I_gi, N=nu_I_Ni, i0=nu_I_ii)
 
 ##' gaussian log-likelihood base model
@@ -349,7 +345,9 @@ loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
 ##' negative binomial 1 log-liklihood base model
 loglik_nbinom1_base <- Transform(
     loglik_nbinom_base,
-    transforms=list(ll.k~mu/ll.phi)
+    transforms=list(ll.k~mu/ll.phi),
+    name="nbinom1",
+    par="ll.phi"
 )
 
 loglik_nbinom_base <- Transform(
