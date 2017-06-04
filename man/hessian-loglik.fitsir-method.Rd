@@ -5,20 +5,20 @@
 \alias{hessian,loglik.fitsir-method}
 \title{Evaluate the hessian of a model}
 \usage{
-\S4method{hessian}{loglik.fitsir}(object, data = NULL, par, var, ...)
+\S4method{hessian}{loglik.fitsir}(object, count, mean, par, var, ...)
 }
 \arguments{
 \item{object}{object to be evaluated}
+
+\item{count}{observations}
+
+\item{mean}{mean values}
 
 \item{par}{additional parameters}
 
 \item{var}{character vector specifying names of partial derivative parameters}
 
 \item{...}{other values if required}
-
-\item{count}{observations}
-
-\item{mean}{mean values}
 }
 \value{
 a list with each element as a partial derivative values

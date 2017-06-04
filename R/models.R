@@ -58,7 +58,7 @@ setMethod(
         } else .Object@grad <- list()
         
         if(keep_hessian) {
-            .Object@hessian <- lapply(.Object@grad, function(d) deriv(d))
+            .Object@hessian <- lapply(.Object@grad, function(d) Deriv::Deriv(d))
             names(.Object@hessian) <- vars
         } else .Object@hessian <- list()
         
@@ -115,7 +115,8 @@ setMethod(
     "grad",
     "loglik.fitsir",
     definition <- function(object, count, mean, par, var, ...) {
-        frame <- list(count, mean, par)
+        frame <- list(count, mean)
+        frame <- append(frame, par)
         names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
         frame <- append(frame, list(...))
         if (missing(var)) var <- c(object@par)
@@ -144,8 +145,9 @@ setGeneric(
 setMethod(
     "hessian",
     "loglik.fitsir",
-    definition <- function(object, data=NULL, par, var, ...) {
-        frame <- list(count, mean, par)
+    definition <- function(object, count, mean, par, var, ...) {
+        frame <- list(count, mean)
+        frame <- append(frame, par)
         names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
         frame <- append(frame, list(...))
         if (missing(var)) var <- c(object@par)
@@ -241,28 +243,66 @@ setMethod(
 
 ## Trying to get partial derivatives to work...
 .sensfun <- function(x, mean) mean
-.sensfun2 <- function(x, y, mean) mean
-.sensfun3 <- function(x, y, z) z
-.sensfun_hessian <- function(x, y, hessianfun) hessianfun(x, y)
-.trans <- function(x, transfun, invfun, invfun2) transfun(x)
-.inv <- function(x, invfun, invfun2) invfun(x)
-.inv2 <- function(x, invfun2) invfun2(x)
 
 .sensfun2 <- function(beta, gamma, N, i0, mean) mean
-.nu_beta <- function(beta, gamma, N, i0, nu_beta) nu_beta
-.nu_gamma <- function(beta, gamma, N, i0, nu_gamma) nu_gamma
-.nu_N <- function(beta, gamma, N, i0, nu_N) nu_N
-.nu_i0 <- function(beta, gamma, N, i0, nu_i0) nu_i0
+.nu_beta <- function(beta, gamma, N, i0, nu_I_b) nu_I_b
+.nu_gamma <- function(beta, gamma, N, i0, nu_I_g) nu_I_g
+.nu_N <- function(beta, gamma, N, i0, nu_I_N) nu_I_N
+.nu_i <- function(beta, gamma, N, i0, nu_I_i) nu_I_i
 
+
+## use Taylor expansion of digamma(a+b) for a>>b
+## discontinuity in second derivative, but ... probably OK
 ##' @importFrom Deriv drule
-drule[[".sensfun"]] <- alist(x=nu, mean=1)
-drule[[".sensfun2"]] <- alist(x=.sensfun3(x, y, nu_x), y=.sensfun3(y, x, nu_y))
-drule[[".sensfun3"]] <- alist(x=.sensfun_hessian(x, x), y=.sensfun_hessian(x, y))
-drule[[".trans"]] <- alist(x=.inv(x, invfun, invfun2))
-drule[[".inv"]] <- alist(x=.inv2(x, invfun2))
+dfun <- function(x,y,mag=1e8) {
+    return(ifelse(x/y>mag,
+                  -y*trigamma(x),
+                  digamma(x)-digamma(x+y)))
+}
+dfun2 <- function(x,y,mag=1e8,focal="x") {
+    return(switch(focal,
+                  x=ifelse(x/y>mag,
+                           -y*psigamma(x,2),
+                           trigamma(x)-trigamma(x+y)),
+                  y=ifelse(x/y>mag,
+                           -trigamma(x),
+                           -trigamma(x+y))))
+}
 
-drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0,nu_beta))
-## drule[[".nu_beta"]]
+w_lbeta <- function(a,b) {
+    ## when we have an effectively-Poisson casee
+    ## lbeta gives "underflow occurred in 'lgammacor'" frequently ...
+    ## suppressWarnings() causes an obscure error ?
+    ## using w_lbeta rather than lbeta causes obscure errors from Deriv()
+    op <- options(warn=-1)
+    on.exit(options(op))
+    return(lbeta(a,b))
+}
+drule[["lbeta"]] <- drule[["w_lbeta"]] <- alist(a=dfun(a,b),
+                                                b=dfun(b,a))
+drule[["dfun"]] <- alist(x=dfun2(x,y),
+                         y=dfun2(y,x))
+
+##' @export
+drule[[".sensfun"]] <- alist(x=nu, mean=1)
+
+##' @export
+drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0, nu_I_b),
+                              gamma=.nu_gamma(beta,gamma,N,i0, nu_I_g),
+                              N=.nu_N(beta,gamma,N,i0, nu_I_N),
+                              i0=.nu_i(beta,gamma,N,i0, nu_I_i))
+
+##' @export
+drule[[".nu_beta"]] <- alist(beta=nu_I_bb, gamma=nu_I_bg, N=nu_I_bN, i0=nu_I_bi)
+
+##' @export
+drule[[".nu_gamma"]] <- alist(beta=nu_I_bg, gamma=nu_I_gg, N=nu_I_gN, i0=nu_I_gi)
+
+##' @export
+drule[[".nu_N"]] <- alist(beta=nu_I_bN, gamma=nu_I_gN, N=nu_I_NN, i0=nu_I_Ni)
+
+##' @export
+drule[[".nu_i"]] <- alist(beta=nu_I_bi, gamma=nu_I_gi, N=nu_I_Ni, i0=nu_I_ii)
 
 ##' gaussian log-likelihood base model
 loglik_gaussian_base<- new("loglik.fitsir", "gaussian",

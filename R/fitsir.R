@@ -182,6 +182,7 @@ SIR.logLik  <- function(params, count, times=NULL,
     return(r)
 }
 
+##' fitsir parameters
 .fitsir.pars <- c("log.beta","log.gamma","log.N","logit.i")
   
 ##' fitting function
