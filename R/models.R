@@ -1,7 +1,7 @@
 ##' Class representing log-likelihood models used to fit the SIR model
 ##' 
 ##' @slot name name of the distribution
-##' @slot expr an expressioin specifying the model
+##' @slot expr an expression specifying the model
 ##' @slot count observation variable name
 ##' @slot mean mean variable name
 ##' @slot par additional parameter names
@@ -49,7 +49,12 @@ setMethod(
         # compute the gradient
         vars <- c(par)
         deriv <- function(expr) {
-            d <- lapply(vars, function(p){Deriv::Deriv(expr, p)})
+            d <- lapply(vars,
+                        function(p){
+                ## hack to make drule available in current environment
+                drule <- fitsir:::drule
+                .sensfun <- fitsir:::.sensfun
+                Deriv::Deriv(expr, p)})
             names(d) <- vars
             d
         }
@@ -222,7 +227,7 @@ setMethod(
                 if (is.null(expr)) return(e)
                 return (expr)
             }
-            if (!is.call(e)) stop("unknow class: ", class(e))
+            if (!is.call(e)) stop("unknown class: ", class(e))
             l <- list(e[[1]])
             for (i in 2:length(e))
                 l <- c(l, subst(e[[i]]))
@@ -272,7 +277,7 @@ dfun2 <- function(x,y,mag=1e8,focal="x") {
 }
 
 w_lbeta <- function(a,b) {
-    ## when we have an effectively-Poisson casee
+    ## when we have an effectively-Poisson case
     ## lbeta gives "underflow occurred in 'lgammacor'" frequently ...
     ## suppressWarnings() causes an obscure error ?
     ## using w_lbeta rather than lbeta causes obscure errors from Deriv()
@@ -300,7 +305,13 @@ drule[[".nu_N"]] <- alist(beta=nu_I_bN, gamma=nu_I_gN, N=nu_I_NN, i0=nu_I_Ni)
 
 drule[[".nu_i"]] <- alist(beta=nu_I_bi, gamma=nu_I_gi, N=nu_I_Ni, i0=nu_I_ii)
 
-##' gaussian log-likelihood base model
+#' @name drule
+#' @rdname loglik.fitsir-class
+#' @export
+drule
+
+
+# gaussian log-likelihood base model
 loglik_gaussian_base<- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
                        mean="mu", par="sigma")
@@ -309,7 +320,7 @@ loglik_gaussian_base <- Transform(loglik_gaussian_base,
     transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1)))
 )
 
-##' gaussian log-liklihood model with sensitivity
+##' gaussian log-likelihood model with sensitivity
 ##' @export
 loglik_gaussian <- Transform(
     loglik_gaussian_base,
@@ -317,12 +328,12 @@ loglik_gaussian <- Transform(
     par="param"
 )
 
-##' poisson log-liklihood base model
+##' poisson log-likelihood base model
 loglik_poisson_base <- new("loglik.fitsir", "poisson", 
                       LL ~ X*log(lambda) - lambda - lgamma(X+1), 
                       mean = "lambda", par = c())
 
-##' poisson log-liklihood model with sensitivity
+##' poisson log-likelihood model with sensitivity
 ##' @export
 loglik_poisson <- Transform(
     loglik_poisson_base,
@@ -330,7 +341,7 @@ loglik_poisson <- Transform(
     par="param"
 )
 
-##' negative binomial log-liklihood base model
+##' negative binomial log-likelihood base model
 loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
                       LL ~ -lbeta(ll.k, X) - log(X) + ll.k * (-log1p(mu/ll.k)) + 
                           X * log(mu) - X * log(ll.k + mu),
@@ -342,7 +353,7 @@ loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
 # v=mu*(1+mu/k), k>0
 # v=mu*(1+phi), phi>0
 # i.e. mu/k=phi -> k=mu/phi
-##' negative binomial 1 log-liklihood base model
+##' negative binomial 1 log-likelihood base model
 loglik_nbinom1_base <- Transform(
     loglik_nbinom_base,
     transforms=list(ll.k~mu/ll.phi),
@@ -355,7 +366,7 @@ loglik_nbinom_base <- Transform(
     transforms = list(ll.k ~ exp(ll.k))
 )
 
-##' negative binomial log-liklihood model with sensitivity
+##' negative binomial log-likelihood model with sensitivity
 ##' @export
 loglik_nbinom <- Transform(
     loglik_nbinom_base,
@@ -368,7 +379,7 @@ loglik_nbinom1_base <- Transform(
     transforms = list(ll.phi ~ exp(ll.phi))
 )
 
-##' negative binomial 1 log-liklihood model with sensitivity
+##' negative binomial 1 log-likelihood model with sensitivity
 ##' @export
 loglik_nbinom1 <- Transform(
     loglik_nbinom1_base,

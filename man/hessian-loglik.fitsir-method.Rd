@@ -26,4 +26,3 @@ a list with each element as a partial derivative values
 \description{
 Evaluate the hessian of a model
 }
-

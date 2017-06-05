@@ -14,4 +14,3 @@ SIR.detsim.hessian(t, params)
 \description{
 integrate second order sensitivities
 }
-

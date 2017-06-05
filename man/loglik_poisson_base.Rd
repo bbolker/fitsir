@@ -3,13 +3,12 @@
 \docType{data}
 \name{loglik_poisson_base}
 \alias{loglik_poisson_base}
-\title{poisson log-liklihood base model}
+\title{poisson log-likelihood base model}
 \format{An object of class \code{loglik.fitsir} of length 1.}
 \usage{
 loglik_poisson_base
 }
 \description{
-poisson log-liklihood base model
+poisson log-likelihood base model
 }
 \keyword{datasets}
-

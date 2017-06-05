@@ -3,6 +3,7 @@
 \docType{class}
 \name{loglik.fitsir-class}
 \alias{loglik.fitsir-class}
+\alias{drule}
 \title{Class representing log-likelihood models used to fit the SIR model}
 \description{
 Class representing log-likelihood models used to fit the SIR model
@@ -12,7 +13,7 @@ Class representing log-likelihood models used to fit the SIR model
 \describe{
 \item{\code{name}}{name of the distribution}
 
-\item{\code{expr}}{an expressioin specifying the model}
+\item{\code{expr}}{an expression specifying the model}
 
 \item{\code{count}}{observation variable name}
 

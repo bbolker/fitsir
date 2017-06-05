@@ -24,4 +24,3 @@ SIR.logLik(params, count, times = NULL, dist = c("gaussian", "poisson",
 \description{
 Log-likelihood for SIR trajectory
 }
-

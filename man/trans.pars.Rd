@@ -17,4 +17,3 @@ params transformed parameter vector containing \code{beta}, \code{gamma}, \code{
 transform parameters log->exp or alr->raw
 *assume* R=0/S=N at start of epidemic
 }
-

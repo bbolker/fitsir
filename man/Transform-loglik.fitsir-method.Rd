@@ -29,4 +29,3 @@ loglik.fitsir object
 \description{
 Transform the model
 }
-

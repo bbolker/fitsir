@@ -3,13 +3,12 @@
 \docType{data}
 \name{loglik_gaussian}
 \alias{loglik_gaussian}
-\title{gaussian log-liklihood model with sensitivity}
+\title{gaussian log-likelihood model with sensitivity}
 \format{An object of class \code{loglik.fitsir} of length 1.}
 \usage{
 loglik_gaussian
 }
 \description{
-gaussian log-liklihood model with sensitivity
+gaussian log-likelihood model with sensitivity
 }
 \keyword{datasets}
-

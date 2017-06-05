@@ -23,4 +23,3 @@ startfun(data, type = c("prevalence", "incidence", "death"), tcol = "times",
 \description{
 Starting function
 }
-

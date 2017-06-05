@@ -44,4 +44,3 @@ mean((1-ss/cc)^2)
 \seealso{
 startfun
 }
-

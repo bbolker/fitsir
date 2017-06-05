@@ -2,9 +2,9 @@
 % Please edit documentation in R/fitsir-class.R, R/fitsir-methods.R
 \docType{class}
 \name{summary.fitsir-class}
-\alias{show,summary.fitsir-class}
-\alias{show,summary.fitsir-method}
 \alias{summary.fitsir-class}
+\alias{show,summary.fitsir-method}
+\alias{show,summary.fitsir-class}
 \title{Class "summary.fitsir".
 Summary of SIR model fit}
 \usage{
@@ -18,6 +18,7 @@ Summary of SIR model fit
 \itemize{
 \item \code{show}: pretty-prints \code{object}
 }}
+
 \section{Slots}{
 
 \describe{
@@ -33,7 +34,7 @@ Summary of estimated coefficients and standard errors.}
 \item{\code{m2logL}}{Object of class "\code{numeric}".
 Minus twice the log likelihood.}
 }}
+
 \seealso{
 \code{\link{summary.mle2-class}}
 }
-
