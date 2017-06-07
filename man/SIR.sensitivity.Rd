@@ -32,3 +32,4 @@ fitsir:::SIR.sensitivity(c(log.beta=2,log.gamma=0,logit.i=-3,log.N=4),
                  type="prevalence")
 
 }
+

@@ -12,3 +12,4 @@ loglik_nbinom
 negative binomial log-likelihood model with sensitivity
 }
 \keyword{datasets}
+

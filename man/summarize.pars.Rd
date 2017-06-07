@@ -15,3 +15,4 @@ summarize.pars.jacobian(params)
 \description{
 Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0)) from a set of epidemic parameters
 }
+

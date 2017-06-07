@@ -18,3 +18,4 @@ smooth.spline2(times, count, itmax = 100, relpeakcrit = 0.1)
 \description{
 Fit a spline to an epidemic data
 }
+

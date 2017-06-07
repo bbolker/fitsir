@@ -13,3 +13,4 @@ select_model(dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 \description{
 Select likelihood model
 }
+

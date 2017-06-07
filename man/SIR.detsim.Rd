@@ -29,3 +29,4 @@ matplot(data.frame(ss.p,ss.i,ss.d),type = "l",xlab="time",ylab="count")
 legend(x=0,y=800,col=1:3,lty=1:3,legend=c("prevalence","incidence","death"))
 all.equal(cumsum(c(5, ss.i[-length(ss.i)])) - cumsum(c(0, ss.d[-length(ss.d)])), ss.p)
 }
+

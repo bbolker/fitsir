@@ -15,6 +15,7 @@ Make sure to read the reference for cautions!
 n.b. fitting obviously isn't working right yet.
 }
 \references{
-Bacaër, Nicolas. 2012. “The Model of Kermack and McKendrick for the Plague Epidemic in Bombay and the Type Reproduction Number with Seasonality.” Journal of Mathematical Biology 64 (3): 403–22. doi:10.1007/s00285-011-0417-5.
+Baca<U+CC58>r, Nicolas. 2012. <U+FFFD><U+C3F7>he Model of Kermack and McKendrick for the Plague Epidemic in Bombay and the Type Reproduction Number with Seasonality.<U+FFFD><U+FFFD> Journal of Mathematical Biology 64 (3): 403<U+FFFD><U+FFFD>22. doi:10.1007/s00285-011-0417-5.
 }
 \keyword{datasets}
+
