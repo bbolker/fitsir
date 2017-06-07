@@ -5,7 +5,8 @@
 \title{find Hessian}
 \usage{
 SIR.hessian(data, params, dist = c("gaussian", "poisson", "quasipoisson",
-  "nbinom", "nbinom1"), tcol = "times", icol = "count")
+  "nbinom", "nbinom1"), type = c("prevalence", "incidence", "death"),
+  tcol = "times", icol = "count")
 }
 \arguments{
 \item{data}{data frame with tvec/count}
@@ -15,3 +16,4 @@ SIR.hessian(data, params, dist = c("gaussian", "poisson", "quasipoisson",
 \description{
 find Hessian
 }
+

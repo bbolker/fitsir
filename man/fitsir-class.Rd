@@ -2,19 +2,19 @@
 % Please edit documentation in R/fitsir-class.R, R/fitsir-methods.R
 \docType{class}
 \name{fitsir-class}
+\alias{coef,fitsir-class}
+\alias{coef,fitsir-method}
+\alias{dispersion,fitsir-class}
+\alias{dispersion,fitsir-method}
 \alias{fitsir-class}
 \alias{plot,fitsir,missing-method}
 \alias{plot,fitsir-class}
-\alias{coef,fitsir-method}
-\alias{coef,fitsir-class}
-\alias{predict,fitsir-method}
 \alias{predict,fitsir-class}
-\alias{residuals,fitsir-method}
+\alias{predict,fitsir-method}
 \alias{residuals,fitsir-class}
-\alias{dispersion,fitsir-method}
-\alias{dispersion,fitsir-class}
-\alias{summary,fitsir-method}
+\alias{residuals,fitsir-method}
 \alias{summary,fitsir-class}
+\alias{summary,fitsir-method}
 \title{Class "fitsir". 
 Result of SIR model fitting based on Maximum Likelihood Estimation}
 \usage{
@@ -52,7 +52,6 @@ Result of SIR model fitting based on Maximum Likelihood Estimation
 
 \item \code{summary}: summarize fit using meaningful parameters
 }}
-
 \examples{
 harbin2 <- setNames(harbin, c("times", "count"))
 ss <- startfun(harbin2, type="death")
@@ -78,3 +77,4 @@ residuals(ff)
 \seealso{
 \code{\link{mle2-class}}
 }
+

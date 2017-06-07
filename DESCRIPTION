@@ -10,7 +10,11 @@ LazyData: yes
 Depends:
     bbmle
 Imports:
-    deSolve, methods, MASS, mvtnorm, Deriv
+    deSolve,
+    methods,
+    MASS,
+    mvtnorm,
+    Deriv
 Suggests:
     knitr,
     ggplot2,
@@ -20,4 +24,4 @@ Suggests:
     microbenchmark
 License: GPL (>=2)
 BuildVignettes: yes
-RoxygenNote: 6.0.1.9000
+RoxygenNote: 5.0.1

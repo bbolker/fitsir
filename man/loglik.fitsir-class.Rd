@@ -3,7 +3,6 @@
 \docType{class}
 \name{loglik.fitsir-class}
 \alias{loglik.fitsir-class}
-\alias{drule}
 \title{Class representing log-likelihood models used to fit the SIR model}
 \description{
 Class representing log-likelihood models used to fit the SIR model

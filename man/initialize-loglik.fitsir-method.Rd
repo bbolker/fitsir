@@ -26,3 +26,4 @@
 \description{
 the initializer for loglik.fitsir
 }
+

@@ -18,3 +18,4 @@ minusloglfun(x, mean, par, dist)
 \description{
 Negative log likelihood functions
 }
+

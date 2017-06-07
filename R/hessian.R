@@ -35,8 +35,15 @@ initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nb
 ##' integrate second order sensitivities
 ##' @param t time vector
 ##' @param params parameter vector
-SIR.detsim.hessian <- function(t, params){
+SIR.detsim.hessian <- function(t, params,
+                               type=c("prevalence", "incidence", "death")) {
+    type <- match.arg(type)
+    
     with(as.list(c(params)),{
+        if(type %in% c("incidence", "death")){
+            t <- c(2*t[1]-t[2], t)
+        }
+        
         yini <- c(S = N*(1-i0), logI = log(N*i0),
                   nu_S_b = 0, nu_S_bb = 0, nu_S_bg = 0, nu_S_bN = 0, nu_S_bi = 0,
                   nu_S_g = 0, nu_S_gg = 0, nu_S_gN = 0, nu_S_gi = 0,
@@ -47,15 +54,37 @@ SIR.detsim.hessian <- function(t, params){
                   nu_I_N = i0, nu_I_NN = 0, nu_I_Ni = 1,
                   nu_I_i = N, nu_I_ii = 0
                   )
+        
         odesol <- as.data.frame(ode(y=yini,
                                     times=t,
                                     func=SIR.grad.hessian,
                                     parms=params,
                                     method = "rk4",
                                     hini = 0.01))
+        nn <- names(odesol)
+        icol <- nn[grepl("I", nn)]
+        scol <- nn[grepl("S", nn)]
+        if(type == "prevalence"){
+            odesol <- odesol[,which(names(odesol) %in% icol)]
+        } else {
+            if(type == "death"){
+                odesol[,"logI"] <- exp(odesol[,"logI"])
+                odesol <- odesol[,which(names(odesol) %in% scol)] + odesol[,which(names(odesol) %in% icol)]
+            }else if(type == "incidence"){
+                odesol <- odesol[,which(names(odesol) %in% scol)]
+            }
+            odesol <- -as.data.frame(diff(as.matrix(odesol)))
+            odesol[,"S"] <- log(odesol[,"S"])
+        }
+        
+        if(!all(names(odesol) == icol))
+            names(odesol) <- icol
+        
+        return(odesol)
     })
     
     ## TODO: allow it to work for incidence and prevalence
+    
 }
 
 ##' find Hessian
@@ -64,13 +93,15 @@ SIR.detsim.hessian <- function(t, params){
 ##' @export
 SIR.hessian <- function(data, params, 
                      dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
+                     type=c("prevalence", "incidence", "death"),
                      tcol = "times", icol = "count") {
+    type <- match.arg(type)
     dist <- match.arg(dist)
     model <- initialize_hessian(dist)
     times <- data[[tcol]]
     count <- data[[icol]]
     tpars <- trans.pars(params)
-    r <- SIR.detsim.hessian(times, tpars)
+    r <- SIR.detsim.hessian(times, tpars, type=type)
     
     attach(as.list(r))
     attach(as.list(params))

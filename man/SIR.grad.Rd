@@ -22,3 +22,4 @@ gradient vector for a simple SIR model
 \description{
 gradient function (solves with {S,log(I)} for stability)
 }
+

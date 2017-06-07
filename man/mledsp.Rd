@@ -9,3 +9,4 @@ mledsp(x, mean, dist = c("nbinom", "nbinom1"))
 \description{
 Maximum likelihood estimate of negative binomial dispersion parameter
 }
+

@@ -10,3 +10,4 @@ initialize_hessian(dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 \description{
 initialize the hessian model
 }
+

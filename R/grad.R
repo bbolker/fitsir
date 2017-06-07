@@ -149,6 +149,6 @@ SIR.grad.hessian <- function(t, x, params) {
                          dnu_I_b, dnu_I_bb, dnu_I_bg, dnu_I_bN, dnu_I_bi,
                          dnu_I_g, dnu_I_gg, dnu_I_gN, dnu_I_gi,
                          dnu_I_N, dnu_I_NN, dnu_I_Ni,
-                         dnu_I_i, dnu_I_ii), I = I)
+                         dnu_I_i, dnu_I_ii))
               })
 }
