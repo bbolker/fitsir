@@ -3,13 +3,13 @@
 \docType{data}
 \name{loglik_nbinom}
 \alias{loglik_nbinom}
-\title{negative binomial log-likelihood model with sensitivity}
+\title{negative binomial log-likelihood base model}
 \format{An object of class \code{loglik.fitsir} of length 1.}
 \usage{
 loglik_nbinom
 }
 \description{
-negative binomial log-likelihood model with sensitivity
+negative binomial log-likelihood base model
 }
 \keyword{datasets}
 

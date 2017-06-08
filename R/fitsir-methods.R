@@ -15,7 +15,6 @@ NULL
 ##' plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 ##' plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 ##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
-##' 
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
              method=c("delta", "mvrnorm", "wmvrnorm", "sobol"),
@@ -61,7 +60,6 @@ setMethod("plot", signature(x="fitsir", y="missing"),
 ##' coef(ff)
 ##' coef(ff,"trans")
 ##' coef(ff,"summary")
-##' 
 setMethod("coef", "fitsir", 
     function(object,type=c("raw","trans","summary")){
         type <- match.arg(type)
@@ -81,8 +79,6 @@ setMethod("coef", "fitsir",
 ##' @importFrom MASS mvrnorm
 ##' @examples
 ##' predict(ff, level=0.95)
-##'
-##' 
 setMethod("predict", "fitsir",
     function(object,
              level,times,
@@ -133,6 +129,11 @@ setMethod("predict", "fitsir",
             cmat <- switch(method,
                 delta={
                     nmat <- as.matrix(SIR.detsim(times, pars, type, grad=TRUE)[,-1])
+                    nmat <- with(as.list(pars), {
+                        logSens <- c(beta, gamma, N, i0*(1-i0))
+                        sweep(nmat, 2, logSens, "*")
+                    })
+                    
                     xvcov <- object@vcov[1:4,1:4]
                     if(any(diag(xvcov < 0)))
                         warning("At least one entries in diag(vcov) is negative. Confidence interval may not be accurate.")
@@ -185,7 +186,6 @@ setMethod("predict", "fitsir",
 ##' @importFrom bbmle residuals
 ##' @examples
 ##' residuals(ff)
-##' 
 setMethod("residuals", "fitsir",
     function(object,type=c("pearson", "raw")){
         type <- match.arg(type)
