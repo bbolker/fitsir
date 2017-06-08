@@ -4,9 +4,8 @@
 \alias{SIR.logLik}
 \title{Log-likelihood for SIR trajectory}
 \usage{
-SIR.logLik(params, count, times = NULL, dist = c("gaussian", "poisson",
-  "quasipoisson", "nbinom", "nbinom1"), type = c("prevalence", "incidence",
-  "death"), debug = FALSE)
+SIR.logLik(params, count, times = NULL, model, type = c("prevalence",
+  "incidence", "death"), debug = FALSE)
 }
 \arguments{
 \item{params}{parameter vector (log.N0, logit.i0, log.beta, log.gamma)}
@@ -15,11 +14,11 @@ SIR.logLik(params, count, times = NULL, dist = c("gaussian", "poisson",
 
 \item{times}{time vector}
 
-\item{dist}{conditional distribution of reported data}
-
 \item{type}{type of reported data}
 
 \item{debug}{print debugging output?}
+
+\item{dist}{conditional distribution of reported data}
 }
 \description{
 Log-likelihood for SIR trajectory

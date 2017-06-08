@@ -137,8 +137,6 @@ SIR.detsim <- function(t, params,
             if(!all(names(odesol) == icol))
                 names(odesol) <- icol
             
-            logSens <- c(beta, gamma, N, i0*(1-i0))
-            odesol[,-1] <- sweep(odesol[,-1], 2, logSens, "*")
             return(odesol)
         }else{
             return(exp(odesol))
@@ -156,10 +154,9 @@ SIR.detsim <- function(t, params,
 ##' @param debug print debugging output?
 ##' @export 
 SIR.logLik  <- function(params, count, times=NULL,
-                        dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
+                        model,
                         type = c("prevalence", "incidence", "death"),
                         debug=FALSE) {
-    dist <- match.arg(dist)
     model <- select_model(dist)
     type <- match.arg(type)
     ## HACK: nloptr appears to strip names from parameters
@@ -172,12 +169,8 @@ SIR.logLik  <- function(params, count, times=NULL,
     tpars <- trans.pars(params)
     i.hat <- SIR.detsim(times,tpars,type)
     
-    if (grepl("nbinom", dist)) {
-        par <- params[5]
-    } else {
-        par <- NULL
-    }
-    r <- -sum(Eval(model, count, i.hat, par))
+    r <- -sum(Eval(model, count, i.hat, params[-c(1:4)]))
+    
     if (debug) cat(" ",r,"\n")
     return(r)
 }
@@ -219,19 +212,41 @@ fitsir <- function(data, start,
     type <- match.arg(type)
     method <- match.arg(method)
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
-    dataarg <- c(data,list(debug=debug, type = type, dist=dist))
     
     model <- select_model(dist)
-    parnames <- c(.fitsir.pars, model@par[model@par != "param"])
+    parnames <- c(.fitsir.pars, model@par)
     
     if(missing(start) | length(start) != length(parnames)) {
         stop.msg <- paste0("'start' must be a named vector with following parameters:\n", paste(parnames, collapse = ', '))
         stop(stop.msg)
     } else if (!all(parnames %in% names(start))) {
         stop.msg2 <- paste0("names of 'start' does not match names of the parameters (", paste(parnames, collapse = ', '), ").
-                           \n")
+                            \n")
         stop(stop.msg2)
     }
+    
+    if (method == "BFGS") {
+        mu_transforms <- list(mean~.sensfun(beta, gamma, N, i0, mean))
+        mu_transforms <- gsub("mean", model@mean, as.character(mu_transforms[[1]]))
+        mu_transforms <- as.formula(paste0(mu_transforms[[2]], mu_transforms[[1]], mu_transforms[[3]]))
+        
+        model <- Transform(
+            model,
+            transforms=list(mu_transforms),
+            par=c("beta", "gamma", "N", "i0")
+        )
+        
+        model <- Transform(
+            model,
+            transforms=list(beta~exp(log.beta),
+                            gamma~exp(log.gamma),
+                            N~exp(log.N),
+                            i0~(1+tanh(logit.i/2))/2),
+            par=parnames
+        )
+    }
+    
+    dataarg <- c(data,list(debug=debug, type = type, dist=dist, model=model))
     
     if (method=="BFGS") {
         f.env <- new.env()
@@ -240,14 +255,14 @@ fitsir <- function(data, start,
         assign("oldpar",NULL,f.env)
         assign("oldgrad",NULL,f.env)
         assign("data", data, f.env)
-        objfun <- function(par, count, times, dist, type, debug) {
+        objfun <- function(par, count, times, model, type, debug) {
             if (identical(par,oldpar)) {
                 if (debug) cat("returning old version of value\n")
                 return(oldnll)
             }
             if (debug) cat("computing new version (nll)\n")
             
-            v <- SIR.sensitivity(par, count, times, dist, type, debug)
+            v <- SIR.sensitivity(par, count, times, model, type, debug)
             oldnll <<- v[1]
             oldgrad <<- v[-1]
             oldpar <<- par
@@ -255,13 +270,13 @@ fitsir <- function(data, start,
             return(oldnll)
         }
         environment(objfun) <- f.env
-        gradfun <- function(par, count, times, dist, type, debug) {
+        gradfun <- function(par, count, times, model, type, debug) {
             if (identical(par,oldpar)) {
                 if (debug) cat("returning old version of grad\n")
                 return(oldgrad)
             }
             if (debug) cat("computing new version (grad)\n")
-            v <- SIR.sensitivity(par, count, times, dist, type, debug)
+            v <- SIR.sensitivity(par, count, times, model, type, debug)
             oldnll <<- v[1]
             oldgrad <<- v[-1]
             oldpar <<- par
@@ -314,37 +329,20 @@ fitsir <- function(data, start,
 ##' 
 ##' @export
 SIR.sensitivity <- function(params, count, times=NULL,
-                            dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
+                            model,
                             type = c("prevalence", "incidence", "death"),
                             debug=FALSE) {
-    dist <- match.arg(dist)
-    model <- select_model(dist)
     type <- match.arg(type)
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
-    ## FIXME: Make this more general
-    if (grepl("nbinom", dist)) {
-        par <- params[5]
-    } else {
-        par <- NULL
-    }
     
-    res <- with(as.list(c(tpars, r)), {
-        i.hat <- exp(logI)
-        nu.list <- list(nu_I_b, nu_I_g, nu_I_N, nu_I_i)
-        nll <- -sum(Eval(model, count, i.hat, par))
-        sensitivity <- c(nll, sapply(nu.list, function(nu) -sum(grad(model,count,i.hat,par,param=NULL,nu=nu,var="param")[[1]])))
-        names(sensitivity) <- c("value",.fitsir.pars)
-        if (grepl("nbinom", dist)) {
-            sensitivity <- c(sensitivity,
-                             -sum(grad(model,count,i.hat,par,param=NULL,nu=NULL,var=1)[[1]]))
-            names(sensitivity)[-c(1:5)] <- model@par[model@par != "param"]
-        }
-            
-        return(sensitivity)
-    })
-    return(res)
+    attach(as.list(r))
+    nll <- -sum(Eval(model, count, exp(logI), params))
+    sensitivity <- -sapply(grad(model, count, exp(logI), params), sum)
+    detach(as.list(r))
+    
+    c(nll, sensitivity)
 }
 
 ##' Select likelihood model
@@ -354,17 +352,6 @@ select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom
     dist <- match.arg(dist)
     if (dist == "quasipoisson") dist <- "poisson"
     get(paste0("loglik_", dist))
-}
-
-##' Negative log likelihood functions
-##' @param x vector of observations
-##' @param mean vector of means
-##' @param par additional parameter
-##' @param dist conditional distribution of reported data
-minusloglfun <- function(x,mean,par,dist){
-    if (dist == "quasipoisson") dist <- "poisson"
-    model <- get(paste0("loglik_", dist))
-    -sum(Eval(model, x, mean, par))
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter

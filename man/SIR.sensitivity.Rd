@@ -4,9 +4,8 @@
 \alias{SIR.sensitivity}
 \title{Gradient of negative log likelihood with respect to each parameters}
 \usage{
-SIR.sensitivity(params, count, times = NULL, dist = c("gaussian", "poisson",
-  "quasipoisson", "nbinom", "nbinom1"), type = c("prevalence", "incidence",
-  "death"), debug = FALSE)
+SIR.sensitivity(params, count, times = NULL, model, type = c("prevalence",
+  "incidence", "death"), debug = FALSE)
 }
 \arguments{
 \item{params}{parameter vector (log.N, logit.i, log.beta, log.gamma)}
@@ -15,11 +14,11 @@ SIR.sensitivity(params, count, times = NULL, dist = c("gaussian", "poisson",
 
 \item{times}{time vector}
 
-\item{dist}{conditional distribution of reported data}
-
 \item{type}{type of reported data}
 
 \item{debug}{print debugging output?}
+
+\item{dist}{conditional distribution of reported data}
 }
 \description{
 Gradient of negative log likelihood with respect to each parameters

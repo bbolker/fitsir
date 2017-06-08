@@ -45,7 +45,7 @@ setMethod(
         drule[["dfun"]] <- alist(x=dfun2(x,y),
                                  y=dfun2(y,x))
         
-        drule[[".sensfun"]] <- alist(x=nu, mean=1)
+        drule[[".sensfun"]] <- alist(beta=nu_I_b, gamma=nu_I_g, N=nu_I_N, i0=nu_I_i, mean=1)
         
         drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0, nu_I_b),
                                       gamma=.nu_gamma(beta,gamma,N,i0, nu_I_g),
@@ -113,8 +113,9 @@ setMethod(
     "Eval",
     "loglik.fitsir",
     definition = function(object, count, mean, par=NULL, ...) {
-        frame <- list(count, mean, par)
-        names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
+        frame <- list(count, mean)
+        frame <- append(frame, par)
+        names(frame) <- c(object@count, object@mean, object@par)
         frame <- append(frame, list(...))
         eval(object@expr, frame)
     }
@@ -143,7 +144,7 @@ setMethod(
     definition <- function(object, count, mean, par, var, ...) {
         frame <- list(count, mean)
         frame <- append(frame, par)
-        names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
+        names(frame) <- c(object@count, object@mean, object@par)
         frame <- append(frame, list(...))
         if (missing(var)) var <- c(object@par)
         l <- lapply(object@grad[var], function(deriv) { eval(deriv, frame)})
@@ -174,7 +175,7 @@ setMethod(
     definition <- function(object, count, mean, par, var, ...) {
         frame <- list(count, mean)
         frame <- append(frame, par)
-        names(frame) <- c(object@count, object@mean, object@par[!grepl("param", object@par)])
+        names(frame) <- c(object@count, object@mean, object@par)
         frame <- append(frame, list(...))
         if (missing(var)) var <- c(object@par)
         l <- lapply(object@hessian[var], function(dd) { 
@@ -271,7 +272,7 @@ setMethod(
 )
 
 ## Trying to get partial derivatives to work...
-.sensfun <- function(x, mean) mean
+.sensfun <- function(beta, gamma, N, i0, mean) mean
 
 .sensfun2 <- function(beta, gamma, N, i0, mean) mean
 .nu_beta <- function(beta, gamma, N, i0, nu_I_b) nu_I_b
@@ -307,42 +308,30 @@ w_lbeta <- function(a,b) {
     return(lbeta(a,b))
 }
 
-# gaussian log-likelihood base model
-loglik_gaussian_base<- new("loglik.fitsir", "gaussian",
+##' gaussian log-likelihood model
+##' @export
+loglik_gaussian <- new("loglik.fitsir", "gaussian",
                        LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
                        mean="mu", par="sigma")
 
-loglik_gaussian_base <- Transform(loglik_gaussian_base,
-    transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1)))
+loglik_gaussian <- Transform(loglik_gaussian,
+    transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1))),
+    par=NULL
 )
 
-##' gaussian log-likelihood model with sensitivity
+##' poisson log-likelihood model
 ##' @export
-loglik_gaussian <- Transform(
-    loglik_gaussian_base,
-    transforms = list(mu~.sensfun(param, mu)), 
-    par="param"
-)
-
-##' poisson log-likelihood base model
-loglik_poisson_base <- new("loglik.fitsir", "poisson", 
+loglik_poisson <- new("loglik.fitsir", "poisson",
                       LL ~ X*log(lambda) - lambda - lgamma(X+1), 
                       mean = "lambda", par = c())
 
-##' poisson log-likelihood model with sensitivity
-##' @export
-loglik_poisson <- Transform(
-    loglik_poisson_base,
-    transforms = list(lambda~.sensfun(param, lambda)),
-    par="param"
-)
-
 ##' negative binomial log-likelihood base model
-loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
-                      LL ~ -lbeta(ll.k, X) - log(X) + ll.k * (-log1p(mu/ll.k)) + 
-                          X * log(mu) - X * log(ll.k + mu),
+##' @export
+loglik_nbinom <- new ("loglik.fitsir", "nbinom",
+                      LL ~ -lbeta(k, X) - log(X) + k * (-log1p(mu/k)) + 
+                          X * log(mu) - X * log(k + mu),
                       mean="mu",
-                      par = "ll.k")
+                      par = "k")
 
 # negative binomial '1' likelihood
 # var proportional to mean
@@ -350,35 +339,22 @@ loglik_nbinom_base <- new ("loglik.fitsir", "nbinom",
 # v=mu*(1+phi), phi>0
 # i.e. mu/k=phi -> k=mu/phi
 ##' negative binomial 1 log-likelihood base model
-loglik_nbinom1_base <- Transform(
-    loglik_nbinom_base,
-    transforms=list(ll.k~mu/ll.phi),
-    name="nbinom1",
-    par="ll.phi"
-)
-
-loglik_nbinom_base <- Transform(
-    loglik_nbinom_base,
-    transforms = list(ll.k ~ exp(ll.k))
-)
-
-##' negative binomial log-likelihood model with sensitivity
-##' @export
-loglik_nbinom <- Transform(
-    loglik_nbinom_base,
-    transforms = list(mu~.sensfun(param, mu)),
-    par=c("ll.k", "param")
-)
-
-loglik_nbinom1_base <- Transform(
-    loglik_nbinom1_base,
-    transforms = list(ll.phi ~ exp(ll.phi))
-)
-
-##' negative binomial 1 log-likelihood model with sensitivity
 ##' @export
 loglik_nbinom1 <- Transform(
-    loglik_nbinom1_base,
-    transforms = list(mu~.sensfun(param, mu)),
-    par=c("ll.phi", "param")
+    loglik_nbinom,
+    transforms=list(k~mu/phi),
+    name="nbinom1",
+    par="phi"
+)
+
+loglik_nbinom <- Transform(
+    loglik_nbinom,
+    transforms = list(k ~ exp(ll.k)),
+    par="ll.k"
+)
+
+loglik_nbinom1 <- Transform(
+    loglik_nbinom1,
+    transforms = list(phi ~ exp(ll.phi)),
+    par=c("ll.phi")
 )
