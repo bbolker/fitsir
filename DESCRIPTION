@@ -14,7 +14,8 @@ Imports:
     methods,
     MASS,
     mvtnorm,
-    Deriv
+    Deriv,
+    pomp
 Suggests:
     knitr,
     ggplot2,
