@@ -34,6 +34,7 @@ smooth.spline2 <- function(times, count, itmax=100,relpeakcrit=0.1){
 ##' @param icol column name for count variable
 ##' @param itmax maximum number of iterations in \code{\link{smooth.spline2}}
 ##' @param relpeakcrit critical relative peak value used in \code{\link{smooth.spline2}}
+##' @importFrom utils head
 ##' @export
 startfun <- function(data,
                      type = c("prevalence", "incidence", "death"),

@@ -14,21 +14,13 @@ SIR.sensitivity(params, count, times = NULL, model, type = c("prevalence",
 
 \item{times}{time vector}
 
+\item{model}{log-likelihood model}
+
 \item{type}{type of reported data}
 
 \item{debug}{print debugging output?}
-
-\item{dist}{conditional distribution of reported data}
 }
 \description{
 Gradient of negative log likelihood with respect to each parameters
-}
-\examples{
-fitsir:::SIR.sensitivity(c(log.beta=2,log.gamma=0,logit.i=-3,log.N=4),
-                 count=c(1,2,4,7,3),
-                 times=1:5,
-                 dist="gaussian",
-                 type="prevalence")
-
 }
 

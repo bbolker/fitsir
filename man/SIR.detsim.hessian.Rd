@@ -9,7 +9,9 @@ SIR.detsim.hessian(t, params, type = c("prevalence", "incidence", "death"))
 \arguments{
 \item{t}{time vector}
 
-\item{params}{parameter vector}
+\item{params}{parameter vector (beta, gamma, N, i0)}
+
+\item{type}{type of count data}
 }
 \description{
 integrate second order sensitivities

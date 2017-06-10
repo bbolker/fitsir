@@ -13,6 +13,8 @@
 
 \item{transforms}{list of formulas specifying transformations}
 
+\item{name}{name of the log-likelihood model}
+
 \item{count}{observation variable name}
 
 \item{mean}{mean variable name}

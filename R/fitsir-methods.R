@@ -1,4 +1,6 @@
 ##' @import methods
+##' @import stats
+##' @import graphics
 NULL
 
 ##' @aliases plot,fitsir-class
@@ -75,8 +77,10 @@ setMethod("coef", "fitsir",
 ##' @aliases predict,fitsir-class
 ##' @describeIn fitsir predict deterministic trajectory
 ##' @importFrom bbmle predict
+##' @importFrom bbmle confint
 ##' @importFrom pomp sobolDesign
 ##' @importFrom MASS mvrnorm
+##' @importFrom grDevices adjustcolor
 ##' @examples
 ##' predict(ff, level=0.95)
 setMethod("predict", "fitsir",

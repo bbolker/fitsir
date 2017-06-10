@@ -14,11 +14,11 @@ SIR.logLik(params, count, times = NULL, model, type = c("prevalence",
 
 \item{times}{time vector}
 
+\item{model}{log likelihood model}
+
 \item{type}{type of reported data}
 
 \item{debug}{print debugging output?}
-
-\item{dist}{conditional distribution of reported data}
 }
 \description{
 Log-likelihood for SIR trajectory

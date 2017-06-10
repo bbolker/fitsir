@@ -12,6 +12,14 @@ SIR.hessian(data, params, dist = c("gaussian", "poisson", "quasipoisson",
 \item{data}{data frame with tvec/count}
 
 \item{params}{parameter vector}
+
+\item{dist}{conditional distribution of reported data}
+
+\item{type}{type of reported data}
+
+\item{tcol}{column name for time variable}
+
+\item{icol}{column name for count variable}
 }
 \description{
 find Hessian

@@ -1,4 +1,5 @@
 ##' initialize the hessian model
+##' @param dist conditional distribution of reported data
 ##' @export
 initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
     dist <- match.arg(dist)
@@ -32,7 +33,8 @@ initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nb
 
 ##' integrate second order sensitivities
 ##' @param t time vector
-##' @param params parameter vector
+##' @param params parameter vector (beta, gamma, N, i0)
+##' @param type type of count data
 SIR.detsim.hessian <- function(t, params,
                                type=c("prevalence", "incidence", "death")) {
     type <- match.arg(type)
@@ -88,6 +90,10 @@ SIR.detsim.hessian <- function(t, params,
 ##' find Hessian
 ##' @param data data frame with tvec/count
 ##' @param params parameter vector
+##' @param dist conditional distribution of reported data
+##' @param type type of reported data
+##' @param tcol column name for time variable
+##' @param icol column name for count variable
 ##' @export
 SIR.hessian <- function(data, params, 
                      dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
@@ -101,8 +107,8 @@ SIR.hessian <- function(data, params,
     tpars <- trans.pars(params)
     r <- SIR.detsim.hessian(times, tpars, type=type)
     
-    attach(as.list(r))
-    attach(as.list(params))
+    attach(as.list(c(r, params)))
+    on.exit(as.list(c(r, params)))
     
     hess <- hessian(model, count=count, mean=exp(r$logI), par=as.list(params))
     
@@ -113,10 +119,6 @@ SIR.hessian <- function(data, params,
     for(i in 1:n) {
         m[i,] <- -colSums(hess[,,i])
     }
-     
-    detach(as.list(r))
-    detach(as.list(params))
-       
-    return(m)
     
+    return(m)
 }

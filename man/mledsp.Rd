@@ -6,6 +6,13 @@
 \usage{
 mledsp(x, mean, dist = c("nbinom", "nbinom1"))
 }
+\arguments{
+\item{x}{vector of counts}
+
+\item{mean}{mean of the distribution}
+
+\item{dist}{conditional distribution of reported data}
+}
 \description{
 Maximum likelihood estimate of negative binomial dispersion parameter
 }

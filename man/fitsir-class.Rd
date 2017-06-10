@@ -63,16 +63,11 @@ ff3 <- fitsir(harbin2, start=ss, type="death", dist="quasipoisson", method="BFGS
 plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
-
 coef(ff)
 coef(ff,"trans")
 coef(ff,"summary")
-
 predict(ff, level=0.95)
-
-
 residuals(ff)
-
 }
 \seealso{
 \code{\link{mle2-class}}
