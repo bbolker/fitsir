@@ -23,6 +23,7 @@ setClass(
 
 ##' the initializer for loglik.fitsir
 ##' 
+##' @param .Object object
 ##' @param name name of the distribution
 ##' @param model the formula specifying the model
 ##' @param count observation variable name
@@ -197,6 +198,7 @@ setGeneric(
 
 ##' Transform the model
 ##' @param object object
+##' @param name name of the log-likelihood model
 ##' @param transforms list of formulas specifying transformations
 ##' @param count observation variable name
 ##' @param mean mean variable name

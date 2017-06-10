@@ -12,6 +12,10 @@ Depends:
 Imports:
     deSolve,
     methods,
+    graphics,
+    grDevices,
+    stats,
+    utils,
     MASS,
     mvtnorm,
     Deriv,

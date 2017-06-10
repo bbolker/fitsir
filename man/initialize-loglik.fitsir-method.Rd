@@ -9,6 +9,8 @@
   par = NULL, keep_grad = TRUE, keep_hessian = FALSE)
 }
 \arguments{
+\item{.Object}{object}
+
 \item{name}{name of the distribution}
 
 \item{model}{the formula specifying the model}

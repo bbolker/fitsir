@@ -27,13 +27,17 @@ fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 \item{icol}{column name for count variable}
 
 \item{debug}{print debugging output?}
+
+\item{...}{Further arguments to pass to optimizer}
 }
 \description{
 fitting function
 }
 \examples{
 bombay2 <- setNames(bombay,c("times","count"))
-(f1 <- fitsir(bombay2, start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)), type="death"))
+(f1 <- fitsir(bombay2, 
+              start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)),
+              type="death"))
 plot(f1)
 ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
 cc <- bombay2$count

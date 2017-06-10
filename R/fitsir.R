@@ -149,7 +149,7 @@ SIR.detsim <- function(t, params,
 ##' @param params parameter vector (log.N0, logit.i0, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
 ##' @param times time vector
-##' @param dist conditional distribution of reported data
+##' @param model log likelihood model
 ##' @param type type of reported data
 ##' @param debug print debugging output?
 ##' @export 
@@ -188,12 +188,15 @@ SIR.logLik  <- function(params, count, times=NULL,
 ##' @param tcol column name for time variable
 ##' @param icol column name for count variable
 ##' @param debug print debugging output?
+##' @param ... Further arguments to pass to optimizer
 ##' @seealso startfun
 ##' @export
 ##' @importFrom bbmle mle2
 ##' @examples
 ##' bombay2 <- setNames(bombay,c("times","count"))
-##' (f1 <- fitsir(bombay2, start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)), type="death"))
+##' (f1 <- fitsir(bombay2, 
+##'               start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)),
+##'               type="death"))
 ##' plot(f1)
 ##' ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
 ##' cc <- bombay2$count
@@ -317,17 +320,9 @@ fitsir <- function(data, start,
 ##' @param params parameter vector (log.N, logit.i, log.beta, log.gamma)
 ##' @param count data (epidemic counts for each time period)
 ##' @param times time vector
-##' @param dist conditional distribution of reported data
+##' @param model log-likelihood model
 ##' @param type type of reported data
 ##' @param debug print debugging output?
-##' @examples
-##' fitsir:::SIR.sensitivity(c(log.beta=2,log.gamma=0,logit.i=-3,log.N=4),
-##'                  count=c(1,2,4,7,3),
-##'                  times=1:5,
-##'                  dist="gaussian",
-##'                  type="prevalence")
-##' 
-##' @export
 SIR.sensitivity <- function(params, count, times=NULL,
                             model,
                             type = c("prevalence", "incidence", "death"),
@@ -338,10 +333,10 @@ SIR.sensitivity <- function(params, count, times=NULL,
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
     
     attach(as.list(r))
+    on.exit(detach(as.list(r)))
+    
     nll <- -sum(Eval(model, count, exp(logI), params))
     sensitivity <- -sapply(grad(model, count, exp(logI), params), sum)
-    detach(as.list(r))
-    
     c(nll, sensitivity)
 }
 
@@ -355,6 +350,9 @@ select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
+##' @param x vector of counts
+##' @param mean mean of the distribution
+##' @param dist conditional distribution of reported data
 mledsp <- function(x,mean,dist=c("nbinom", "nbinom1")){
     dist <- match.arg(dist)
     model <- get(paste0("loglik_", dist))

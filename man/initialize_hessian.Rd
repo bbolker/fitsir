@@ -7,6 +7,9 @@
 initialize_hessian(dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
   "nbinom1"))
 }
+\arguments{
+\item{dist}{conditional distribution of reported data}
+}
 \description{
 initialize the hessian model
 }
