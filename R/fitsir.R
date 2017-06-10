@@ -331,12 +331,10 @@ SIR.sensitivity <- function(params, count, times=NULL,
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
-    
     attach(as.list(r))
-    on.exit(detach(as.list(r)))
-    
     nll <- -sum(Eval(model, count, exp(logI), params))
     sensitivity <- -sapply(grad(model, count, exp(logI), params), sum)
+    detach(as.list(r))
     c(nll, sensitivity)
 }
 
