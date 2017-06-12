@@ -342,7 +342,7 @@ SIR.sensitivity <- function(params, count, times=NULL,
 ##' @param dist conditional distribution of reported data
 mledsp <- function(x,mean,dist=c("nbinom", "nbinom1")){
     dist <- match.arg(dist)
-    model <- get(paste0("loglik_", dist))
+    model <- select_model(dist)
     
     start <- switch(dist,
         "nbinom"=log(1e2),
