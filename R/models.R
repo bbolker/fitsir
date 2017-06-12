@@ -40,27 +40,6 @@ setMethod(
     definition = function(.Object, name, model, count="X", mean, par=NULL,
                           keep_grad=TRUE,
                           keep_hessian=FALSE) {
-        ## this looks ugly but we have to do this...
-        drule[["lbeta"]] <- drule[["w_lbeta"]] <- alist(a=dfun(a,b),
-                                                        b=dfun(b,a))
-        drule[["dfun"]] <- alist(x=dfun2(x,y),
-                                 y=dfun2(y,x))
-        
-        drule[[".sensfun"]] <- alist(beta=nu_I_b, gamma=nu_I_g, N=nu_I_N, i0=nu_I_i, mean=1)
-        
-        drule[[".sensfun2"]] <- alist(beta=.nu_beta(beta,gamma,N,i0, nu_I_b),
-                                      gamma=.nu_gamma(beta,gamma,N,i0, nu_I_g),
-                                      N=.nu_N(beta,gamma,N,i0, nu_I_N),
-                                      i0=.nu_i(beta,gamma,N,i0, nu_I_i))
-        
-        drule[[".nu_beta"]] <- alist(beta=nu_I_bb, gamma=nu_I_bg, N=nu_I_bN, i0=nu_I_bi)
-        
-        drule[[".nu_gamma"]] <- alist(beta=nu_I_bg, gamma=nu_I_gg, N=nu_I_gN, i0=nu_I_gi)
-        
-        drule[[".nu_N"]] <- alist(beta=nu_I_bN, gamma=nu_I_gN, N=nu_I_NN, i0=nu_I_Ni)
-        
-        drule[[".nu_i"]] <- alist(beta=nu_I_bi, gamma=nu_I_gi, N=nu_I_Ni, i0=nu_I_ii)
-        
         .Object@name <- name
         if (!is(model, "formula"))
             stop("model must be a formula")
@@ -310,53 +289,61 @@ w_lbeta <- function(a,b) {
     return(lbeta(a,b))
 }
 
-##' gaussian log-likelihood model
+##' Select likelihood model
+##' @param dist conditional distribution of reported data
 ##' @export
-loglik_gaussian <- new("loglik.fitsir", "gaussian",
-                       LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
-                       mean="mu", par="sigma")
-
-loglik_gaussian <- Transform(loglik_gaussian,
-    transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1))),
-    par=NULL
-)
-
-##' poisson log-likelihood model
-##' @export
-loglik_poisson <- new("loglik.fitsir", "poisson",
-                      LL ~ X*log(lambda) - lambda - lgamma(X+1), 
-                      mean = "lambda", par = c())
-
-##' negative binomial log-likelihood base model
-##' @export
-loglik_nbinom <- new ("loglik.fitsir", "nbinom",
-                      LL ~ -lbeta(k, X) - log(X) + k * (-log1p(mu/k)) + 
-                          X * log(mu) - X * log(k + mu),
-                      mean="mu",
-                      par = "k")
-
-# negative binomial '1' likelihood
-# var proportional to mean
-# v=mu*(1+mu/k), k>0
-# v=mu*(1+phi), phi>0
-# i.e. mu/k=phi -> k=mu/phi
-##' negative binomial 1 log-likelihood base model
-##' @export
-loglik_nbinom1 <- Transform(
-    loglik_nbinom,
-    transforms=list(k~mu/phi),
-    name="nbinom1",
-    par="phi"
-)
-
-loglik_nbinom <- Transform(
-    loglik_nbinom,
-    transforms = list(k ~ exp(ll.k)),
-    par="ll.k"
-)
-
-loglik_nbinom1 <- Transform(
-    loglik_nbinom1,
-    transforms = list(phi ~ exp(ll.phi)),
-    par=c("ll.phi")
-)
+select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
+    dist <- match.arg(dist)
+    name <- dist
+    if (dist == "quasipoisson") dist <- "poisson"
+    model <- switch(dist,
+        gaussian={
+            loglik_gaussian <- new("loglik.fitsir", "gaussian",
+                                   LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
+                                   mean="mu", par="sigma")
+            
+            loglik_gaussian <- Transform(loglik_gaussian,
+                                         transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1))),
+                                         par=NULL
+            )
+            loglik_gaussian
+        }, poisson={
+            loglik_poisson <- new("loglik.fitsir", "poisson",
+                                  LL ~ X*log(lambda) - lambda - lgamma(X+1), 
+                                  mean = "lambda", par = c())
+            loglik_poisson
+        }, nbinom={
+            loglik_nbinom <- new ("loglik.fitsir", "nbinom",
+                                  LL ~ -lbeta(k, X) - log(X) + k * (-log1p(mu/k)) + 
+                                      X * log(mu) - X * log(k + mu),
+                                  mean="mu",
+                                  par = "k")
+            
+            loglik_nbinom <- Transform(
+                loglik_nbinom,
+                transforms = list(k ~ exp(ll.k)),
+                par="ll.k"
+            )
+            
+            loglik_nbinom
+        }, nbinom1={
+            loglik_nbinom1 <- new ("loglik.fitsir", "nbinom",
+                                   LL ~ -lbeta(mu/phi, X) - log(X) + mu/phi * (-log1p(phi)) + 
+                                       X * log(mu) - X * log(mu/phi + mu),
+                                   mean="mu",
+                                   par = "phi")
+            
+            loglik_nbinom1 <- Transform(
+                loglik_nbinom1,
+                transforms = list(phi ~ exp(ll.phi)),
+                par=c("ll.phi")
+            )
+            
+            loglik_nbinom1
+        }
+    )
+    
+    model@name <- name
+    
+    model
+}
