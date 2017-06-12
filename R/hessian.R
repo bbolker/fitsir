@@ -108,9 +108,8 @@ SIR.hessian <- function(data, params,
     r <- SIR.detsim.hessian(times, tpars, type=type)
     
     attach(as.list(c(r, params)))
-    on.exit(as.list(c(r, params)))
-    
     hess <- hessian(model, count=count, mean=exp(r$logI), par=as.list(params))
+    detach(as.list(c(r, params)))
     
     n <- length(params)
     
@@ -119,6 +118,5 @@ SIR.hessian <- function(data, params,
     for(i in 1:n) {
         m[i,] <- -colSums(hess[,,i])
     }
-    
     return(m)
 }

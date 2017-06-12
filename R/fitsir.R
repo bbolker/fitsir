@@ -157,7 +157,6 @@ SIR.logLik  <- function(params, count, times=NULL,
                         model,
                         type = c("prevalence", "incidence", "death"),
                         debug=FALSE) {
-    model <- select_model(dist)
     type <- match.arg(type)
     ## HACK: nloptr appears to strip names from parameters
     ## if (is.null(params)) return(NA_real_) ## why ???
@@ -175,7 +174,6 @@ SIR.logLik  <- function(params, count, times=NULL,
     return(r)
 }
 
-##' fitsir parameters
 .fitsir.pars <- c("log.beta","log.gamma","log.N","logit.i")
   
 ##' fitting function
@@ -249,7 +247,7 @@ fitsir <- function(data, start,
         )
     }
     
-    dataarg <- c(data,list(debug=debug, type = type, dist=dist, model=model))
+    dataarg <- c(data,list(debug=debug, type = type, model=model))
     
     if (method=="BFGS") {
         f.env <- new.env()
@@ -331,22 +329,11 @@ SIR.sensitivity <- function(params, count, times=NULL,
     if (is.null(times)) times <- seq(length(count))
     tpars <- trans.pars(params)
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
-    
     attach(as.list(r))
-    on.exit(detach(as.list(r)))
-    
     nll <- -sum(Eval(model, count, exp(logI), params))
     sensitivity <- -sapply(grad(model, count, exp(logI), params), sum)
+    detach(as.list(r))
     c(nll, sensitivity)
-}
-
-##' Select likelihood model
-##' @param dist conditional distribution of reported data
-##' @export
-select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
-    dist <- match.arg(dist)
-    if (dist == "quasipoisson") dist <- "poisson"
-    get(paste0("loglik_", dist))
 }
 
 ##' Maximum likelihood estimate of negative binomial dispersion parameter
