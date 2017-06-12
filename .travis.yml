@@ -5,6 +5,8 @@ sudo: false
 r: devel
 cache: packages
 
+warnings_are_errors: false
+
 ## this saves time; it also stops us from getting R CMD check warnings
 ## (which get promoted to errors/build failures unless we specify
 ## "warnings_are_errors: false" here ...)
