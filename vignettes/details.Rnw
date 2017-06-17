@@ -139,7 +139,8 @@ dI/dt &= \beta S I / N - \gamma I\\
 0 &= (\beta-\gamma) I_{\textrm{peak}} - \frac{\beta}{N} I_{\textrm{peak}}^2 - \frac{\beta \gamma}{N} I_{\textrm{peak}} \int_{0}^{t_{\textrm{peak}}} I(s) ds
 \end{aligned}
 $$
-Integral is calculated numerically:
+For convenience, we denote $d_0 = \int_{0}^{t_{\textrm{peak}}} I(s) ds$.
+Here, the integral is calculated numerically:
 
 <<integral>>==
 t.diff <- diff(times)
@@ -150,7 +151,17 @@ ss.int <- ss.int[times<ss.tmax,]
 d0 <- sum(ss.int[,3])
 @
 
-After rearranging the equations, we find that $r - c \int_{0}^{t_{\textrm{peak}}}$ must be negative in order to get a reasonable parameter. So we use a loop to avoid this value becoming positive:
+Rearranging the four equations provided, we get
+$$
+\begin{aligned}
+\gamma &= c I_{\textrm{peak}}/(r-c d_0)\\
+\beta &= \gamma + r\\
+N &= \beta \gamma/c\\
+i_0 &= I(0)/N
+\end{aligned}
+$$
+
+After some algebra, we find that $r - c \int_{0}^{t_{\textrm{peak}}}$ must be negative in order to get a reasonable parameter. So we use a loop to avoid this value becoming positive:
 
 <<loop>>===
 while(r - c * d0 < 0){
@@ -177,7 +188,28 @@ lines(times, SIR.detsim(times, unlist(prev.pars)[c(3, 4, 2, 1)]), col="red")
 
 \subsection{Death}
 
-Very similar to what we did so far...
+Estimating a starting parameter from a death cases curve is very similar to what we did so far. Note that death cases are counted by using $R(t_i + \delta t) - R(t_i)$. Approximately, we have
+$$
+\frac{R(t_i + \Delta t) - R(t_i)}{\Delta t} \approx \frac{dR}{dt} = \Delta t \gamma I
+$$
+
+<<>>===
+t.diff <- diff(times)
+t.diff <- c(t.diff[1], t.diff)
+count.orig <- count
+count <- count/t.diff
+@
+
+Based on this approximation, we can rearrange the equations to obtain a reasonable starting parameter:
+
+$$
+\begin{aligned}
+\gamma &= c (d_0 + I_{\textrm{peak}})/r\\
+\beta &= \gamma + r\\
+N &= \beta \gamma/c\\
+i_0 &= I(0)/N
+\end{aligned}
+$$
 
 <<>>===
 death.pars <- list()
@@ -193,6 +225,70 @@ lines(times, SIR.detsim(times, unlist(death.pars)[c(3, 4, 2, 1)], type="death"),
 @
 
 \subsection{Incidence}
+
+Estimating a starting parameter based on an incidence curve relies on the final size equation (CITE Miller 2012):
+$$
+S(\infty) = \exp\left[-\frac{\beta}{\gamma} [1-S(\infty)]\right]
+$$
+
+Given an incidence curve, final size can be estimated numerically:
+
+<<final size>>===
+ss.t3 <- floor(ss.tmax+0.25*ss.tmax)
+ss.t4 <- ceiling(ss.tmax+0.75*ss.tmax)
+m2 <- lm(log(count)~times,data=subset(ss.data,times<=ss.t4 & times>=ss.t3))
+        
+times.predict1 <- seq(min(times), ss.t2, by = t.diff[length(t.diff)])
+times.predict2 <- seq(ceiling(ss.t3), 3*ss.tmax, by = t.diff[length(t.diff)])
+count.predict1 <- exp(predict(m, data.frame(times = times.predict1)))
+count.predict2 <- exp(predict(m2, data.frame(times = times.predict2)))
+finalsize <- sum(count.predict1) + sum(count.orig[times > ss.t2 & times <= ss.t3]) + sum(count.predict2)
+@
+
+After some algebra, we find that $N = (\beta + r)/c$.
+Using $R(\infty)=1-S(\infty)$, we get
+$$
+R(\infty) = 1 - \exp\left[-\frac{\beta}{\gamma} R(\infty)\right]
+$$
+Then, we can write
+$$
+f(\beta) = \frac{F}{N} - \left(1 - \exp\left(-\frac{\beta}{\beta-r} F/N\right) \right),
+$$
+where $F$ is the final size (total number of individuals infected throughout the epidemic).
+The root of this function will give us the estimate of $\beta$. However, this may not always have a root if the data is noisy and estimate of $c$ and/or $r$ are not accurate. So we use a cheap method:
+
+<<>>==
+sizefun <- function(beta) {
+    R0 <- beta/(beta-r)
+    N <- (beta + r)/c
+    (finalsize/N - (1 - exp(-R0 * finalsize/N)))^2
+}
+betavec <- seq(1.1 * r, 50*r, r/10)
+sizevec <- sizefun(betavec)
+
+if (all(diff(sizevec) < 0)) {
+    beta <- betavec[head(which(sizevec < 1e-4), 1)]
+} else {
+    beta <- betavec[which.min(sizevec)]
+}
+@
+
+
+Then, we get
+
+<<>>==
+inc.pars <- list()
+(inc.pars <- within(prev.pars,{
+    beta <- beta
+    gamma <- beta - r
+    N <- (beta + r)/c
+    i0 <- iniI/beta/N
+}))
+
+plot(times, count, log="y")
+lines(times, SIR.detsim(times, unlist(inc.pars)[c(3, 4, 2, 1)], type="incidence"), col="red")
+@
+
 
 \section{Confidence intervals}
 
