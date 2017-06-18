@@ -72,7 +72,7 @@ startfun <- function(data,
     r <- unname(coef(m)[2]) ##beta - gamma
     
     ## interpolate starting value based on linear regression
-    iniI <- unname(exp(coef(m)[1]))
+    iniI <- iniI <- unname(exp(predict(m, data.frame(times=times[1]))))
     
     ## curvature of spline at max
     ## using quadratic fit:
@@ -88,7 +88,7 @@ startfun <- function(data,
             i <- i+1
         }
     }
-    Ip <- exp(max(predict(ss,times)$y))
+    Ip <- exp(max(predict(ss)$y))
     c <- -Qp.alt/Ip
     
     if (type %in% c("prevalence", "death")) {
@@ -110,7 +110,7 @@ startfun <- function(data,
         
         beta <- gamma + r
         N <- beta*gamma/c
-        i0 <- iniI/N
+        i0 <- iniI/(gamma*N)
         
     } else if (type == "incidence") {
         ss.t3 <- floor(ss.tmax+0.25*ss.tmax)
