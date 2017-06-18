@@ -81,7 +81,9 @@ To avoid falling into local minima, it is important to use a good starting param
 
 \subsection{Prevalence}
 
-Let's consider the Philadelphia 1918 Flu data. First, we start by fitting a spline to the data. This allows us to estimate the information on the curvature more easily.
+First, let's start with the simplest case. Although it is practically impossible to obtain a prevalence data, prevalence trajectory of an SIR model has important properties that allow us to estimate the parameter based on the trajectory only.
+
+Let's take a look at the 1918 Philadelphia Flu data as an example (we're assuming that the data represents prevalence). We start by fitting a spline to the data to obtain a continuous trajectory.
 
 <<spline>>==
 library(fitsir)
@@ -90,7 +92,7 @@ count <- phila1918$pim
 ss <- fitsir:::smooth.spline2(times, count, itmax = 100, relpeakcrit = 0.1)
 @
 
-Then, we estimate the little r ($\beta -\gamma$) by finding appropriate fitting window using spline fit and fitting a linear model to the real data.
+Then, we estimate the little r ($\beta -\gamma$) by finding an appropriate fitting window using spline fit and fitting a linear model to the real data. Hereafter, we denote this quantity as $a_0$ instead of $r$.
 
 <<little_r>>==
 ss.data <- data.frame(times = times, count = exp(predict(ss)$y))
@@ -108,25 +110,25 @@ lines(ss.data)
 lines(11:31, exp(predict(m)), col="red")
 @
 
-Notice that this data has trails in the beginning of the epidemic and does not follow the typical SIR shape. So taking the initial value from the data or from the spline fit will not correctly estimate the initial epidemic size. To avoid this issue, we take the y-intercept of the linear fit.
+Notice that this data has trails in the beginning of the epidemic and does not follow a typical SIR shape. So taking the initial value from the data or from the spline will not correctly estimate the initial size of the epidemic. To avoid this issue, we predict the initial value, $I(0)$, by extrapolating the linear fit. We denote this quantity as $b_0$ hereafter.
 
 <<ini_size>>===
-(iniI <- unname(exp(coef(m)[1])))
+(iniI <- unname(exp(predict(m, data.frame(times=times[1])))))
 @
 
-Then, since
+Then, we look at the second derivative at the peak:
 $$
 d^2\log I/dt^2 = -\beta S'/N = \beta (-\beta S I/N)/N = -\beta^2/N^2 (\gamma N/\beta) I = -\beta \gamma I/N,
 $$
-knowing the second derivative at the peak gives us another equation. Rearranging, we get
+Rearranging, we get
 $$
-c = -d^2\log I/dt^2/I_{\textrm{peak}} = \beta \gamma/N
+c_0 = -d^2\log I/dt^2/I_{\textrm{peak}} = \beta \gamma/N
 $$
-We obtain this quanity by using the spline fit.
+We can obtain this quanity by using the spline fit.
 
 <<>>==
-Qp.alt <- predict(ss,ss.tmax,deriv=2)$y
-Ip <- exp(max(predict(ss,times)$y))
+Qp.alt <- predict(ss,ss.tmax,deriv=2)$y ## second derivative
+Ip <- exp(max(predict(ss)$y)) ## I_peak
 (c <- -Qp.alt/Ip)
 @
 
@@ -151,17 +153,27 @@ ss.int <- ss.int[times<ss.tmax,]
 d0 <- sum(ss.int[,3])
 @
 
-Rearranging the four equations provided, we get
+Altogether, we have the following system of non-linear equations:
 $$
 \begin{aligned}
-\gamma &= c I_{\textrm{peak}}/(r-c d_0)\\
-\beta &= \gamma + r\\
-N &= \beta \gamma/c\\
-i_0 &= I(0)/N
+a_0 &= \beta - \gamma\\
+b_0 &= N i_0\\
+c_0 &= \beta \gamma/N\\
+d_0 &= a_0/c_0 - I_{\textrm{peak}}/\gamma
 \end{aligned}
 $$
 
-After some algebra, we find that $r - c \int_{0}^{t_{\textrm{peak}}}$ must be negative in order to get a reasonable parameter. So we use a loop to avoid this value becoming positive:
+Rearranging the four equations provided, we get
+$$
+\begin{aligned}
+\gamma &= c_0 I_{\textrm{peak}}/(a_0-c_0 d_0)\\
+\beta &= \gamma + a_0\\
+N &= \beta \gamma/c_0\\
+i_0 &= b_0/N
+\end{aligned}
+$$
+
+Clearly, $a_0 - c_0 d_0$ must be positive in order to get a biologically meaningful parameter ($\gamma > 0$). If the data is noisy, we may get a negative quantity due to an inaccurate estimation of the second derivative. So we adjust $d_0$ to avoid this value from becoming negative:
 
 <<loop>>===
 while(r - c * d0 < 0){
@@ -185,13 +197,13 @@ plot(times, count, log="y")
 lines(times, SIR.detsim(times, unlist(prev.pars)[c(3, 4, 2, 1)]), col="red")
 @
 
-
 \subsection{Death}
 
 Estimating a starting parameter from a death cases curve is very similar to what we did so far. Note that death cases are counted by using $R(t_i + \delta t) - R(t_i)$. Approximately, we have
 $$
-\frac{R(t_i + \Delta t) - R(t_i)}{\Delta t} \approx \frac{dR}{dt} = \Delta t \gamma I
+\frac{R(t_i + \Delta t) - R(t_i)}{\Delta t} \approx \frac{dR}{dt} = \gamma I
 $$
+So the estimation of the starting parameter is based on the transformed data rather than the raw data:
 
 <<>>===
 t.diff <- diff(times)
@@ -200,14 +212,24 @@ count.orig <- count
 count <- count/t.diff
 @
 
-Based on this approximation, we can rearrange the equations to obtain a reasonable starting parameter:
+Note that we have to fit a spline to a transformed data instead. However, since $\Delta t=1$ for this data, we ignore this step.
 
+As this transformed data is just a multiple of the prevalence trajectory, $b_0$ and $d_0$ of the transformed data will just be a multiple of those of the prevalence data:
 $$
 \begin{aligned}
-\gamma &= c (d_0 + I_{\textrm{peak}})/r\\
-\beta &= \gamma + r\\
-N &= \beta \gamma/c\\
-i_0 &= I(0)/N
+a_0 &= \beta - \gamma\\
+b_0 &= \gamma N i_0\\
+c_0 &= \beta \gamma/N\\
+d_0 &= \gamma a_0/c_0 - I_{\textrm{peak}}
+\end{aligned}
+$$
+Notice that $c_0$ stays the same as before because the it's the ratio between the second derivative at the peak and the peak value itself. Rearranging, we get
+$$
+\begin{aligned}
+\gamma &= c_0 (d_0 + I_{\textrm{peak}})/a_0\\
+\beta &= \gamma + a_0\\
+N &= \beta \gamma/c_0\\
+i_0 &= b_0/(\gamma N)
 \end{aligned}
 $$
 
@@ -217,7 +239,7 @@ death.pars <- list()
     gamma <-  c*(d0 + Ip)/r
     beta <- gamma + r
     N <- beta*gamma/c
-    i0 <- iniI/N
+    i0 <- iniI/(gamma*N)
 }))
 
 plot(times, count, log="y")
@@ -226,12 +248,42 @@ lines(times, SIR.detsim(times, unlist(death.pars)[c(3, 4, 2, 1)], type="death"),
 
 \subsection{Incidence}
 
-Estimating a starting parameter based on an incidence curve relies on the final size equation (CITE Miller 2012):
+Incidence is calculated by $S(t_i) - S(t_i + \delta t)$. Approximately, we have
 $$
-S(\infty) = \exp\left[-\frac{\beta}{\gamma} [1-S(\infty)]\right]
+\frac{S(t_i) - R(t_i + \Delta t)}{\Delta t} \approx -\frac{dS}{dt} = \beta S I/N
 $$
 
-Given an incidence curve, final size can be estimated numerically:
+Once again, we use the transformed data here. We still have $a_0 = \beta-\gamma$ but the initial value, $b_0$, is equal to $\beta S(0) I(0)/N$ in this case. As $S(0) \approx N$, we write $b_0 = \beta N i_0$. Finally, $c_0$ is obtained by taking the second derivative of $\beta SI$ at the peak. Here we take the second derivative of $\log(\beta SI)$ instead for convenience:
+$$
+\begin{aligned}
+\frac{d \log(\beta SI)}{dt} &= \frac{\beta}{N} (S-I) - \gamma\\
+\frac{d^2 \log(\beta SI)}{dt^2} &= \frac{\beta}{N} \left(-2\frac{\beta S I}{N} + \gamma I \right)\\
+&= \frac{\beta}{N} \left(-2 I_{\textrm{peak}} + \gamma \frac{N}{\beta S} I_{\textrm{peak}} \right)\\
+c_0 &= \frac{\beta}{N} \left(2-\gamma \frac{N}{\beta S}\right)
+\end{aligned}
+$$
+To allow for simple computation, we assume that $S \approx N$ near the peak. This is not accurate but this assumption makes the algorithm a lot simpler:
+$$
+\begin{aligned}
+c_0 &= \frac{\beta}{N} \left(2 -\frac{\gamma}{\beta} \right)\\
+&= \frac{\beta + a_0}{N}
+\end{aligned}
+$$
+Finally, we obtain the following set of equations:
+$$
+\begin{aligned}
+a_0 &= \beta - \gamma\\
+b_0 &= \beta N i_0\\
+c_0 &= (\beta + a_0)/N
+\end{aligned}
+$$
+
+To obtain the last equation, we use the final size equation (CITE Miller 2012):
+$$
+S(\infty)/N = \exp\left[-\frac{\beta}{\gamma} [1-S(\infty)/N]\right]
+$$
+
+Given an incidence curve, final size can be estimated numerically. We estimate the initial increasing and later decreasing incidence counts by linear fits and in between by a spline:
 
 <<final size>>===
 ss.t3 <- floor(ss.tmax+0.25*ss.tmax)
@@ -245,17 +297,15 @@ count.predict2 <- exp(predict(m2, data.frame(times = times.predict2)))
 finalsize <- sum(count.predict1) + sum(count.orig[times > ss.t2 & times <= ss.t3]) + sum(count.predict2)
 @
 
-After some algebra, we find that $N = (\beta + r)/c$.
-Using $R(\infty)=1-S(\infty)$, we get
+Using $R(\infty)=N-S(\infty)$, we get
 $$
-R(\infty) = 1 - \exp\left[-\frac{\beta}{\gamma} R(\infty)\right]
+R(\infty)/N = 1 - \exp\left[-\frac{\beta}{\gamma} R(\infty)/N\right]
 $$
 Then, we can write
 $$
-f(\beta) = \frac{F}{N} - \left(1 - \exp\left(-\frac{\beta}{\beta-r} F/N\right) \right),
+f(\beta) = \frac{R(\infty)}{N} - \left(1 - \exp\left(-\frac{\beta}{\beta-r} \frac{R(\infty)}{N} \right) \right),
 $$
-where $F$ is the final size (total number of individuals infected throughout the epidemic).
-The root of this function will give us the estimate of $\beta$. However, this may not always have a root if the data is noisy and estimate of $c$ and/or $r$ are not accurate. So we use a cheap method:
+The root of this function will give us the estimate of $\beta$. However, this may not always have a root if the data is noisy and estimate of $c$ and/or $r$ are not accurate. So we use the following method:
 
 <<>>==
 sizefun <- function(beta) {
@@ -272,7 +322,6 @@ if (all(diff(sizevec) < 0)) {
     beta <- betavec[which.min(sizevec)]
 }
 @
-
 
 Then, we get
 

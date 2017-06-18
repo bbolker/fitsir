@@ -5,15 +5,15 @@ test_that("bombay fits", {
     bombay2 <- setNames(bombay,c("times","count"))
     ss0 <- startfun(data=bombay2)
     oldval <- structure(c(1.02925789958946, 0.346654710263133, 0.0844006982257594, 
-                          2.0637347682551e-06, 4.0426380952539, 1958890.17062942, 1958894.21326752
+                          2.46348628146576e-07, 0.482570902122719, 1958893.73069661, 1958894.21326752
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
 
     expect_equal(summarize.pars(ss0),
                  oldval,
                      tolerance=1e-6)
     f1 <- fitsir(bombay2,start=ss0)
-    oldval <- structure(c(1.03113679902073, 0.379386262686271, 0.0820714983201187, 
-                          2.45380854127156e-06, 4.60163685763881, 1875299.35148014, 1875303.953117
+    oldval <- structure(c(1.03206001777913, 0.37953835593663, 0.0844710877771807, 
+                          2.59211314281603e-06, 4.59204375483407, 1771539.897656, 1771544.48969976
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
 
     expect_equal(summarize.pars(coef(f1)),
@@ -25,7 +25,7 @@ test_that("philadelphia fits", {
     phila1918a <- with(phila1918, data.frame(times=seq_along(date), count=pim))
     ss0 <- startfun(data=phila1918a, type="death")
     oldval <- structure(c(1.15431358642151, 0.200572186303702, 0.769366826304856, 
-                          6.04687272169963e-06, 0.270409668445559, 44718.6580167848, 44718.9284264533
+                          5.68553945299452e-06, 0.254251231864238, 44718.6741752214, 44718.9284264533
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(ss0),
@@ -33,8 +33,8 @@ test_that("philadelphia fits", {
                  tolerance=1e-6)
     
     suppressWarnings(f1 <- fitsir(phila1918a,start=ss0,type="death", method="BFGS"))
-    oldval <- structure(c(2.30220287763808, 0.316806675649932, 4.11040226651347, 
-                          3.51750401083138e-06, 0.0529137267886822, 15042.9226239687, 15042.9755376955
+    oldval <- structure(c(2.30011752489424, 0.316692031313227, 4.10530545875451, 
+                          3.52493040787634e-06, 0.0530463797851002, 15048.8624347797, 15048.9154811595
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(coef(f1)),
@@ -46,7 +46,7 @@ test_that("philadelphia fits", {
 test_that("harbin fits", {
     ss0 <- startfun(data=harbin, tcol="week", icol="Deaths", type="death")
     oldval <- structure(c(1.93949639324649, 0.781494541260066, 1.20217908589824, 
-                          0.000107134155201887, 0.158254392786069, 1477.00271717458, 1477.16097156737
+                          0.000614744499507107, 0.908076582157615, 1476.25289498521, 1477.16097156737
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(ss0),
@@ -54,8 +54,8 @@ test_that("harbin fits", {
                  tolerance=1e-6)
     
     suppressWarnings(f1 <- fitsir(harbin,start=c(ss0, ll.phi=5), type="death",method="BFGS",dist="nbinom1",tcol="week",icol="Deaths"))
-    oldval <- structure(c(1.86313013731799, 0.798001508109531, 1.08161466932907, 
-                          0.000351217201040233, 0.700637705448121, 1994.18373405361, 1994.88437175906
+    oldval <- structure(c(1.86313108338121, 0.79800238744463, 1.08161466301515, 
+                          0.000351214054614198, 0.700631067002019, 1994.18271086431, 1994.88334193132
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(coef(f1)),
