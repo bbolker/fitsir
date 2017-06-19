@@ -3,8 +3,21 @@
 ##' @import graphics
 NULL
 
-##' @aliases plot,fitsir-class
-##' @describeIn fitsir plot deterministic trajectory
+##' Plot a fitsir object
+##' @aliases plot,fitsir-method
+##' @param x fitsir object
+##' @param level the confidence level required
+##' @param method confidence interval method
+##' @param main an overall title for the plot
+##' @param xlim the x limit of the plot
+##' @param ylim the y limit of the plot
+##' @param xlab a label for the x axis
+##' @param ylab a label for the y axis
+##' @param add (logical) add to an existing plot?
+##' @param col.traj colour of the estimated trajectory
+##' @param lty.traj line type of the estimated trajectory
+##' @param col.conf colour of the confidence intervals
+##' @param lty.conf line type of the confidence intervals
 ##' @importFrom bbmle plot
 ##' @examples
 ##' harbin2 <- setNames(harbin, c("times", "count"))
@@ -17,6 +30,8 @@ NULL
 ##' plot(ff2, level=0.95, col.traj="red", main="Negative binomial error vs. Quasipoisson error CIs")
 ##' plot(ff3, add=TRUE, level=0.95, col.traj="blue", col.conf="blue")
 ##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
+##' @docType methods
+##' @exportMethod plot
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
              method=c("delta", "mvrnorm", "wmvrnorm"),
@@ -54,14 +69,19 @@ setMethod("plot", signature(x="fitsir", y="missing"),
     }
 )
 
-##' @aliases coef,fitsir-class
-##' @describeIn fitsir extract coefficients
+##' Extract parameter of a fit
+##' @param object fitsir object
+##' @param type type of parameter to be returned
 ##' @importFrom bbmle coef
 ##' @importFrom bbmle vcov
+##' @details \code{raw} returns unconstrained parameters; \code{trans} returns constrained parameters; and
+##' \code{summary} returns summarized parameters.
 ##' @examples 
 ##' coef(ff)
 ##' coef(ff,"trans")
 ##' coef(ff,"summary")
+##' @docType methods
+##' @exportMethod coef
 setMethod("coef", "fitsir", 
     function(object,type=c("raw","trans","summary")){
         type <- match.arg(type)
@@ -74,14 +94,22 @@ setMethod("coef", "fitsir",
     }
 )
 
-##' @aliases predict,fitsir-class
-##' @describeIn fitsir predict deterministic trajectory
+##' Forecast from an SIR fit and find confidence interval
+##' @param object fitsir object
+##' @param level the confidence level required
+##' @param times time vector to predict over. Default is set to the time frame of the data.
+##' @param method confidence interval method. Default is set to Delta method.
+##' @param debug print debugging output?
+##' @details
+##' See vignette for different methods: \code{vignette("details", package="fitsir")}
 ##' @importFrom bbmle predict
 ##' @importFrom bbmle confint
 ##' @importFrom MASS mvrnorm
 ##' @importFrom grDevices adjustcolor
 ##' @examples
 ##' predict(ff, level=0.95)
+##' @docType methods
+##' @exportMethod predict
 setMethod("predict", "fitsir",
     function(object,
              level,times,
@@ -169,11 +197,17 @@ setMethod("predict", "fitsir",
 )
 
 
-##' @aliases residuals,fitsir-class
-##' @describeIn fitsir calculate residuals between data and deterministic trajectory
+##' Find residuals between the fit and the data
+##' @param object fitsir object
+##' @param type type of residuals. Default is set to pearson residuals.
+##' @details 
+##' \code{pearson} returns \eqn{(X_i - \mu_i)^2/\mu_i} and \code{raw} retrns \eqn{X_i -\mu_i}, 
+##' where \eqn{X_i} is the observed counts and \eqn{\mu_i} is the expected coutns.
 ##' @importFrom bbmle residuals
 ##' @examples
 ##' residuals(ff)
+##' @docType methods
+##' @exportMethod residuals
 setMethod("residuals", "fitsir",
     function(object,type=c("pearson", "raw")){
         type <- match.arg(type)
@@ -192,8 +226,15 @@ setMethod("residuals", "fitsir",
 
 setGeneric("dispersion", function(object, ...) standardGeneric("dispersion"))
 
-##' @aliases dispersion,fitsir-class
-##' @describeIn fitsir calculate dispersion parameter
+##' Find dispersion parameter
+##' @param object fitsir object
+##' @param dist distribution
+##' @details
+##' \code{quasipoisson} returns the sum of pearson residuals divided by the degrees of freedom.
+##' \code{nbinom} assumes quadratic mean-variance relation (var=mu+mu^2/k) and estimates k based on maximum likelihood.
+##' \code{nbinom1} assumes linear mean-variance relation (var=(1+phi)mu) and estimates phi based on maximum likelihood.
+##' @exportMethod dispersion
+##' @docType methods
 ##' @exportMethod dispersion
 setMethod("dispersion", "fitsir",
     function(object,dist=c("quasipoisson", "nbinom", "nbinom1")){
@@ -214,11 +255,13 @@ setMethod("dispersion", "fitsir",
     }
 )
 
-##' @aliases summary,fitsir-class
-##' @describeIn fitsir summarize fit using meaningful parameters
+##' Summarize the fit
+##' @param object fitsir object
 ##' @importFrom bbmle summary
+##' @docType methods
+##' @exportMethod summary
 setMethod("summary", "fitsir",
-    function(object,...){
+    function(object){
         cc <- object@coef
         ss <- callNextMethod()
         m <- summarize.pars.jacobian(cc)
@@ -232,8 +275,10 @@ setMethod("summary", "fitsir",
     }
 )
 
-##' @aliases show,summary.fitsir-class
-##' @describeIn summary.fitsir pretty-prints \code{object}
+##' Show summary of a fit
+##' @param summary.fitsir object
+##' @docType methods
+##' @exportMethod show
 setMethod("show", "summary.fitsir",
     function(object){
         cat("Maximum likelihood estimation\n\nCall:\n")
