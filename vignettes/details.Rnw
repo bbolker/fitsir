@@ -26,54 +26,6 @@ This vignette provides technical details of the \code{fitsir} package.
 
 \pagebreak
 
-\section{Sensitivity equations}
-
-Let $x_i(t,\theta)$ be the states of the SIR model and $\theta_{j,u}$ and $\theta_{j,c}$ be unconstrained and constrained parameters of the model. In order to employ gradient-based optimization algorithms (e.g. \code{BFGS}), we must solve for $d x_i(t,\theta)/d \theta_{j, u}$. To find the sensitivity equations, \code{fitsir} integrates the following set of differential equations along with the basic SIR model:
-$$
-\begin{aligned}
-\frac{d}{dt} \frac{d x_i(t;\theta)}{d \theta_{j, u}} &=  \left(\frac{d}{dt} \frac{d x_i(t;\theta)}{d \theta_{j, c}}\right) \frac{d \theta_{j, c}}{d \theta_{j, u}}\\
-&= \left(\frac{\partial f_x}{\partial \theta_{j, c}} + \sum_{i} \frac{\partial f_x}{\partial x_i} \frac{d x_i(t;\theta)}{d \theta_{j, c}} \right) \frac{d \theta_{j, c}}{d \theta_{j, u}},
-\end{aligned}
-$$
-where $f_x = dx/dt$.
-Essentially, we integrate sensitivity equations with respect to constrained parameters for simplicity but multiply $d \theta_{j, c}/d \theta_{j, u}$ after to obtain sensitiviy equations with respect to unconstrained parameters because optimization is done using unconstrained parameters.
-
-For clarity, we write $\nu_{x_i, \theta_j}$ to represent sensitivity equations with respect to constrained parameters.
-Then, we write
-$$
-\nu_{x, \theta}(t; x; \theta) = \begin{bmatrix}
-\nu_{S, \beta} & \nu_{S, N} & \nu_{S, \gamma} & \nu_{S, i_0}\\
-\nu_{I, \beta} & \nu_{I, N} & \nu_{I, \gamma} & \nu_{I, i_0}\\
-\end{bmatrix}.
-$$
-So the sensitivity equations of the SIR model are given by
-$$
-\frac{d}{dt} \nu_{x, \theta}(t; \cdot) = \begin{bmatrix}
-- \beta I/N & -\beta S/N\\
-\beta I/N & \beta S/N - \gamma
-\end{bmatrix} \nu_{x, \theta}(t; \cdot) + \begin{bmatrix}
-- SI/N & \beta S I/N^2 & 0 & 0\\
-SI /N & -\beta S I/N^2 & - I & 0
-\end{bmatrix}.
-$$
-The following additional equations complete the sensitivity equations:
-$$
-\begin{aligned}
-\nu_{x, \theta}(0; x(0); \theta) &= \begin{bmatrix}
-0 & 1 - i_0 & 0 & -N\\
-0 & i_0 & 0 & N
-\end{bmatrix}\\
-\left[\frac{d \theta_{j, c}}{d \theta_{j, u}} \right]_{j=1,2,3,4} &= \begin{bmatrix}
-\beta & \gamma & N & (1-i_0)i_0
-\end{bmatrix}.
-\end{aligned}
-$$
-
-Using the sensitivity equations of the SIR model, we can now compute the sensitivity equations of negative log-likelihood functions with respect to the unconstrained parameters by applying the chain rule. Given a log likelihood function $l(X; \mu; \theta)$, we have:
-$$
-\frac{dl(X; \mu; \theta)}{d\theta_{j,u}} = \frac{dl}{d\mu} \frac{d\mu}{d\theta_{j,u}},
-$$
-where $X$ is the observed counts and $\mu$ is the expected trajectory. Precisely, $\mu$ is equal to $I$ for prevalence fits, $S(\tau_n) - S(\tau_{n+1})$ for incidence fits, and $R(\tau_{n+1}) - R(\tau_n)$ for death fits.
 
 \section{Starting function}
 
@@ -338,6 +290,54 @@ plot(times, count, log="y")
 lines(times, SIR.detsim(times, unlist(inc.pars)[c(3, 4, 2, 1)], type="incidence"), col="red")
 @
 
+\section{Sensitivity equations}
+
+Let $x_i(t,\theta)$ be the states of the SIR model and $\theta_{j,u}$ and $\theta_{j,c}$ be unconstrained and constrained parameters of the model. In order to employ gradient-based optimization algorithms (e.g. \code{BFGS}), we must solve for $d x_i(t,\theta)/d \theta_{j, u}$. To find the sensitivity equations, \code{fitsir} integrates the following set of differential equations along with the basic SIR model:
+$$
+\begin{aligned}
+\frac{d}{dt} \frac{d x_i(t;\theta)}{d \theta_{j, u}} &=  \left(\frac{d}{dt} \frac{d x_i(t;\theta)}{d \theta_{j, c}}\right) \frac{d \theta_{j, c}}{d \theta_{j, u}}\\
+&= \left(\frac{\partial f_x}{\partial \theta_{j, c}} + \sum_{i} \frac{\partial f_x}{\partial x_i} \frac{d x_i(t;\theta)}{d \theta_{j, c}} \right) \frac{d \theta_{j, c}}{d \theta_{j, u}},
+\end{aligned}
+$$
+where $f_x = dx/dt$.
+Essentially, we integrate sensitivity equations with respect to constrained parameters for simplicity but multiply $d \theta_{j, c}/d \theta_{j, u}$ after to obtain sensitiviy equations with respect to unconstrained parameters because optimization is done using unconstrained parameters.
+
+For clarity, we write $\nu_{x_i, \theta_j}$ to represent sensitivity equations with respect to constrained parameters.
+Then, we write
+$$
+\nu_{x, \theta}(t; x; \theta) = \begin{bmatrix}
+\nu_{S, \beta} & \nu_{S, N} & \nu_{S, \gamma} & \nu_{S, i_0}\\
+\nu_{I, \beta} & \nu_{I, N} & \nu_{I, \gamma} & \nu_{I, i_0}\\
+\end{bmatrix}.
+$$
+So the sensitivity equations of the SIR model are given by
+$$
+\frac{d}{dt} \nu_{x, \theta}(t; \cdot) = \begin{bmatrix}
+- \beta I/N & -\beta S/N\\
+\beta I/N & \beta S/N - \gamma
+\end{bmatrix} \nu_{x, \theta}(t; \cdot) + \begin{bmatrix}
+- SI/N & \beta S I/N^2 & 0 & 0\\
+SI /N & -\beta S I/N^2 & - I & 0
+\end{bmatrix}.
+$$
+The following additional equations complete the sensitivity equations:
+$$
+\begin{aligned}
+\nu_{x, \theta}(0; x(0); \theta) &= \begin{bmatrix}
+0 & 1 - i_0 & 0 & -N\\
+0 & i_0 & 0 & N
+\end{bmatrix}\\
+\left[\frac{d \theta_{j, c}}{d \theta_{j, u}} \right]_{j=1,2,3,4} &= \begin{bmatrix}
+\beta & \gamma & N & (1-i_0)i_0
+\end{bmatrix}.
+\end{aligned}
+$$
+
+Using the sensitivity equations of the SIR model, we can now compute the sensitivity equations of negative log-likelihood functions with respect to the unconstrained parameters by applying the chain rule. Given a log likelihood function $l(X; \mu; \theta)$, we have:
+$$
+\frac{dl(X; \mu; \theta)}{d\theta_{j,u}} = \frac{dl}{d\mu} \frac{d\mu}{d\theta_{j,u}},
+$$
+where $X$ is the observed counts and $\mu$ is the expected trajectory. Precisely, $\mu$ is equal to $I$ for prevalence fits, $S(\tau_n) - S(\tau_{n+1})$ for incidence fits, and $R(\tau_{n+1}) - R(\tau_n)$ for death fits.
 
 \section{Confidence intervals}
 
