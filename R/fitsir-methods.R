@@ -145,7 +145,7 @@ setMethod("predict", "fitsir",
                     cmat
                 },
                 wmvrnorm={
-                    traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, dist=dist, type=type)
+                    traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, model=select_model(dist), type=type)
                     ##FIXME: vcov not symmetric for low tolerance?
                     i <- 10
                     while(!isSymmetric(round(vcov(object), i))) i <- i - 1
