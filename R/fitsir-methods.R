@@ -19,7 +19,7 @@ NULL
 ##' legend(2, 270, legend = c("NB2", "Quasipoisson"), col=c("red", "blue"), lty=1)
 setMethod("plot", signature(x="fitsir", y="missing"),
     function(x, level,
-             method=c("delta", "mvrnorm", "wmvrnorm", "sobol"),
+             method=c("delta", "mvrnorm", "wmvrnorm"),
              main, xlim, ylim, xlab, ylab, add=FALSE,
              col.traj="black",lty.traj=1,
              col.conf="red",lty.conf=4,
@@ -78,7 +78,6 @@ setMethod("coef", "fitsir",
 ##' @describeIn fitsir predict deterministic trajectory
 ##' @importFrom bbmle predict
 ##' @importFrom bbmle confint
-##' @importFrom pomp sobolDesign
 ##' @importFrom MASS mvrnorm
 ##' @importFrom grDevices adjustcolor
 ##' @examples
@@ -86,7 +85,7 @@ setMethod("coef", "fitsir",
 setMethod("predict", "fitsir",
     function(object,
              level,times,
-             method=c("delta", "mvrnorm", "wmvrnorm", "sobol"),
+             method=c("delta", "mvrnorm", "wmvrnorm"),
              debug=FALSE){
         if(missing(times)) times <- object@data$times
         method <- match.arg(method)
@@ -113,15 +112,8 @@ setMethod("predict", "fitsir",
             
             if (method != "delta") {
                 simtraj <- matrix(NA,nrow=length(times),ncol=nsim)
-                if (method == "sobol") {
-                    ranges <- confint(object)
-                    simpars <- sobolDesign(lower=ranges[,1],
-                                           upper=ranges[,2],
-                                           nseq=nsim)
-                } else {
-                    simpars <- mvrnorm(nsim,mu=coef(object),
+                simpars <- mvrnorm(nsim,mu=coef(object),
                                        Sigma=vcov(object))
-                }
                 
                 for (i in 1:nsim) {
                     simtraj[,i] <- SIR.detsim(times, 
@@ -160,14 +152,6 @@ setMethod("predict", "fitsir",
                     sample.logLik <- mvtnorm::dmvnorm(simpars, coef(object), round(vcov(object), i), log=TRUE)
                     ww <- exp(traj.logLik-sample.logLik)
                     cmat <- t(apply(simtraj, 1, wquant, weights=ww, probs=c(ll, 1-ll)))
-                    cmat
-                },
-                sobol={
-                    traj.logLik <- -apply(simpars, 1, SIR.logLik, count=object@data$count, times, dist=dist, type=type)
-                    cc <- which(traj.logLik > max(traj.logLik) - 100)
-                    traj.logLik <- traj.logLik[cc]
-                    ww <- exp(traj.logLik-mean(traj.logLik))
-                    cmat <- t(apply(simtraj[,cc], 1, wquant, weights=ww, probs=c(ll, 1-ll)))
                     cmat
                 })
             

@@ -18,8 +18,7 @@ Imports:
     utils,
     MASS,
     mvtnorm,
-    Deriv,
-    pomp
+    Deriv
 Suggests:
     knitr,
     ggplot2,

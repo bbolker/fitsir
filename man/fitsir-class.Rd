@@ -19,13 +19,13 @@
 Result of SIR model fitting based on Maximum Likelihood Estimation}
 \usage{
 \S4method{plot}{fitsir,missing}(x, level, method = c("delta", "mvrnorm",
-  "wmvrnorm", "sobol"), main, xlim, ylim, xlab, ylab, add = FALSE,
+  "wmvrnorm"), main, xlim, ylim, xlab, ylab, add = FALSE,
   col.traj = "black", lty.traj = 1, col.conf = "red", lty.conf = 4, ...)
 
 \S4method{coef}{fitsir}(object, type = c("raw", "trans", "summary"))
 
 \S4method{predict}{fitsir}(object, level, times, method = c("delta",
-  "mvrnorm", "wmvrnorm", "sobol"), debug = FALSE)
+  "mvrnorm", "wmvrnorm"), debug = FALSE)
 
 \S4method{residuals}{fitsir}(object, type = c("pearson", "raw"))
 
