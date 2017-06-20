@@ -115,17 +115,28 @@ plot(pfit)
 plot(phila1918a, log="y")
 lines(SIR.detsim(phila1918a$times, trans.pars(pstart), type="death"))
 
-## ----phila_start2--------------------------------------------------------
+## ----phila_start2---------------------------------
 (pfit2 <- fitsir(phila1918a, type="death", start=pstart))
 
-## ----phila_param---------------------------------------------------------
+## ----phila_LHS,cache=TRUE-------------------------
+set.seed(123)
+lhsfun <- function(param, size=0.5, length.out=20) {
+    seq((1-size)*param, (1+size)*param, length.out=length.out)
+}
+
+ltab <- sapply(pstart, lhsfun)
+ltab <- apply(ltab,2, sample)
+plist <- apply(ltab, 1, function(x) fitsir(phila1918a, type="death", start=x))
+(pLik <- sapply(plist, logLik))
+
+## ----phila_param----------------------------------
 ppars <- as.data.frame(t(sapply(plist, coef)))
 col <- c("black", "blue", "red")
 ccol <- col[cut(pLik, breaks=c(-900, -600, -520, -500))]
 
 plot(ppars, col=ccol)
 
-## ----phila_traj----------------------------------------------------------
+## ----phila_traj-----------------------------------
 ppred <- plist %>%
     lapply(predict) %>%
     bind_rows(.id="sim") 
@@ -136,21 +147,33 @@ ggplot(ppred) +
     geom_line(aes(times, mean, group=sim, col=logLik)) +
     geom_point(data=phila1918a, aes(times, count))
 
-## ----phila_best----------------------------------------------------------
+## ----phila_best-----------------------------------
 pbest <- plist[[which.max(pLik)]]
 summary(pbest) ## Nelder-Mead being unstable
 pbest2 <- fitsir(phila1918a, type="death", start=coef(pbest), method="BFGS")
 summary(pbest2)
 
-## ----bombay_set----------------------------------------------------------
+## ----bombay_set-----------------------------------
 bombay2 <- setNames(bombay, c("times", "count"))
 bbstart <- startfun(bombay2, type="death")
 bb <- fitsir(bombay2, type="death", dist="nbinom", start=c(bbstart, ll.k=5))
 
-## ----bombay_lm_traj------------------------------------------------------
+## ----bombay_lm,cache=TRUE-------------------------
+ltab <- sapply(bbstart, lhsfun)
+ltab <- apply(ltab,2, sample)
+blist <- apply(ltab, 1, fitsir,
+               data=bombay2, type="death", method="BFGS")
+bpars <- as.data.frame(t(sapply(blist, coef)))
+bLik <- sapply(blist, logLik)
+mle <- max(bLik)
+goodfits <- which(1.001 * mle < bLik)
+gpars <- bpars[goodfits,]
+plot(gpars)
+
+## ----bombay_lm_traj-------------------------------
 plot(bombay2)
 l <- lapply(blist[goodfits], function(x) plot(x, add=TRUE))
 
-## ----bombay_acf----------------------------------------------------------
+## ----bombay_acf-----------------------------------
 acf(residuals(bb, "raw"))
 
