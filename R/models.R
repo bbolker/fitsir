@@ -73,6 +73,10 @@ setMethod(
     }
 )
 
+
+##' S4 generic for evaluate an object
+##' @param object an \code{R} object
+##' @param ... further arguments passed to methods
 setGeneric(
     "Eval",
     def = function(object, ...) {
@@ -80,7 +84,7 @@ setGeneric(
     }
 )
 
-##' Evaluate a model
+##' Evaluate log likelihood model
 ##' @param object object to be evaluated
 ##' @param count observations
 ##' @param mean mean values
@@ -101,6 +105,9 @@ setMethod(
     }
 )
 
+##' S4 generic for computing a gradient
+##' @param object an \code{R} object
+##' @param ... further arguments passed to methods
 setGeneric(
     "grad",
     def = function(object, ...) {
@@ -132,6 +139,9 @@ setMethod(
     }
 )
 
+##' S4 generic for computing a hessian
+##' @param object an \code{R} object
+##' @param ... further arguments passed to methods
 setGeneric(
     "hessian",
     def = function(object, ...) {

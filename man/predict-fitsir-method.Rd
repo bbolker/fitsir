@@ -26,6 +26,9 @@ Forecast from an SIR fit and find confidence interval
 See vignette for different methods: \code{vignette("details", package="fitsir")}
 }
 \examples{
+harbin2 <- setNames(harbin, c("times", "count"))
+ss <- startfun(harbin2, type="death")
+ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 predict(ff, level=0.95)
 }
 

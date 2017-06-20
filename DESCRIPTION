@@ -23,6 +23,7 @@ Suggests:
     knitr,
     ggplot2,
     plyr,
+    dplyr,
     reshape2,
     Rcpp,
     microbenchmark

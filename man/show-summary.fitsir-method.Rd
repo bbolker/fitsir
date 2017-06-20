@@ -8,7 +8,7 @@
 \S4method{show}{summary.fitsir}(object)
 }
 \arguments{
-\item{summary.fitsir}{object}
+\item{object}{summary.fitsir object}
 }
 \description{
 Show summary of a fit

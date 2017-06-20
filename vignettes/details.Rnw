@@ -369,6 +369,20 @@ It is assumed that the parameters are normally distributed. We take random sampl
 
 \subsection{\code{wmvrnorm} - Weighted multivariate normal approximation}
 
-Like \code{wmvrnorm}, we start by taking random samples of parameters based on normal approximation. However, instead of taking the quantiles from the estimated trajectories, we take a weighted quantile instead with each trajectories weighted by likelihood of a trajectory divided by likelihood of a sample of parameters generating the trajectory.
+Like \code{wmvrnorm}, we start by taking random samples of parameters based on normal approximation. However, instead of taking the quantiles from the estimated trajectories, we take a weighted quantile instead with each trajectories weighted by likelihood of a trajectory divided by probability of the parameter sample that generated the trajectory.
+
+The reason why we do this is based on the Metropolis-Hastings rule: a Markov chain over values of the parameter vecotr $x_i$ will converge to the correct distribution if for any $t$
+$$
+\frac{P(\mathrm{jump}x_t \to x_{t+1})P(\mathrm{accept}x_{t+1}|x_t)}{P(\mathrm{jump}x_{t+1} \to x_{t})P(\mathrm{accept}x_{t}|x_{t+1})} = \frac{\mathrm{Post}(x_{t+1})}{\mathrm{Post}(x_t)} =\frac{\mathcal{L}(x_{t+1})\mathrm{Prior}(x_{t+1})}{\mathcal{L}(x_{t})\mathrm{Prior}(x_{t})}.
+$$
+When we are taking random samples from a multivariate normal distribution, the probability of sampling $x_{t+1}$ is independent of $x_t$. Furthermore, we're assuming that the prior probabilities are all equal. Therefore, we get
+$$
+\frac{P(\mathrm{sample} x_{t+1})P(\mathrm{accept}x_{t+1})}{P(\mathrm{sample}x_{t})P(\mathrm{accept}x_{t})} =\frac{\mathcal{L}(x_{t+1})}{\mathcal{L}(x_{t})}.
+$$
+Therefore, letting
+$$
+P(\mathrm{accept}x_{t+1}) = \frac{\mathcal{L}(x_{t+1})}{P(\mathrm{sample} x_{t+1}}
+$$
+satisfies the criterion.
 
 \end{document}

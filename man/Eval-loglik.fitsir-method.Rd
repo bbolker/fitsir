@@ -3,7 +3,7 @@
 \docType{methods}
 \name{Eval,loglik.fitsir-method}
 \alias{Eval,loglik.fitsir-method}
-\title{Evaluate a model}
+\title{Evaluate log likelihood model}
 \usage{
 \S4method{Eval}{loglik.fitsir}(object, count, mean, par = NULL, ...)
 }
@@ -22,6 +22,6 @@
 numeric
 }
 \description{
-Evaluate a model
+Evaluate log likelihood model
 }
 

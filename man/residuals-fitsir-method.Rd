@@ -20,6 +20,9 @@ Find residuals between the fit and the data
 where \eqn{X_i} is the observed counts and \eqn{\mu_i} is the expected coutns.
 }
 \examples{
+harbin2 <- setNames(harbin, c("times", "count"))
+ss <- startfun(harbin2, type="death")
+ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 residuals(ff)
 }
 
