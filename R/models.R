@@ -178,6 +178,9 @@ setMethod(
     }
 )
 
+##' S4 generic for transforming an object
+##' @param object an \code{R} object
+##' @param ... further arguments passed to methods
 setGeneric(
     "Transform",
     def = function(object, ...) {
