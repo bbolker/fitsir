@@ -234,6 +234,9 @@ setMethod("residuals", "fitsir",
     }
 )
 
+##' S4 method for finding a dispersion parameter
+##' @param object an \code{R} object
+##' @param ... further arguments passed to methods
 setGeneric("dispersion", function(object, ...) standardGeneric("dispersion"))
 
 ##' Find dispersion parameter
