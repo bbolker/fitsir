@@ -18,6 +18,7 @@ NULL
 ##' @param lty.traj line type of the estimated trajectory
 ##' @param col.conf colour of the confidence intervals
 ##' @param lty.conf line type of the confidence intervals
+##' @param ... additional arguments to be passed on to the plot function
 ##' @importFrom bbmle plot
 ##' @examples
 ##' harbin2 <- setNames(harbin, c("times", "count"))
@@ -77,6 +78,9 @@ setMethod("plot", signature(x="fitsir", y="missing"),
 ##' @details \code{raw} returns unconstrained parameters; \code{trans} returns constrained parameters; and
 ##' \code{summary} returns summarized parameters.
 ##' @examples 
+##' harbin2 <- setNames(harbin, c("times", "count"))
+##' ss <- startfun(harbin2, type="death")
+##' ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 ##' coef(ff)
 ##' coef(ff,"trans")
 ##' coef(ff,"summary")
@@ -107,6 +111,9 @@ setMethod("coef", "fitsir",
 ##' @importFrom MASS mvrnorm
 ##' @importFrom grDevices adjustcolor
 ##' @examples
+##' harbin2 <- setNames(harbin, c("times", "count"))
+##' ss <- startfun(harbin2, type="death")
+##' ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 ##' predict(ff, level=0.95)
 ##' @docType methods
 ##' @exportMethod predict
@@ -205,6 +212,9 @@ setMethod("predict", "fitsir",
 ##' where \eqn{X_i} is the observed counts and \eqn{\mu_i} is the expected coutns.
 ##' @importFrom bbmle residuals
 ##' @examples
+##' harbin2 <- setNames(harbin, c("times", "count"))
+##' ss <- startfun(harbin2, type="death")
+##' ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 ##' residuals(ff)
 ##' @docType methods
 ##' @exportMethod residuals
@@ -276,7 +286,7 @@ setMethod("summary", "fitsir",
 )
 
 ##' Show summary of a fit
-##' @param summary.fitsir object
+##' @param object summary.fitsir object
 ##' @docType methods
 ##' @exportMethod show
 setMethod("show", "summary.fitsir",

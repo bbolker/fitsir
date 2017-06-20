@@ -36,6 +36,8 @@
 \item{col.conf}{colour of the confidence intervals}
 
 \item{lty.conf}{line type of the confidence intervals}
+
+\item{...}{additional arguments to be passed on to the plot function}
 }
 \description{
 Plot a fitsir object

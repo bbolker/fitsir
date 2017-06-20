@@ -20,6 +20,9 @@ Extract parameter of a fit
 \code{summary} returns summarized parameters.
 }
 \examples{
+harbin2 <- setNames(harbin, c("times", "count"))
+ss <- startfun(harbin2, type="death")
+ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 coef(ff)
 coef(ff,"trans")
 coef(ff,"summary")
