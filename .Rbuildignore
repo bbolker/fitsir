@@ -3,3 +3,6 @@ cache/
 figure/
 ^.*\.Rproj$
 ^\.Rproj\.user$
+.travis.yml
+*.aux
+*.log
