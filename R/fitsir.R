@@ -117,9 +117,6 @@ SIR.detsim <- function(t, params,
             odesol <- odesol[,which(names(odesol) %in% icol)]
         }else{
             if(type == "death"){
-                ## FIXME: type = "death", grad = TRUE sometimes returns an error
-                ## In log(odesol[,"S"]) : NaNs produced
-                ## possibly due to underflow
                 odesol[,"logI"] <- exp(odesol[,"logI"])
                 odesol <- odesol[,which(names(odesol) %in% scol)] + odesol[,which(names(odesol) %in% icol)]
             }else if(type == "incidence"){
@@ -242,7 +239,7 @@ fitsir <- function(data, start,
             transforms=list(beta~exp(log.beta),
                             gamma~exp(log.gamma),
                             N~exp(log.N),
-                            i0~(1+tanh(logit.i/2))/2),
+                            i0~1/(1+exp(-logit.i))),
             par=parnames
         )
     }

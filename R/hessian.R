@@ -23,7 +23,7 @@ initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nb
         transforms=list(beta~exp(log.beta),
                         gamma~exp(log.gamma),
                         N~exp(log.N),
-                        i0~(1+tanh(logit.i/2))/2),
+                        i0~1/(1+exp(-logit.i))),
         par=parnames,
         keep_hessian=TRUE
     )
