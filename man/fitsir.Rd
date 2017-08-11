@@ -6,7 +6,7 @@
 \usage{
 fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
   "nbinom1"), type = c("prevalence", "incidence", "death"),
-  method = c("Nelder-Mead", "BFGS", "SANN"), control = list(maxit = 1e+05),
+  method = "nlminb", optimizer = "nlminb", control = list(maxit = 1e+05),
   tcol = "times", icol = "count", debug = FALSE, ...)
 }
 \arguments{
@@ -18,7 +18,9 @@ fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 
 \item{type}{type of reported data}
 
-\item{method}{optimization method}
+\item{method}{optimization method (see \link{mle2})}
+
+\item{optimizer}{optimizer to be used (see \link{mle2})}
 
 \item{control}{control parameters for optimization}
 
@@ -34,18 +36,19 @@ fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 fitting function
 }
 \examples{
-bombay2 <- setNames(bombay,c("times","count"))
-(f1 <- fitsir(bombay2, 
+harbin2 <- setNames(harbin,c("times","count"))
+(f1 <- fitsir(harbin2, 
               start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)),
               type="death"))
 plot(f1)
-ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
-cc <- bombay2$count
 
-## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
-mean((1-ss/cc)^2)
+## CRUDE R^2 analogue (don't trust it too far!)
+ss <- SIR.detsim(harbin2$times,trans.pars(coef(f1)), type="death")
+cc <- harbin2$count
+
+cor(ss, cc)^2
 }
 \seealso{
-startfun
+startfun mle2
 }
 

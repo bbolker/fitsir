@@ -178,37 +178,39 @@ SIR.logLik  <- function(params, count, times=NULL,
 ##' @param start starting parameters
 ##' @param dist conditional distribution of reported data
 ##' @param type type of reported data
-##' @param method optimization method
+##' @param method optimization method (see \link{mle2})
+##' @param optimizer optimizer to be used (see \link{mle2})
 ##' @param control  control parameters for optimization
 ##' @param tcol column name for time variable
 ##' @param icol column name for count variable
 ##' @param debug print debugging output?
 ##' @param ... Further arguments to pass to optimizer
-##' @seealso startfun
+##' @seealso startfun mle2
 ##' @export
 ##' @importFrom bbmle mle2
 ##' @examples
-##' bombay2 <- setNames(bombay,c("times","count"))
-##' (f1 <- fitsir(bombay2, 
+##' harbin2 <- setNames(harbin,c("times","count"))
+##' (f1 <- fitsir(harbin2, 
 ##'               start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)),
 ##'               type="death"))
 ##' plot(f1)
-##' ss <- SIR.detsim(bombay2$times,trans.pars(coef(f1)))
-##' cc <- bombay2$count
 ##' 
-##' ## CRUDE R^2 analogue (don't trust it too far! only works if obs always>0)
-##' mean((1-ss/cc)^2)
+##' ## CRUDE R^2 analogue (don't trust it too far!)
+##' ss <- SIR.detsim(harbin2$times,trans.pars(coef(f1)), type="death")
+##' cc <- harbin2$count
+##' 
+##' cor(ss, cc)^2
 fitsir <- function(data, start,
                    dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
-                   method=c("Nelder-Mead", "BFGS", "SANN"),
+                   method="nlminb",
+                   optimizer="nlminb",
                    control=list(maxit=1e5),
                    tcol = "times", icol = "count",
                    debug=FALSE,
                    ...) {
     dist <- match.arg(dist)
     type <- match.arg(type)
-    method <- match.arg(method)
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
     
     model <- select_model(dist)
@@ -223,75 +225,70 @@ fitsir <- function(data, start,
         stop(stop.msg2)
     }
     
-    if (method == "BFGS") {
-        mu_transforms <- list(mean~.sensfun(beta, gamma, N, i0, mean))
-        mu_transforms <- gsub("mean", model@mean, as.character(mu_transforms[[1]]))
-        mu_transforms <- as.formula(paste0(mu_transforms[[2]], mu_transforms[[1]], mu_transforms[[3]]))
-        
-        model <- Transform(
-            model,
-            transforms=list(mu_transforms),
-            par=c("beta", "gamma", "N", "i0")
-        )
-        
-        model <- Transform(
-            model,
-            transforms=list(beta~exp(log.beta),
-                            gamma~exp(log.gamma),
-                            N~exp(log.N),
-                            i0~1/(1+exp(-logit.i))),
-            par=parnames
-        )
-    }
+    mu_transforms <- list(mean~.sensfun(beta, gamma, N, i0, mean))
+    mu_transforms <- gsub("mean", model@mean, as.character(mu_transforms[[1]]))
+    mu_transforms <- as.formula(paste0(mu_transforms[[2]], mu_transforms[[1]], mu_transforms[[3]]))
+    
+    model <- Transform(
+        model,
+        transforms=list(mu_transforms),
+        par=c("beta", "gamma", "N", "i0")
+    )
+    
+    model <- Transform(
+        model,
+        transforms=list(beta~exp(log.beta),
+                        gamma~exp(log.gamma),
+                        N~exp(log.N),
+                        i0~1/(1+exp(-logit.i))),
+        par=parnames
+    )
     
     dataarg <- c(data,list(debug=debug, type = type, model=model))
     
-    if (method=="BFGS") {
-        f.env <- new.env()
-        ## set initial values
-        assign("oldnll",NULL,f.env)
-        assign("oldpar",NULL,f.env)
-        assign("oldgrad",NULL,f.env)
-        assign("data", data, f.env)
-        objfun <- function(par, count, times, model, type, debug) {
-            if (identical(par,oldpar)) {
-                if (debug) cat("returning old version of value\n")
-                return(oldnll)
-            }
-            if (debug) cat("computing new version (nll)\n")
-            
-            v <- SIR.sensitivity(par, count, times, model, type, debug)
-            oldnll <<- v[1]
-            oldgrad <<- v[-1]
-            oldpar <<- par
-            
+    f.env <- new.env()
+    ## set initial values
+    assign("oldnll",NULL,f.env)
+    assign("oldpar",NULL,f.env)
+    assign("oldgrad",NULL,f.env)
+    assign("data", data, f.env)
+    objfun <- function(par, count, times, model, type, debug) {
+        if (identical(par,oldpar)) {
+            if (debug) cat("returning old version of value\n")
             return(oldnll)
         }
-        environment(objfun) <- f.env
-        gradfun <- function(par, count, times, model, type, debug) {
-            if (identical(par,oldpar)) {
-                if (debug) cat("returning old version of grad\n")
-                return(oldgrad)
-            }
-            if (debug) cat("computing new version (grad)\n")
-            v <- SIR.sensitivity(par, count, times, model, type, debug)
-            oldnll <<- v[1]
-            oldgrad <<- v[-1]
-            oldpar <<- par
+        if (debug) cat("computing new version (nll)\n")
+        
+        v <- SIR.sensitivity(par, count, times, model, type, debug)
+        oldnll <<- v[1]
+        oldgrad <<- v[-1]
+        oldpar <<- par
+        
+        return(oldnll)
+    }
+    environment(objfun) <- f.env
+    gradfun <- function(par, count, times, model, type, debug) {
+        if (identical(par,oldpar)) {
+            if (debug) cat("returning old version of grad\n")
             return(oldgrad)
         }
-        environment(gradfun) <- f.env
-        
-    }else{
-        objfun <- SIR.logLik
-        gradfun <- NULL
+        if (debug) cat("computing new version (grad)\n")
+        v <- SIR.sensitivity(par, count, times, model, type, debug)
+        oldnll <<- v[1]
+        oldgrad <<- v[-1]
+        oldpar <<- par
+        return(oldgrad)
     }
+    environment(gradfun) <- f.env
+    
+    
     attr(objfun, "parnames") <- parnames
     
     m <- mle2(objfun,
               vecpar=TRUE,
               start=start,
               method=method,
+              optimizer=optimizer,
               control=control,
               gr=gradfun,
               data=dataarg,
@@ -303,6 +300,7 @@ fitsir <- function(data, start,
         rr <- residuals(m)
         chisq <- sum(rr)/(length(rr)-1)
         m@vcov <- chisq * m@vcov
+        m@details$hessian <- m@details$hessian/chisq
     }
     
     return(m)

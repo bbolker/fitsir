@@ -58,7 +58,7 @@ The \code{harbin} data set is built in:
 head(harbin)
 @
 
-We transform the parameters provided by \cite{dietz_epidemics:_2009} into \emph{unconstrained parameters} (\code{log.beta}, \code{log.gamma}, \code{log.N}, code{logit.i}) so that they can be used as starting parameters for \code{fitsir}. Although \code{fitsir} expects a dataframe with column names \code{times} and \code{count}, we can specify a time column and a count column with \code{tcol} and \code{icol} arguments.
+We can transform the parameters provided by \cite{dietz_epidemics:_2009} into \emph{unconstrained parameters} (\code{log.beta}, \code{log.gamma}, \code{log.N}, \code{logit.i}) so that they can be used as starting parameters for \code{fitsir}. Although \code{fitsir} expects a dataframe with column names \code{times} and \code{count}, we can specify a time column and a count column with \code{tcol} and \code{icol} arguments.
 
 <<harbin_fit>>==
 dietz_harbin <- c(x0=2985,rzero=2,gamma=7/11)
@@ -68,13 +68,10 @@ dietz_lpars <- with(as.list(dietz_harbin),
         log.N=log(x0),
         logit.i=qlogis(1e-3)))
 (ff <- fitsir(harbin, start=dietz_lpars, type="death", 
-              tcol="week", icol="Deaths", method="BFGS"))
+              tcol="week", icol="Deaths"))
 @
 
-\noindent 
-In this case, BFGS method has been used because using sensitivity equations allows for more accurate computation of the Hessian matrix as well as faster convergence. 
-
-We can plot \code{fitsir} objects using \code{plot} function to see whether this fit is good or not (\code{plot(ff)}). Here, we plot the SIR fit along with the Dietz fit to compare:
+We can plot \code{fitsir} objects using the \code{plot} function to judge goodness of fit (\code{plot(ff)}). Here, we plot the SIR fit along with the Dietz fit:
 <<harbin_plot, echo = TRUE, message = FALSE, fig.height=4>>=
 plot(ff, main="SIR vs. KM comparison")
 times <- harbin$week
@@ -90,26 +87,26 @@ legend(x=2, y=275, legend=c("SIR","Dietz"), col=c("black", "red"), lty = 1)
 @
 
 \noindent
-Apart from the difference in the estimated trajectories, we note that the Kermack-Mckendrick equation models the instantaneous change in the number of recovered individuals ($dR/dt$) whereas \code{fitsir} fits are based on the actual number of individuals that recovered during a given time interval ($R(\tau_{n+1}) - R(\tau_n)$).
+Apart from the difference in the estimated trajectories, we note that the Kermack-Mckendrick equation models the \emph{instantaneous} change in the number of recovered individuals ($dR/dt$) whereas \code{fitsir} models the changes in the number of recovered individuals between a time interval ($R(\tau_{n+1}) - R(\tau_n)$).
 
-We can also use the \code{summary} method provided by the \code{fitsir} package to see the summarized parameters:
+After fitting, we can use the \code{summary} method to see the summarized parameters:
 <<harbin_summary>>=
 summary(ff)
 @
 
 \noindent
-MLE returns slightly higher $\rzero$ and longer infectious period but lower population size.
+Note that \code{fitsir} estimates slightly higher $\rzero$ and longer infectious period but lower population size. Here, standard errors are calculated by using the Delta method (see \code{vignette("details", package="fitsir")}).
 
 \subsection{Overdispersion}
 
-In fact, this is not the best fit. By looking at the sum of Pearson residuals divided by the mean (given by \code{dispersion}), we can see that the data is over dispersed
+In fact, this is not the best fit. By looking at the sum of Pearson residuals divided by the predicted mean (given by \code{dispersion}), we can see that the data is over dispersed (we expect this value to be approximately 1)
 
 <<harbin_test>>==
 dispersion(ff)
 @
 
 \noindent
-\code{fitsir} provides three ways of dealing with overdispersion (quasipossion, NB1, NB2) and in this case, using NB1 error function fits better (higher Log-likelihood) than using any of the provided error functions. 
+\code{fitsir} provides three ways of dealing with overdispersion (quasipossion, NB1, NB2). In this case, using NB1 error function fits better (higher Log-likelihood) than using any of the provided error functions. 
 
 First, to explore how these fits differ, we define a new data frame, namely \code{harbin2}, to avoid using \code{tcol} and \code{icol} arguments:
 
@@ -121,9 +118,9 @@ harbin2 <- setNames(harbin, c("times", "count"))
 Then, we can fit:
 
 <<harbin_dispersion>>=
-ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", method="BFGS", start=dietz_lpars)
-ff3 <- fitsir(harbin2, dist="nbinom", type="death", method="BFGS", start=c(dietz_lpars, ll.k=5))
-ff4 <- fitsir(harbin2, dist="nbinom1", type="death", method="BFGS", start=c(dietz_lpars, ll.phi=5))
+ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", start=dietz_lpars)
+ff3 <- fitsir(harbin2, dist="nbinom", type="death", start=c(dietz_lpars, ll.k=5))
+ff4 <- fitsir(harbin2, dist="nbinom1", type="death", start=c(dietz_lpars, ll.phi=5))
 @
 
 \noindent
@@ -131,7 +128,7 @@ Notice that \code{nbinom} and \code{nbinom1} estimate 5 parameters rather than 4
 NB2 (\code{nbinom}) assumes quadratic mean-variance relationship: $\mathrm{Var} = \mu (1 + \mu/k)$. In this case, we estimate \code{ll.k=exp(k)} instead.
 On the other hand, NB1 (\code{nbinom1}) assumes linear mean-variance relationship: $\mathrm{Var}=\mu (1+\phi)$. In this case, we estimate \code{ll.phi=exp(phi)} instead.
 
-Again, we can plot these three fits to compare:
+Again, we can plot these three fits along with their confience intervals (\code{level=0.95}) to compare:
 
 <<harbin_dispersion_plot, fig.width=8>>==
 plot(ff2, level=0.95, col.traj="green", col.conf="green", log="y", main="Comparison of three error functions")
@@ -147,7 +144,7 @@ hfits <- list(QP=ff2, NB2=ff3, NB1=ff4)
 lapply(hfits, AIC)
 @
 
-To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson due to its high log likelihood value).
+To understand why NB1 fits better than NB2, we can look at the mean variance relationship (we disregard quasipoisson due to its high log likelihood/AIC value).
 
 <<mean-variance, echo=FALSE>>==
 mvrel <- function(fit, data) {
@@ -202,7 +199,7 @@ acf(residuals(ff4, "raw"))
 This doesn't seem like they're autocorrelated...
 \section{1918 Philadelphia Flu}
 
-Another data set provided by the \code{fitsir} package is 1918 philadelphia flu data.
+Another data set provided by the \code{fitsir} package is 1918 philadelphia flu data. In this section, we are going to show how using different optimizers and starting values can affect the fit.
 
 <<phila_head>>==
 head(phila1918)
@@ -218,17 +215,19 @@ plot(phila1918a, log="y")
 \noindent
 Notice that this data doesn't exactly follow the typical SIR trajectory. Due to its long tail, most models other than Gaussian fail. 
 
-For the Harbin data, we used Dietz parameter as a starting parameter but we can't do that here. First, we can try to fit an SIR model using arbitrary startin values:
+For the Harbin data, we used Dietz parameter as a starting parameter but we can't do that here. First, we can try to fit an SIR model using arbitrary startin values. By default, \code{fitsir} uses \code{nlminb} but for sake of demonstration, we are going to use the Nelder-Mead method (see \code{?optim}).
 
 <<phila_fit>>==
 (pfit <- fitsir(phila1918a, 
     start=c(log.beta=log(0.12), log.gamma=log(0.09), log.N=log(10000), logit.i=qlogis(0.01)),  
-    type="death")
+    type="death",
+    method="Nelder-Mead",
+    optimizer="optim")
 )
 plot(pfit)
 @
 
-We get a decent fit. However, this is actually not the maximum likelihood estimate. To avoid falling in a local minima, we can either use a different starting point or try different method. Here, we present how using different starting values can yield different results.
+We get a decent fit. However, this is actually not the maximum likelihood estimate. To avoid falling in a local minima, we can either use a different starting point or try different optimization methods. Here, we present how using different starting values can yield different results.
 
 \subsection{Starting values}
 
@@ -240,15 +239,15 @@ plot(phila1918a, log="y")
 lines(SIR.detsim(phila1918a$times, trans.pars(pstart), type="death"))
 @
 
-Using this starting function, we can get a better fit:
+Using this starting value, we can get a better fit:
 
 <<phila_start2>>==
-(pfit2 <- fitsir(phila1918a, type="death", start=pstart))
+(pfit2 <- fitsir(phila1918a, type="death", start=pstart, method="Nelder-Mead", optimizer="optim"))
 @
 
-Yet, this is still not the best fit. We can further explore different starting values using Latin hypercube sampling.
+We can further explore local minima using Latin hypercube sampling.
 
-<<phila_LHS,cache=TRUE>>===
+<<phila_LHS,cache=TRUE, warning=FALSE>>===
 set.seed(123)
 lhsfun <- function(param, size=0.5, length.out=20) {
     seq((1-size)*param, (1+size)*param, length.out=length.out)
@@ -256,16 +255,18 @@ lhsfun <- function(param, size=0.5, length.out=20) {
 
 ltab <- sapply(pstart, lhsfun)
 ltab <- apply(ltab,2, sample)
-plist <- apply(ltab, 1, function(x) fitsir(phila1918a, type="death", start=x))
+plist <- apply(ltab, 1, fitsir,
+               data=bombay2, type="death", method="Nelder-Mead", optimizer="optim")
+
 (pLik <- sapply(plist, logLik))
 @
 
-We can explore the parameter space
+We can explore the parameter space:
 
 <<phila_param>>==
 ppars <- as.data.frame(t(sapply(plist, coef)))
 col <- c("black", "blue", "red")
-ccol <- col[cut(pLik, breaks=c(-900, -600, -520, -500))]
+ccol <- col[cut(pLik, breaks=c(-900, -700, -520, -500))]
 
 plot(ppars, col=ccol)
 @
@@ -293,6 +294,8 @@ pbest2 <- fitsir(phila1918a, type="death", start=coef(pbest), method="BFGS")
 summary(pbest2)
 @
 
+Note that we used the \code{Nelder-Mead} method only for sake of demonstration. Gradient based methods such as \code{nlminb} or \code{BFGS} can still get stuck in local minima as well but are more robust.
+
 \section{Bombay}
 
 In this section, we are going to be demonstrating some pathologies that might be associated with fitting an SIR model.
@@ -303,13 +306,15 @@ bbstart <- startfun(bombay2, type="death")
 bb <- fitsir(bombay2, type="death", dist="nbinom", start=c(bbstart, ll.k=5))
 @
 
+When $\rzero$ is close to 1, fits may not converge properly.
+
 Multiple local minima:
 
-<<bombay_lm,cache=TRUE>>==
+<<bombay_lm,cache=TRUE, warning=FALSE>>==
 ltab <- sapply(bbstart, lhsfun)
 ltab <- apply(ltab,2, sample)
 blist <- apply(ltab, 1, fitsir,
-               data=bombay2, type="death", method="BFGS")
+               data=bombay2, type="death")
 bpars <- as.data.frame(t(sapply(blist, coef)))
 bLik <- sapply(blist, logLik)
 mle <- max(bLik)
@@ -318,7 +323,7 @@ gpars <- bpars[goodfits,]
 plot(gpars)
 @
 
-The difference is not noticeable:
+The difference is barely noticeable:
 
 <<bombay_lm_traj>>==
 plot(bombay2)
