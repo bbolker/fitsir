@@ -197,6 +197,7 @@ All three models (quasipoisson, NB1, and NB2) provide extremely similar trajecto
 acf(residuals(ff4, "raw"))
 @
 This doesn't seem like they're autocorrelated...
+
 \section{1918 Philadelphia Flu}
 
 Another data set provided by the \code{fitsir} package is 1918 philadelphia flu data. In this section, we are going to show how using different optimizers and starting values can affect the fit.
@@ -256,7 +257,7 @@ lhsfun <- function(param, size=0.5, length.out=20) {
 ltab <- sapply(pstart, lhsfun)
 ltab <- apply(ltab,2, sample)
 plist <- apply(ltab, 1, fitsir,
-               data=bombay2, type="death", method="Nelder-Mead", optimizer="optim")
+               data=phila1918a, type="death", method="Nelder-Mead", optimizer="optim")
 
 (pLik <- sapply(plist, logLik))
 @
