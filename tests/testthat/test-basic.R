@@ -11,7 +11,7 @@ test_that("bombay fits", {
     expect_equal(summarize.pars(ss0),
                  oldval,
                      tolerance=1e-6)
-    f1 <- fitsir(bombay2,start=ss0)
+    f1 <- fitsir(bombay2,start=ss0, method="Nelder-Mead", optimizer="optim")
     oldval <- structure(c(1.03206001777913, 0.37953835593663, 0.0844710877771807, 
                           2.59211314281603e-06, 4.59204375483407, 1771539.897656, 1771544.48969976
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
@@ -32,7 +32,7 @@ test_that("philadelphia fits", {
                  oldval,
                  tolerance=1e-6)
     
-    suppressWarnings(f1 <- fitsir(phila1918a,start=ss0,type="death", method="BFGS"))
+    suppressWarnings(f1 <- fitsir(phila1918a,start=ss0,type="death", method="BFGS", optimizer="optim"))
     oldval <- structure(c(2.30011752489424, 0.316692031313227, 4.10530545875451, 
                           3.52493040787634e-06, 0.0530463797851002, 15048.8624347797, 15048.9154811595
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
@@ -53,9 +53,11 @@ test_that("harbin fits", {
                  oldval,
                  tolerance=1e-6)
     
-    suppressWarnings(f1 <- fitsir(harbin,start=c(ss0, ll.phi=5), type="death",method="BFGS",dist="nbinom1",tcol="week",icol="Deaths"))
-    oldval <- structure(c(1.86313108338121, 0.79800238744463, 1.08161466301515, 
-                          0.000351214054614198, 0.700631067002019, 1994.18271086431, 1994.88334193132
+    suppressWarnings(f1 <- fitsir(harbin,start=c(ss0, ll.phi=5), 
+                                  type="death",method="BFGS", 
+                                  dist="nbinom1",tcol="week",icol="Deaths"))
+    oldval <- structure(c(1.86311570920975, 0.797999294064676, 1.08159958991117, 
+                          0.000351213159194791, 0.700633492159998, 1994.19469949111, 1994.89533298327
                           ), .Names = c("R0", "r", "infper", "i0", "I0", "S0", "N"))
     
     expect_equal(summarize.pars(coef(f1)),

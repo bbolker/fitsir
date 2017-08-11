@@ -120,5 +120,12 @@ SIR.hessian <- function(data, params,
     for(i in 1:n) {
         m[i,] <- -colSums(hess[,,i])
     }
+    
+    if (dist == "quasipoisson") {
+        rr <- (exp(r$logI)-count)^2/exp(r$logI)
+        chisq <- sum(rr)/(length(rr)-1)
+        m <- m/chisq
+    }
+    
     return(m)
 }
