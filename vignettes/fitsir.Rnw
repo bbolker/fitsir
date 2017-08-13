@@ -257,7 +257,7 @@ lhsfun <- function(param, size=0.5, length.out=20) {
 ltab <- sapply(pstart, lhsfun)
 ltab <- apply(ltab,2, sample)
 plist <- apply(ltab, 1, fitsir,
-               data=phila1918a, type="death", method="Nelder-Mead", optimizer="optim")
+    data=phila1918a, type="death", method="Nelder-Mead", optimizer="optim")
 
 (pLik <- sapply(plist, logLik))
 @
