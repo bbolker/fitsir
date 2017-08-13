@@ -302,6 +302,10 @@ w_lbeta <- function(a,b) {
     return(lbeta(a,b))
 }
 
+NBconst <- function(k,x) {
+    return(ifelse(x==0,0,lbeta(k,x)+log(x)))
+}
+
 ##' Select likelihood model
 ##' @param dist conditional distribution of reported data
 ##' @export
@@ -327,7 +331,7 @@ select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom
             loglik_poisson
         }, nbinom={
             loglik_nbinom <- new ("loglik.fitsir", "nbinom",
-                                  LL ~ -lbeta(k, X) - log(X) + k * (-log1p(mu/k)) + 
+                                  LL ~ - NBconst(k, X) + k * (-log1p(mu/k)) + 
                                       X * log(mu) - X * log(k + mu),
                                   mean="mu",
                                   par = "k")
@@ -341,7 +345,7 @@ select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom
             loglik_nbinom
         }, nbinom1={
             loglik_nbinom1 <- new ("loglik.fitsir", "nbinom",
-                                   LL ~ -lbeta(mu/phi, X) - log(X) + mu/phi * (-log1p(phi)) + 
+                                   LL ~ - NBconst(mu/phi, X) + mu/phi * (-log1p(phi)) + 
                                        X * log(mu) - X * log(mu/phi + mu),
                                    mean="mu",
                                    par = "phi")
@@ -349,7 +353,7 @@ select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom
             loglik_nbinom1 <- Transform(
                 loglik_nbinom1,
                 transforms = list(phi ~ exp(ll.phi)),
-                par=c("ll.phi")
+                par="ll.phi"
             )
             
             loglik_nbinom1

@@ -1,9 +1,15 @@
 
 
 .onLoad <- function(libname, pkgname) {
+
+    
+
     ## prevent NOTE false positives from R CMD check ...
     N <- a <- b <- i0 <- nu_I_N <- nu_I_NN <- nu_I_Ni <- nu_I_b <-
         nu_I_bN <- nu_I_bb <- nu_I_bg <- NULL
+
+    drule[["NBconst"]] <- alist(k=dfun(k,x),
+                                x=dfun(x,k)+1/x)
 
     drule[["lbeta"]] <- drule[["w_lbeta"]] <- alist(a=dfun(a,b),
                                                     b=dfun(b,a))
