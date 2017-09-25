@@ -1,29 +1,70 @@
-##' additive log-ratio transformation and inverse
-##' @param x value to transform (or inverse-transform)
-alrinv <- function(x) {
-    y <- exp(x)/(1+sum(exp(x)))
-    c(y,1-sum(y))
-}
-
-##' @rdname alrinv
-alr <- function(x) {
-    y <- log(x/(1-sum(x[-length(x)])))
-    y[-length(x)]
-}
-
-##' transform parameters log->exp or alr->raw
-##' *assume* R=0/S=N at start of epidemic
+##' transform parameters
+##' 
 ##' @param params parameter vector containing \code{log.beta}, \code{log.gamma}, \code{log.N}, \code{logit.i}
 ##' @return params transformed parameter vector containing \code{beta}, \code{gamma}, \code{N}, \code{i0}
 ##' @export
-trans.pars <- function(params) {
-    tpars <- with(as.list(params),
-                  c(beta=exp(log.beta),
-                    gamma=exp(log.gamma),
-                    N=exp(log.N),
-                    i0=plogis(logit.i)))
-    return(tpars)
+trans.pars <- function(params, scale=c("constrained", "unconstrained")) {
+    scale <- match.arg(scale)
+    tpars <- switch(scale,
+        constrained=with(as.list(params),
+                         c(beta=exp(log.beta),
+                           gamma=exp(log.gamma),
+                           N=exp(log.N),
+                           i0=plogis(logit.i0))),
+        unconstrained=with(as.list(params),
+                           c(log.beta=log(beta),
+                             log.gamma=log(gamma),
+                             log.N=log(N),
+                             logit.i0=qlogis(i0))))
+    tpars
 }
+
+trans.pars.loglik <- function(params, model, scale=c("constrained", "unconstrained")) {
+    scale <- match.arg(scale)
+    tpars <- switch(scale,
+        constrained=with(as.list(params), {
+            switch(model@name,
+                   gaussian=c(sigma=exp(log.sigma)),
+                   nbinom=c(k=exp(log.k)),
+                   nbinom1=c(phi=exp(log.phi))
+            )
+        }),
+        unconstrained=with(as.list(params), {
+            switch(model@name,
+                   gaussian=c(log.sigma=log(sigma)),
+                   nbinom=c(log.k=log(k)),
+                   nbinom1=c(log.phi=log(phi))
+            )
+        }))
+    tpars
+}
+
+.linkfun <- function(params, model) {
+    tpars <- c(trans.pars(params, "constrained"), 
+      trans.pars.loglik(params, model, "constrained"))
+    
+    mu.eta <- with(as.list(params),{
+        c(log.beta=exp(log.beta),
+          log.gamma=exp(log.gamma),
+          log.N=exp(log.N),
+          logit.i0=.logit.eta(logit.i0))
+    })
+    
+    mu.eta.loglik <- with(as.list(params), {
+        switch(model@name,
+               gaussian=c(log.sigma=exp(log.sigma)),
+               nbinom=c(log.k=exp(log.k)),
+               nbinom1=c(log.phi=exp(log.phi))
+        )
+    })
+    
+    list(
+        param=tpars,
+        mu.eta=c(mu.eta, mu.eta.loglik)
+    )
+}
+
+.logit.eta <- make.link("logit")$mu.eta
 
 ##' Summarize parameters
 ##'
@@ -106,8 +147,7 @@ SIR.detsim <- function(t, params,
             parms=params[1:3],
             dllname = "fitsir",
             initfunc = "initmod",
-            method = "rk4",
-            hini = 0.01
+            method = "rk4"
         ))
         
         icol <- c("logI", "nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
@@ -131,8 +171,7 @@ SIR.detsim <- function(t, params,
         }
         
         if (grad) {
-            if(!all(names(odesol) == icol))
-                names(odesol) <- icol
+            names(odesol) <- c("logI", "beta", "gamma", "N", "i0")
             
             return(odesol)
         }else{
@@ -171,7 +210,12 @@ SIR.logLik  <- function(params, count, times=NULL,
     return(r)
 }
 
-.fitsir.pars <- c("log.beta","log.gamma","log.N","logit.i")
+##' constrained parameters
+.cpars <- c("beta", "gamma", "N", "i0")
+
+##' unconstrained parameters
+.upars <- c("log.beta","log.gamma","log.N","logit.i0")
+
   
 ##' fitting function
 ##' @param data data frame
@@ -191,7 +235,7 @@ SIR.logLik  <- function(params, count, times=NULL,
 ##' @examples
 ##' harbin2 <- setNames(harbin,c("times","count"))
 ##' (f1 <- fitsir(harbin2, 
-##'               start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)),
+##'               start=c(beta=2, gamma=1, N=2e3, i0=0.0001, sigma=10),
 ##'               type="death"))
 ##' plot(f1)
 ##' 
@@ -203,8 +247,7 @@ SIR.logLik  <- function(params, count, times=NULL,
 fitsir <- function(data, start,
                    dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
-                   method="nlminb",
-                   optimizer="nlminb",
+                   method=c("mle", "mcmc"),
                    control=list(maxit=1e5),
                    tcol = "times", icol = "count",
                    debug=FALSE,
@@ -214,96 +257,89 @@ fitsir <- function(data, start,
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
     
     model <- select_model(dist)
-    parnames <- c(.fitsir.pars, model@par)
     
-    if(missing(start) | length(start) != length(parnames)) {
-        stop.msg <- paste0("'start' must be a named vector with following parameters:\n", paste(parnames, collapse = ', '))
-        stop(stop.msg)
-    } else if (!all(parnames %in% names(start))) {
-        stop.msg2 <- paste0("names of 'start' does not match names of the parameters (", paste(parnames, collapse = ', '), ").
-                            \n")
-        stop(stop.msg2)
-    }
-    
-    mu_transforms <- list(mean~.sensfun(beta, gamma, N, i0, mean))
-    mu_transforms <- gsub("mean", model@mean, as.character(mu_transforms[[1]]))
-    mu_transforms <- as.formula(paste0(mu_transforms[[2]], mu_transforms[[1]], mu_transforms[[3]]))
-    
-    model <- Transform(
-        model,
-        transforms=list(mu_transforms),
-        par=c("beta", "gamma", "N", "i0")
-    )
-    
-    model <- Transform(
-        model,
-        transforms=list(beta~exp(log.beta),
-                        gamma~exp(log.gamma),
-                        N~exp(log.N),
-                        i0~1/(1+exp(-logit.i))),
-        par=parnames
-    )
-    
-    dataarg <- c(data,list(debug=debug, type = type, model=model))
-    
-    f.env <- new.env()
-    ## set initial values
-    assign("oldnll",NULL,f.env)
-    assign("oldpar",NULL,f.env)
-    assign("oldgrad",NULL,f.env)
-    assign("data", data, f.env)
-    objfun <- function(par, count, times, model, type, debug) {
-        if (identical(par,oldpar)) {
-            if (debug) cat("returning old version of value\n")
+    if(method=="mle") {
+        parnames <- c(.cpars, model@par)
+        
+        if(missing(start) | length(start) != length(parnames)) {
+            stop.msg <- paste0("'start' must be a named vector with following parameters:\n", paste(parnames, collapse = ', '))
+            stop(stop.msg)
+        } else if (!all(parnames %in% names(start))) {
+            stop.msg2 <- paste0("names of 'start' does not match names of the parameters (", paste(parnames, collapse = ', '), ").
+                                \n")
+            stop(stop.msg2)
+        }
+        
+        ## put parameters in the right order
+        sir.start <- start[.cpars]
+        loglik.start <- start[which(!(names(start) %in% .cpars))]
+        
+        start <- c(
+            trans.pars(sir.start, "unconstrained"),
+            trans.pars.loglik(loglik.start, model, "unconstrained")
+        )
+        
+        dataarg <- c(data,list(debug=debug, type = type, model=model))
+        
+        f.env <- new.env()
+        ## set initial values
+        assign("oldnll",NULL,f.env)
+        assign("oldpar",NULL,f.env)
+        assign("oldgrad",NULL,f.env)
+        assign("data", data, f.env)
+        objfun <- function(par, count, times, model, type, debug) {
+            if (identical(par,oldpar)) {
+                if (debug) cat("returning old version of value\n")
+                return(oldnll)
+            }
+            if (debug) cat("computing new version (nll)\n")
+            
+            v <- SIR.sensitivity(par, count, times, model, type, debug)
+            oldnll <<- v[1]
+            oldgrad <<- v[-1]
+            oldpar <<- par
+            
             return(oldnll)
         }
-        if (debug) cat("computing new version (nll)\n")
-        
-        v <- SIR.sensitivity(par, count, times, model, type, debug)
-        oldnll <<- v[1]
-        oldgrad <<- v[-1]
-        oldpar <<- par
-        
-        return(oldnll)
-    }
-    environment(objfun) <- f.env
-    gradfun <- function(par, count, times, model, type, debug) {
-        if (identical(par,oldpar)) {
-            if (debug) cat("returning old version of grad\n")
+        environment(objfun) <- f.env
+        gradfun <- function(par, count, times, model, type, debug) {
+            if (identical(par,oldpar)) {
+                if (debug) cat("returning old version of grad\n")
+                return(oldgrad)
+            }
+            if (debug) cat("computing new version (grad)\n")
+            v <- SIR.sensitivity(par, count, times, model, type, debug)
+            oldnll <<- v[1]
+            oldgrad <<- v[-1]
+            oldpar <<- par
             return(oldgrad)
         }
-        if (debug) cat("computing new version (grad)\n")
-        v <- SIR.sensitivity(par, count, times, model, type, debug)
-        oldnll <<- v[1]
-        oldgrad <<- v[-1]
-        oldpar <<- par
-        return(oldgrad)
+        environment(gradfun) <- f.env
+        
+        attr(objfun, "parnames") <- names(start)
+        
+        m <- mle2(objfun,
+                  vecpar=TRUE,
+                  start=start,
+                  method="BFGS",
+                  control=control,
+                  gr=gradfun,
+                  data=dataarg,
+                  ...)
+        
+        m <- new("fitsir", m)
+        
+        if (dist == "quasipoisson") {
+            rr <- residuals(m)
+            chisq <- sum(rr)/(length(rr)-1)
+            m@vcov <- chisq * m@vcov
+            m@details$hessian <- m@details$hessian/chisq
+        }
+        
+        return(m)
+    } else {
+        stop("MCMC is not available")
     }
-    environment(gradfun) <- f.env
-    
-    
-    attr(objfun, "parnames") <- parnames
-    
-    m <- mle2(objfun,
-              vecpar=TRUE,
-              start=start,
-              method=method,
-              optimizer=optimizer,
-              control=control,
-              gr=gradfun,
-              data=dataarg,
-              ...)
-    
-    m <- new("fitsir", m)
-    
-    if (dist == "quasipoisson") {
-        rr <- residuals(m)
-        chisq <- sum(rr)/(length(rr)-1)
-        m@vcov <- chisq * m@vcov
-        m@details$hessian <- m@details$hessian/chisq
-    }
-    
-    return(m)
 }
 
 ## Introducing sensitivity equations
@@ -322,13 +358,24 @@ SIR.sensitivity <- function(params, count, times=NULL,
                             debug=FALSE) {
     type <- match.arg(type)
     if (is.null(times)) times <- seq(length(count))
-    tpars <- trans.pars(params)
+    linkpar <- .linkfun(params, model)
+    
+    tpars <- linkpar$param
     r <- SIR.detsim(times, tpars, type, grad = TRUE)
-    args <- list(object=model, count=count,mean=exp(r$logI),
-                 par=params)
-    args <- append(args, as.list(r)[-1])
-    nll <- -sum(do.call(Eval, args))
-    sensitivity <- -sapply(do.call(grad, args), sum)
+    
+    mean <- exp(r$logI)
+    
+    loglik.par <- as.list(tpars[-c(1:4)])
+    
+    nll <- -sum(Eval(model, count, mean, loglik.par))
+    loglik.gr <- grad(model, count, mean, loglik.par, var=c(model@mean, model@par))
+    
+    sensitivity <- -colSums(loglik.gr[[1]] * r[,-1])
+    
+    if(length(loglik.gr) > 1) sensitivity <- c(sensitivity, -sapply(loglik.gr[-1], sum))
+    
+    sensitivity <- sensitivity * linkpar$mu.eta
+    
     c(nll, sensitivity)
 }
 
