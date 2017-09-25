@@ -247,7 +247,7 @@ SIR.logLik  <- function(params, count, times=NULL,
 fitsir <- function(data, start,
                    dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
-                   method=c("mle", "mcmc"),
+                   method="BFGS",
                    control=list(maxit=1e5),
                    tcol = "times", icol = "count",
                    debug=FALSE,
@@ -259,87 +259,87 @@ fitsir <- function(data, start,
     model <- select_model(dist)
     
     if(method=="mle") {
-        parnames <- c(.cpars, model@par)
         
-        if(missing(start) | length(start) != length(parnames)) {
-            stop.msg <- paste0("'start' must be a named vector with following parameters:\n", paste(parnames, collapse = ', '))
-            stop(stop.msg)
-        } else if (!all(parnames %in% names(start))) {
-            stop.msg2 <- paste0("names of 'start' does not match names of the parameters (", paste(parnames, collapse = ', '), ").
-                                \n")
-            stop(stop.msg2)
-        }
-        
-        ## put parameters in the right order
-        sir.start <- start[.cpars]
-        loglik.start <- start[which(!(names(start) %in% .cpars))]
-        
-        start <- c(
-            trans.pars(sir.start, "unconstrained"),
-            trans.pars.loglik(loglik.start, model, "unconstrained")
-        )
-        
-        dataarg <- c(data,list(debug=debug, type = type, model=model))
-        
-        f.env <- new.env()
-        ## set initial values
-        assign("oldnll",NULL,f.env)
-        assign("oldpar",NULL,f.env)
-        assign("oldgrad",NULL,f.env)
-        assign("data", data, f.env)
-        objfun <- function(par, count, times, model, type, debug) {
-            if (identical(par,oldpar)) {
-                if (debug) cat("returning old version of value\n")
-                return(oldnll)
-            }
-            if (debug) cat("computing new version (nll)\n")
-            
-            v <- SIR.sensitivity(par, count, times, model, type, debug)
-            oldnll <<- v[1]
-            oldgrad <<- v[-1]
-            oldpar <<- par
-            
+    }
+    
+    parnames <- c(.cpars, model@par)
+    
+    if(missing(start) | length(start) != length(parnames)) {
+        stop.msg <- paste0("'start' must be a named vector with following parameters:\n", paste(parnames, collapse = ', '))
+        stop(stop.msg)
+    } else if (!all(parnames %in% names(start))) {
+        stop.msg2 <- paste0("names of 'start' does not match names of the parameters (", paste(parnames, collapse = ', '), ").
+                            \n")
+        stop(stop.msg2)
+    }
+    
+    ## put parameters in the right order
+    sir.start <- start[.cpars]
+    loglik.start <- start[which(!(names(start) %in% .cpars))]
+    
+    start <- c(
+        trans.pars(sir.start, "unconstrained"),
+        trans.pars.loglik(loglik.start, model, "unconstrained")
+    )
+    
+    dataarg <- c(data,list(debug=debug, type = type, model=model))
+    
+    f.env <- new.env()
+    ## set initial values
+    assign("oldnll",NULL,f.env)
+    assign("oldpar",NULL,f.env)
+    assign("oldgrad",NULL,f.env)
+    assign("data", data, f.env)
+    objfun <- function(par, count, times, model, type, debug) {
+        if (identical(par,oldpar)) {
+            if (debug) cat("returning old version of value\n")
             return(oldnll)
         }
-        environment(objfun) <- f.env
-        gradfun <- function(par, count, times, model, type, debug) {
-            if (identical(par,oldpar)) {
-                if (debug) cat("returning old version of grad\n")
-                return(oldgrad)
-            }
-            if (debug) cat("computing new version (grad)\n")
-            v <- SIR.sensitivity(par, count, times, model, type, debug)
-            oldnll <<- v[1]
-            oldgrad <<- v[-1]
-            oldpar <<- par
+        if (debug) cat("computing new version (nll)\n")
+        
+        v <- SIR.sensitivity(par, count, times, model, type, debug)
+        oldnll <<- v[1]
+        oldgrad <<- v[-1]
+        oldpar <<- par
+        
+        return(oldnll)
+    }
+    environment(objfun) <- f.env
+    gradfun <- function(par, count, times, model, type, debug) {
+        if (identical(par,oldpar)) {
+            if (debug) cat("returning old version of grad\n")
             return(oldgrad)
         }
-        environment(gradfun) <- f.env
-        
-        attr(objfun, "parnames") <- names(start)
-        
-        m <- mle2(objfun,
-                  vecpar=TRUE,
-                  start=start,
-                  method="BFGS",
-                  control=control,
-                  gr=gradfun,
-                  data=dataarg,
-                  ...)
-        
-        m <- new("fitsir", m)
-        
-        if (dist == "quasipoisson") {
-            rr <- residuals(m)
-            chisq <- sum(rr)/(length(rr)-1)
-            m@vcov <- chisq * m@vcov
-            m@details$hessian <- m@details$hessian/chisq
-        }
-        
-        return(m)
-    } else {
-        stop("MCMC is not available")
+        if (debug) cat("computing new version (grad)\n")
+        v <- SIR.sensitivity(par, count, times, model, type, debug)
+        oldnll <<- v[1]
+        oldgrad <<- v[-1]
+        oldpar <<- par
+        return(oldgrad)
     }
+    environment(gradfun) <- f.env
+    
+    attr(objfun, "parnames") <- names(start)
+    
+    m <- mle2(objfun,
+              vecpar=TRUE,
+              start=start,
+              method=method,
+              control=control,
+              gr=gradfun,
+              data=dataarg,
+              ...)
+    
+    m <- new("fitsir", m)
+    
+    if (dist == "quasipoisson") {
+        rr <- residuals(m)
+        chisq <- sum(rr)/(length(rr)-1)
+        m@vcov <- chisq * m@vcov
+        m@details$hessian <- m@details$hessian/chisq
+    }
+    
+    return(m)
 }
 
 ## Introducing sensitivity equations
