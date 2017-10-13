@@ -143,12 +143,10 @@ startfun <- function(data,
         i0 <- iniI/beta/N
     }
     
-    x <- c(
-        log.beta = log(beta),
-        log.gamma = log(gamma),
-        log.N = log(N),
-        logit.i = qlogis(i0)
+    c(
+        beta=beta,
+        gamma=gamma,
+        N=N,
+        i0=i0
     )
-    
-    x
 }
