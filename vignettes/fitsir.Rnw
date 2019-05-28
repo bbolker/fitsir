@@ -68,9 +68,10 @@ dietz_lpars <- with(as.list(dietz_harbin),
         log.N=log(x0),
         logit.i0=qlogis(1e-3)))
 
-(ff <- fitsir(harbin, start=c(trans.pars(dietz_lpars), sigma=100),
+(ff <- fitsir(harbin, start=c(trans.pars(dietz_lpars)),
               type="death", 
-              tcol="week", icol="Deaths"))
+              tcol="week", icol="Deaths",
+              optimizer="nlminb"))
 @
 
 We can plot \code{fitsir} objects using the \code{plot} function to judge goodness of fit (\code{plot(ff)}). Here, we plot the SIR fit along with the Dietz fit:
@@ -120,9 +121,10 @@ harbin2 <- setNames(harbin, c("times", "count"))
 Then, we can fit:
 
 <<harbin_dispersion>>=
-ff2 <- fitsir(harbin2, dist="quasipoisson", type="death", start=dietz_lpars)
-ff3 <- fitsir(harbin2, dist="nbinom", type="death", start=c(dietz_lpars, ll.k=5))
-ff4 <- fitsir(harbin2, dist="nbinom1", type="death", start=c(dietz_lpars, ll.phi=5))
+tdietz <- trans.pars(dietz_lpars)
+ff2 <- fitsir(harbin2, family="quasipoisson", type="death", start=tdietz, optimizer="nlminb")
+ff3 <- fitsir(harbin2, family="nbinom", type="death", start=c(tdietz, k=5), optimizer="nlminb")
+ff4 <- fitsir(harbin2, family="nbinom1", type="death", start=c(tdietz, phi=5), optimizer="nlminb")
 @
 
 \noindent
@@ -160,14 +162,14 @@ level <- seq(0, 300, by = 25)
 
 mvfun <- . %>%
     mvrel(harbin2) %>%
-    mutate(group=cut(mean, breaks=level)) %>%
-    group_by(group) %>%
-    summarise(mean2 = mean(mean), var2=mean(var), n=length(var))
+    dplyr::mutate(group=cut(mean, breaks=level)) %>%
+    dplyr::group_by(group) %>%
+    dplyr::summarise(mean2 = mean(mean), var2=mean(var), n=length(var))
 
 mvtot <- hfits %>%
     lapply(mvfun) %>%
-    bind_rows(.id="dist") %>%
-    filter(dist != "QP")
+    dplyr::bind_rows(.id="dist") %>%
+    dplyr::filter(dist != "QP")
 
 ## `dispersion` returns raw dispersion parameters that have not been transformed
 nb1k <- dispersion(ff4, "nbinom1")
@@ -222,7 +224,7 @@ For the Harbin data, we used Dietz parameter as a starting parameter but we can'
 
 <<phila_fit>>==
 (pfit <- fitsir(phila1918a, 
-    start=c(log.beta=log(0.12), log.gamma=log(0.09), log.N=log(10000), logit.i=qlogis(0.01)),  
+    start=c(beta=0.12, gamma=0.09, N=10000, i0=0.01),  
     type="death",
     method="Nelder-Mead",
     optimizer="optim")
@@ -239,7 +241,7 @@ We get a decent fit. However, this is actually not the maximum likelihood estima
 <<phila_start>>==
 (pstart <- startfun(phila1918a, type="death"))
 plot(phila1918a, log="y")
-lines(SIR.detsim(phila1918a$times, trans.pars(pstart), type="death"))
+lines(SIR.detsim(phila1918a$times, pstart, type="death"))
 @
 
 Using this starting value, we can get a better fit:

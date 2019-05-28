@@ -258,12 +258,12 @@ setMethod("dispersion", "fitsir",
         n <- length(count)
         var <- (mean - count)^2
         if(dist != "quasipoisson")
-            log.dsp <- unname(mledsp(count,mean,dist))
+            dsp <- unname(mledsp(count,mean,dist))
           
         switch(dist,
             quasipoisson=sum(var/mean)/(n-1),
-            nbinom=exp(log.dsp),
-            nbinom1=exp(log.dsp)
+            nbinom=dsp,
+            nbinom1=dsp
         )
     }
 )

@@ -89,9 +89,9 @@ summarize.pars.jacobian <- function(params) {
             R0.deriv=c(exp(log.beta-log.gamma), -exp(log.beta-log.gamma), 0, 0),
             r.deriv=c(exp(log.beta), -exp(log.gamma), 0, 0),
             infeper.deriv=c(0, -exp(-log.gamma), 0, 0),
-            i0.deriv=c(0, 0, 0, plogis(logit.i)^2*exp(-logit.i)),
-            I0.deriv=c(0, 0, plogis(logit.i)*exp(log.N), plogis(logit.i)^2*exp(-logit.i)*exp(log.N)),
-            S0.deriv=c(0, 0, (1-plogis(logit.i))*exp(log.N), -plogis(logit.i)^2*exp(-logit.i)*exp(log.N)),
+            i0.deriv=c(0, 0, 0, plogis(logit.i0)^2*exp(-logit.i0)),
+            I0.deriv=c(0, 0, plogis(logit.i0)*exp(log.N), plogis(logit.i0)^2*exp(-logit.i0)*exp(log.N)),
+            S0.deriv=c(0, 0, (1-plogis(logit.i0))*exp(log.N), -plogis(logit.i0)^2*exp(-logit.i0)*exp(log.N)),
             N.deriv=c(0, 0, exp(log.N), 0)
         )
         unname(do.call(rbind, m))
@@ -384,8 +384,8 @@ mledsp <- function(x,mean,dist=c("nbinom", "nbinom1")){
     model <- select_model(dist)
     
     start <- switch(dist,
-        "nbinom"=log(1e2),
-        "nbinom1"=log(2)
+        "nbinom"=1e2,
+        "nbinom1"=2
     )
     
     fn <- function(x, mean, par) -sum(Eval(model,x,mean, par))
