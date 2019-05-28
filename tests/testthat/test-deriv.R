@@ -2,7 +2,7 @@ stopifnot(require("testthat"), require("fitsir"))
 
 context("derivative test")
 test_that("sensitivity", {
-    ss <- trans.pars(startfun(harbin, tcol="week", icol="Deaths"))
+    ss <- startfun(harbin, tcol="week", icol="Deaths")
     
     for (type in c("prevalence", "incidence", "death")) {
         expect_equal(

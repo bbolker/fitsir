@@ -6,7 +6,7 @@ initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nb
     if (dist=="quasipoisson") dist <- "poisson"
     
     model <- select_model(dist)
-    parnames <- c(.fitsir.pars, model@par)
+    parnames <- c(.upars, model@par)
     
     mu_transforms <- list(mean~.sensfun2(beta, gamma, N, i0, mean))
     mu_transforms <- gsub("mean", model@mean, as.character(mu_transforms[[1]]))
@@ -23,7 +23,7 @@ initialize_hessian <- function(dist=c("gaussian", "poisson", "quasipoisson", "nb
         transforms=list(beta~exp(log.beta),
                         gamma~exp(log.gamma),
                         N~exp(log.N),
-                        i0~1/(1+exp(-logit.i))),
+                        i0~1/(1+exp(-logit.i0))),
         par=parnames,
         keep_hessian=TRUE
     )

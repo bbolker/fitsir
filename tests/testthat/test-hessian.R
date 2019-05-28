@@ -11,13 +11,13 @@ test_that("bombay fits", {
         for (dist in c("gaussian", "poisson", "nbinom", "nbinom1")) {
             print(dist)
             if (dist=="nbinom") {
-                ss2 <- c(ss, ll.k=3)
+                ss2 <- c(ss, k=3)
             } else if (dist == "nbinom1") {
-                ss2 <- c(ss, ll.phi=3)
+                ss2 <- c(ss, phi=3)
             } else {
                 ss2 <- ss
             }
-            suppressWarnings(ff <- fitsir(harbin2, start=ss2, method="BFGS", dist=dist, type=type))
+            suppressWarnings(ff <- fitsir(harbin2, start=ss2, method="BFGS", family=dist, type=type))
             hess <- SIR.hessian(harbin2, coef(ff), dist=dist, type=type)
             all.equal(
                 hess,

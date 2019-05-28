@@ -5,21 +5,21 @@ loglik_nbinom <- select_model("nbinom")
 loglik_nbinom1 <- select_model("nbinom1")
 
 my_dnbinom <- function(X,mu,k) {
-    Eval(loglik_nbinom, mean=mu, count=X, par=list(ll.k=log(k)))
+    Eval(loglik_nbinom, mean=mu, count=X, par=list(k=k))
 }
 
 my_dnbinom1 <- function(X,mu,phi) {
-    Eval(loglik_nbinom1, mean=mu, count=X, par=list(ll.phi=log(phi)))
+    Eval(loglik_nbinom1, mean=mu, count=X, par=list(phi=phi))
 }
 
 dnbinom1 <- function(X,mu,phi,log) dnbinom(x=X, mu=mu, size=mu/phi, log=log)
 
 grad_dnbinom <- function(X,mu,k) {
-    fitsir::grad(loglik_nbinom, mean=mu, count=X, par=list(ll.k=log(k)))
+    fitsir::grad(loglik_nbinom, mean=mu, count=X, par=list(k=k))
 }
 
 grad_dnbinom1 <- function(X,mu,phi) {
-    fitsir::grad(loglik_nbinom1, mean=mu, count=X, par=list(ll.phi=log(phi)))
+    fitsir::grad(loglik_nbinom1, mean=mu, count=X, par=list(phi=phi))
 }
 
 test_that("NBconst works", {
@@ -34,13 +34,13 @@ test_that("NBconst works for 0", {
 
 test_that("NBconst derivative works", {
     expect_equal(
-        grad_dnbinom(1, 1, 2)$ll.k,
-        numDeriv::grad(function(x) dnbinom(1, mu=1, size=exp(x), log=TRUE), log(2))
+        grad_dnbinom(1, 1, 2)$k,
+        numDeriv::grad(function(x) dnbinom(1, mu=1, size=x, log=TRUE), 2)
     )
     
     expect_equal(
-        grad_dnbinom1(1, 1, 2)$ll.phi,
-        numDeriv::grad(function(x) dnbinom1(1, mu=1, phi=exp(x), log=TRUE), log(2))
+        grad_dnbinom1(1, 1, 2)$phi,
+        numDeriv::grad(function(x) dnbinom1(1, mu=1, phi=x, log=TRUE), 2)
     )
 })
 
@@ -49,10 +49,10 @@ test_that("fits containing 0", {
     harbin2$count[2] <- 0
     ss <- startfun(harbin2, type="death")
     
-    ff <- fitsir(harbin2, c(ss, ll.k=2), dist="nbinom")
+    ff <- fitsir(harbin2, c(ss, k=2), family="nbinom")
     oldval <- structure(c(0.4548345079452, -0.388927930093911, 7.07817670051662, 
                           -7.69379344163717, 3.65629428597238), 
-                        .Names = c("log.beta", "log.gamma", "log.N", "logit.i", "ll.k"))
+                        .Names = c("log.beta", "log.gamma", "log.N", "logit.i0", "log.k"))
     
     expect_equal(
         coef(ff),

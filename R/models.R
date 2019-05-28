@@ -310,7 +310,7 @@ NBconst <- function(k,x) {
 ##' Select likelihood model
 ##' @param dist conditional distribution of reported data
 ##' @export
-select_model <- function(dist = c("gaussian", "gaussian2", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
+select_model <- function(dist = c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1")) {
     dist <- match.arg(dist)
     name <- dist
     if (dist == "quasipoisson") dist <- "poisson"
@@ -320,17 +320,15 @@ select_model <- function(dist = c("gaussian", "gaussian2", "poisson", "quasipois
                     ## FIXME: this would be neater with a function
                     ## (rss <- ...; return(-(X-mu)^2/rss + ...))
                     ## can this be accommodated?
-        gaussian2={
-            new("loglik.fitsir", "gaussian2",
-                LL ~ (-(X-mu)^2/(2*(sum((X-mu)^2)/(length(X)-1)))
-                    - 1/2*log((sum((X-mu)^2)/(length(X)-1))) - 1/2*log(2*pi)
-                ),
-                mean = "mu", par=c())
-        },
         gaussian={
             loglik_gaussian <- new("loglik.fitsir", "gaussian",
                                    LL ~ -(X-mu)^2/(2*sigma^2) - log(sigma) - 1/2*log(2*pi),
                                    mean="mu", par="sigma")
+            
+            loglik_gaussian <- Transform(loglik_gaussian,
+                                         transforms = list(sigma ~ sqrt(sum((X-mu)^2)/(length(X)-1))),
+                                         par=NULL
+            )
             loglik_gaussian
         }, poisson={
             loglik_poisson <- new("loglik.fitsir", "poisson",

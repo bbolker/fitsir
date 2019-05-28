@@ -24,14 +24,12 @@ trans.pars.loglik <- function(params, model, scale=c("constrained", "unconstrain
     tpars <- switch(scale,
         constrained=with(as.list(params), {
             switch(model@name,
-                   gaussian=c(sigma=exp(log.sigma)),
                    nbinom=c(k=exp(log.k)),
                    nbinom1=c(phi=exp(log.phi))
             )
         }),
         unconstrained=with(as.list(params), {
             switch(model@name,
-                   gaussian=c(log.sigma=log(sigma)),
                    nbinom=c(log.k=log(k)),
                    nbinom1=c(log.phi=log(phi))
             )
@@ -52,7 +50,6 @@ trans.pars.loglik <- function(params, model, scale=c("constrained", "unconstrain
     
     mu.eta.loglik <- with(as.list(params), {
         switch(model@name,
-               gaussian=c(log.sigma=exp(log.sigma)),
                nbinom=c(log.k=exp(log.k)),
                nbinom1=c(log.phi=exp(log.phi))
         )
@@ -147,7 +144,8 @@ SIR.detsim <- function(t, params,
             parms=params[1:3],
             dllname = "fitsir",
             initfunc = "initmod",
-            method = "rk4"
+            method = "rk4",
+            hini = 0.01
         ))
         
         icol <- c("logI", "nu_I_b", "nu_I_g", "nu_I_N", "nu_I_i")
@@ -244,15 +242,9 @@ SIR.logLik  <- function(params, count, times=NULL,
 ##' cc <- harbin2$count
 ##' 
 ##' cor(ss, cc)^2
-##'
-##' f1_g2 <- fitsir(harbin2, 
-##'              start=c(beta=2, gamma=1, N=2e3, i0=0.0001),
-##'               family="gaussian2",
-##'               type="death")
-##' plot(f1)
 fitsir <- function(data, start,
-                   dist=c("gaussian2",
-                          "gaussian", "poisson", "quasipoisson",
+                   family=c("gaussian",
+                          "poisson", "quasipoisson",
                           "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
                    method="BFGS",
@@ -260,15 +252,11 @@ fitsir <- function(data, start,
                    tcol = "times", icol = "count",
                    debug=FALSE,
                    ...) {
-    dist <- match.arg(dist)
+    dist <- match.arg(family)
     type <- match.arg(type)
     data <- data.frame(times = data[[tcol]], count = data[[icol]])
     
     model <- select_model(dist)
-    
-    if(method=="mle") {
-        
-    }
     
     parnames <- c(.cpars, model@par)
     
