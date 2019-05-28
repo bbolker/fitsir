@@ -5,9 +5,9 @@
 \alias{summarize.pars.jacobian}
 \title{Summarize parameters}
 \usage{
-\method{summarize}{pars}(params)
+summarize.pars(params)
 
-\method{summarize}{pars.jacobian}(params)
+summarize.pars.jacobian(params)
 }
 \arguments{
 \item{params}{parameter vector (log.beta, log.gamma, logit.i)}

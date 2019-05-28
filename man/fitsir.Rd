@@ -4,10 +4,10 @@
 \alias{fitsir}
 \title{fitting function}
 \usage{
-fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson",
-  "nbinom", "nbinom1", "gaussian2"), type = c("prevalence", "incidence",
-  "death"), method = "BFGS", control = list(maxit = 1e+05),
-  tcol = "times", icol = "count", debug = FALSE, ...)
+fitsir(data, start, dist = c("gaussian2", "gaussian", "poisson",
+  "quasipoisson", "nbinom", "nbinom1"), type = c("prevalence",
+  "incidence", "death"), method = "BFGS", control = list(maxit =
+  1e+05), tcol = "times", icol = "count", debug = FALSE, ...)
 }
 \arguments{
 \item{data}{data frame}
@@ -47,6 +47,12 @@ ss <- SIR.detsim(harbin2$times,trans.pars(coef(f1)), type="death")
 cc <- harbin2$count
 
 cor(ss, cc)^2
+
+f1_g2 <- fitsir(harbin2, 
+             start=c(beta=2, gamma=1, N=2e3, i0=0.0001),
+              family="gaussian2",
+              type="death")
+plot(f1)
 }
 \seealso{
 startfun mle2
