@@ -25,4 +25,3 @@ ss <- startfun(harbin2, type="death")
 ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 residuals(ff)
 }
-

@@ -71,7 +71,7 @@ trans.pars.loglik <- function(params, model, scale=c("constrained", "unconstrain
 ##' Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0)) from a set of epidemic parameters
 ##' 
 ##' @param params parameter vector (log.beta, log.gamma, logit.i)
-##' @export
+##' @export summarize.pars
 ##  can't call this either sum.pars or summary.pars, roxygen2 gets
 ##  confused ...
 summarize.pars <- function(params) {
@@ -79,9 +79,9 @@ summarize.pars <- function(params) {
          c(R0=exp(log.beta-log.gamma),
            r=exp(log.beta)-exp(log.gamma),
            infper=exp(-log.gamma),
-           i0=plogis(logit.i),
-           I0=plogis(logit.i)*exp(log.N),
-           S0=(1-plogis(logit.i))*exp(log.N),
+           i0=plogis(logit.i0),
+           I0=plogis(logit.i0)*exp(log.N),
+           S0=(1-plogis(logit.i0))*exp(log.N),
            N=exp(log.N)))
 }
 
@@ -244,8 +244,16 @@ SIR.logLik  <- function(params, count, times=NULL,
 ##' cc <- harbin2$count
 ##' 
 ##' cor(ss, cc)^2
+##'
+##' f1_g2 <- fitsir(harbin2, 
+##'              start=c(beta=2, gamma=1, N=2e3, i0=0.0001),
+##'               family="gaussian2",
+##'               type="death")
+##' plot(f1)
 fitsir <- function(data, start,
-                   dist=c("gaussian", "poisson", "quasipoisson", "nbinom", "nbinom1"),
+                   dist=c("gaussian2",
+                          "gaussian", "poisson", "quasipoisson",
+                          "nbinom", "nbinom1"),
                    type = c("prevalence", "incidence", "death"),
                    method="BFGS",
                    control=list(maxit=1e5),

@@ -4,8 +4,8 @@
 \alias{startfun}
 \title{Starting function}
 \usage{
-startfun(data, type = c("prevalence", "incidence", "death"), tcol = "times",
-  icol = "count", itmax = 100, relpeakcrit = 0.1)
+startfun(data, type = c("prevalence", "incidence", "death"),
+  tcol = "times", icol = "count", itmax = 100, relpeakcrit = 0.1)
 }
 \arguments{
 \item{data}{data frame with columns \code{times} and \code{count}}
@@ -23,4 +23,3 @@ startfun(data, type = c("prevalence", "incidence", "death"), tcol = "times",
 \description{
 Starting function
 }
-

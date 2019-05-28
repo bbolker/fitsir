@@ -44,7 +44,7 @@ startfun <- function(data,
     
     times <- data[[tcol]]
     count <- data[[icol]]
-    ## for smooth.spline(log(count)) ...
+    ## for smooth.spline(log(count)) ... eliminate zeros
     if (any(count<=0)) {
         count <- pmax(count,min(count[count>0])/2)
     }
@@ -67,7 +67,7 @@ startfun <- function(data,
     ss.tmax <- ss.data$times[which.max(ss.data$count)]
     ss.t1 <- min(times)+0.25*(ss.tmax-min(times))
     ss.t2 <- min(times)+0.75*(ss.tmax-min(times))
-    
+
     m <- lm(log(count)~times,data=subset(ss.data,times<=ss.t2 & times>=ss.t1))
     r <- unname(coef(m)[2]) ##beta - gamma
     
@@ -121,7 +121,9 @@ startfun <- function(data,
         times.predict2 <- seq(ceiling(ss.t3), 3*ss.tmax, by = t.diff[length(t.diff)])
         count.predict1 <- exp(predict(m, data.frame(times = times.predict1)))
         count.predict2 <- exp(predict(m2, data.frame(times = times.predict2)))
-        finalsize <- sum(count.predict1) + sum(count.orig[times > ss.t2 & times <= ss.t3]) + sum(count.predict2)
+        finalsize <- sum(count.predict1) +
+            sum(count.orig[times > ss.t2 & times <= ss.t3]) +
+            sum(count.predict2)
         
         sizefun <- function(beta) {
             R0 <- beta/(beta-r)

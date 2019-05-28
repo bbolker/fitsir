@@ -10,7 +10,7 @@
 ##' @name bombay
 ##' @usage data(bombay)
 ##' @format A data frame with two elements
-##' @references Bacaër, Nicolas. 2012. “The Model of Kermack and McKendrick for the Plague Epidemic in Bombay and the Type Reproduction Number with Seasonality.” Journal of Mathematical Biology 64 (3): 403–22. doi:10.1007/s00285-011-0417-5.
+##' @references Bacaër, Nicolas. 2012. "The Model of Kermack and McKendrick for the Plague Epidemic in Bombay and the Type Reproduction Number with Seasonality." Journal of Mathematical Biology 64 (3): 403–22. doi:10.1007/s00285-011-0417-5.
 NULL
 
 ##' 1918 Philadelphia flu data set

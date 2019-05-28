@@ -5,9 +5,9 @@
 \alias{summarize.pars.jacobian}
 \title{Summarize parameters}
 \usage{
-summarize.pars(params)
+\method{summarize}{pars}(params)
 
-summarize.pars.jacobian(params)
+\method{summarize}{pars.jacobian}(params)
 }
 \arguments{
 \item{params}{parameter vector (log.beta, log.gamma, logit.i)}
@@ -15,4 +15,3 @@ summarize.pars.jacobian(params)
 \description{
 Generate meaningful epidemiological summary statistics (R0, r, infectious period, I(0)) from a set of epidemic parameters
 }
-

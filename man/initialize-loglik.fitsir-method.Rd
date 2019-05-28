@@ -5,8 +5,8 @@
 \alias{initialize,loglik.fitsir-method}
 \title{the initializer for loglik.fitsir}
 \usage{
-\S4method{initialize}{loglik.fitsir}(.Object, name, model, count = "X", mean,
-  par = NULL, keep_grad = TRUE, keep_hessian = FALSE)
+\S4method{initialize}{loglik.fitsir}(.Object, name, model, count = "X",
+  mean, par = NULL, keep_grad = TRUE, keep_hessian = FALSE)
 }
 \arguments{
 \item{.Object}{object}
@@ -28,4 +28,3 @@
 \description{
 the initializer for loglik.fitsir
 }
-

@@ -4,7 +4,8 @@
 \alias{SIR.detsim.hessian}
 \title{integrate second order sensitivities}
 \usage{
-SIR.detsim.hessian(t, params, type = c("prevalence", "incidence", "death"))
+SIR.detsim.hessian(t, params, type = c("prevalence", "incidence",
+  "death"))
 }
 \arguments{
 \item{t}{time vector}
@@ -16,4 +17,3 @@ SIR.detsim.hessian(t, params, type = c("prevalence", "incidence", "death"))
 \description{
 integrate second order sensitivities
 }
-

@@ -14,4 +14,3 @@ dispersion(object, ...)
 \description{
 S4 method for finding a dispersion parameter
 }
-

@@ -24,7 +24,7 @@ Summary of estimated coefficients and standard errors.}
 \item{\code{m2logL}}{Object of class "\code{numeric}".
 Minus twice the log likelihood.}
 }}
+
 \seealso{
 \code{\link{summary.mle2-class}}
 }
-

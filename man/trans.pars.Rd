@@ -2,10 +2,9 @@
 % Please edit documentation in R/fitsir.R
 \name{trans.pars}
 \alias{trans.pars}
-\title{transform parameters log->exp or alr->raw
-*assume* R=0/S=N at start of epidemic}
+\title{transform parameters}
 \usage{
-trans.pars(params)
+trans.pars(params, scale = c("constrained", "unconstrained"))
 }
 \arguments{
 \item{params}{parameter vector containing \code{log.beta}, \code{log.gamma}, \code{log.N}, \code{logit.i}}
@@ -14,7 +13,5 @@ trans.pars(params)
 params transformed parameter vector containing \code{beta}, \code{gamma}, \code{N}, \code{i0}
 }
 \description{
-transform parameters log->exp or alr->raw
-*assume* R=0/S=N at start of epidemic
+transform parameters
 }
-

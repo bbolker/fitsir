@@ -13,4 +13,3 @@ data(phila1918)
 1918 Philadelphia flu data set
 }
 \keyword{datasets}
-

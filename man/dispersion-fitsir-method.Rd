@@ -21,4 +21,3 @@ Find dispersion parameter
 \code{nbinom} assumes quadratic mean-variance relation (var=mu+mu^2/k) and estimates k based on maximum likelihood.
 \code{nbinom1} assumes linear mean-variance relation (var=(1+phi)mu) and estimates phi based on maximum likelihood.
 }
-

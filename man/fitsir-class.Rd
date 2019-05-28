@@ -12,4 +12,3 @@ Result of SIR model fitting based on Maximum Likelihood Estimation
 \seealso{
 \code{\link{mle2-class}}
 }
-

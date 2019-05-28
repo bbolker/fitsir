@@ -21,10 +21,9 @@ Extract parameter of a fit
 }
 \examples{
 harbin2 <- setNames(harbin, c("times", "count"))
-ss <- startfun(harbin2, type="death")
+ss <- c(startfun(harbin2, type="death"),sigma=100)
 ff <- fitsir(harbin2, start=ss, type="death", method="BFGS")
 coef(ff)
 coef(ff,"trans")
 coef(ff,"summary")
 }
-

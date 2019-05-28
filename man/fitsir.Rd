@@ -4,9 +4,9 @@
 \alias{fitsir}
 \title{fitting function}
 \usage{
-fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
-  "nbinom1"), type = c("prevalence", "incidence", "death"),
-  method = "nlminb", optimizer = "nlminb", control = list(maxit = 1e+05),
+fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson",
+  "nbinom", "nbinom1", "gaussian2"), type = c("prevalence", "incidence",
+  "death"), method = "BFGS", control = list(maxit = 1e+05),
   tcol = "times", icol = "count", debug = FALSE, ...)
 }
 \arguments{
@@ -20,8 +20,6 @@ fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 
 \item{method}{optimization method (see \link{mle2})}
 
-\item{optimizer}{optimizer to be used (see \link{mle2})}
-
 \item{control}{control parameters for optimization}
 
 \item{tcol}{column name for time variable}
@@ -31,6 +29,8 @@ fitsir(data, start, dist = c("gaussian", "poisson", "quasipoisson", "nbinom",
 \item{debug}{print debugging output?}
 
 \item{...}{Further arguments to pass to optimizer}
+
+\item{optimizer}{optimizer to be used (see \link{mle2})}
 }
 \description{
 fitting function
@@ -38,7 +38,7 @@ fitting function
 \examples{
 harbin2 <- setNames(harbin,c("times","count"))
 (f1 <- fitsir(harbin2, 
-              start=c(log.beta=log(2), log.gamma=log(1), log.N=log(1000), logit.i=qlogis(0.001)),
+              start=c(beta=2, gamma=1, N=2e3, i0=0.0001, sigma=10),
               type="death"))
 plot(f1)
 
@@ -51,4 +51,3 @@ cor(ss, cc)^2
 \seealso{
 startfun mle2
 }
-

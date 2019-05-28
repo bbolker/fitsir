@@ -24,4 +24,3 @@ SIR.hessian(data, params, dist = c("gaussian", "poisson", "quasipoisson",
 \description{
 find Hessian
 }
-

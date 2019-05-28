@@ -23,4 +23,3 @@ SIR.logLik(params, count, times = NULL, model, type = c("prevalence",
 \description{
 Log-likelihood for SIR trajectory
 }
-

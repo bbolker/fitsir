@@ -13,4 +13,3 @@
 \description{
 Show summary of a fit
 }
-

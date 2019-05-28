@@ -66,8 +66,10 @@ dietz_lpars <- with(as.list(dietz_harbin),
       c(log.beta=log(rzero*gamma),
         log.gamma=log(gamma),
         log.N=log(x0),
-        logit.i=qlogis(1e-3)))
-(ff <- fitsir(harbin, start=dietz_lpars, type="death", 
+        logit.i0=qlogis(1e-3)))
+
+(ff <- fitsir(harbin, start=c(trans.pars(dietz_lpars), sigma=100),
+              type="death", 
               tcol="week", icol="Deaths"))
 @
 

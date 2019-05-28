@@ -6,3 +6,8 @@ figure/
 .travis.yml
 .*\.aux
 .*\.log
+.*\.bbl
+.*\.blg
+.*\.out
+misc
+TODO.md
